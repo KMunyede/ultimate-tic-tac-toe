@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:tictactoe/game_screen.dart';
+// import 'package:tictactoe/game_screen.dart'; // V4: Removed to resolve import conflict
 import 'package:tictactoe/settings_controller.dart';
 import 'firebase_service.dart';
 import 'models/game_model.dart';
 import 'online_game_controller.dart';
 import 'sound_manager.dart';
+import 'game_screen.dart'; // Re-adding for GameBoard
 
 
 /// The screen that hosts an online Tic-Tac-Toe game.

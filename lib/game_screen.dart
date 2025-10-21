@@ -11,7 +11,7 @@ import 'settings_menu.dart';
 import 'settings_controller.dart';
 import 'sound_manager.dart';
 
-// The Player enum has been moved to lib/models/player.dart
+// V3: Removed duplicate GameStatus enum.
 
 class GameController with ChangeNotifier {
   final SoundManager _soundManager;
