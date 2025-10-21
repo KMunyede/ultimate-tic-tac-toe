@@ -11,7 +11,7 @@ import 'settings_menu.dart';
 import 'settings_controller.dart';
 import 'sound_manager.dart';
 
-// V3: Removed duplicate GameStatus enum.
+// V4: Explicitly removed duplicate enum definition.
 
 class GameController with ChangeNotifier {
   final SoundManager _soundManager;
