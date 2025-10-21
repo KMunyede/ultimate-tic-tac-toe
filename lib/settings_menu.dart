@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'auth_controller.dart';
 import 'settings_controller.dart';
+import 'firebase_service.dart';
 
 class SettingsMenu extends StatelessWidget {
   final bool isOpen;
@@ -16,6 +18,8 @@ class SettingsMenu extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final settings = context.watch<SettingsController>();
+    final firebaseService = context.read<FirebaseService>();
+    final User? user = firebaseService.currentUser;
     final theme = Theme.of(context);
 
     return AnimatedPositioned(
@@ -145,6 +149,20 @@ class SettingsMenu extends StatelessWidget {
                   ),
                 ),
                 const Spacer(), // Pushes the sign out button to the bottom
+                if (user != null)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8.0),
+                    child: Text(
+                      user.isAnonymous
+                          ? 'Signed in as Guest'
+                          : user.email ?? 'Signed In',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.textTheme.bodySmall?.color?.withOpacity(0.7),
+                      ),
+                      textAlign: TextAlign.center,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
                 Center(
                   child: ElevatedButton.icon(
                     icon: const Icon(Icons.logout),
