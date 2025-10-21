@@ -1,56 +1,74 @@
 import 'package:audioplayers/audioplayers.dart';
 import 'settings_controller.dart';
 
+/// A service for managing and playing sound effects.
+///
+/// This class encapsulates the `audioplayers` logic and provides simple, clean
+/// methods to play predefined game sounds. It correctly respects the user's
+/// sound settings from `SettingsController`.
+///
+/// ARCHITECTURAL DECISION:
+/// We use a single, long-lived `AudioPlayer` instance. For simple sound effects
+/// that don't need to overlap, this is efficient and avoids the overhead of
+/// creating new player instances. The `audioplayers` package automatically
+/// handles caching of assets after their first playback, which gives us
+/// low-latency performance on subsequent plays without needing the legacy `AudioCache` API.
 class SoundManager {
   final SettingsController _settingsController;
-  final AudioPlayer _player = AudioPlayer();
 
-  // Asset paths for the sounds
-  static const String _moveSound = 'sounds/move.mp3';
-  static const String _winSound = 'sounds/win.mp3';
-  static const String _drawSound = 'sounds/draw.mp3';
+  // A single player instance is memory-efficient for sequential sound effects.
+  final AudioPlayer _audioPlayer = AudioPlayer();
+
+  // Define asset paths as constants for easy management and to avoid typos.
+  // Using .mp3 as per your confirmation.
+  static const String _moveSoundPath = 'sounds/move.mp3';
+  static const String _winSoundPath = 'sounds/win.mp3';
+  static const String _drawSoundPath = 'sounds/draw.mp3';
 
   SoundManager(this._settingsController);
 
+  /// Initializes the sound manager.
   Future<void> init() async {
-    // With audioplayers, you can set a global volume or handle it per play.
-    // Here, we check the setting before playing any sound.
-    // Pre-caching sounds for lower latency.
-    // Create an AudioCache instance that uses our player instance.
-    final cache = AudioCache(prefix: 'assets/');
-    cache.fixedPlayer = _player;
-    await cache.loadAll([_moveSound, _winSound, _drawSound]);
+    // No explicit pre-loading is needed with this modern setup.
   }
 
+  /// A private helper to play a sound from assets, respecting sound settings.
   Future<void> _playSound(String soundPath) async {
     if (_settingsController.isSoundOn) {
-      await _player.play(AssetSource(soundPath));
+      try {
+        await _audioPlayer.play(AssetSource(soundPath));
+      } catch (e) {
+        // Production-ready code should handle errors, e.g., if a file is missing.
+        print("Error playing sound: $e");
+      }
     }
   }
 
+  /// Plays the standard move sound.
   void playMoveSound() {
-    _playSound(_moveSound);
+    _playSound(_moveSoundPath);
   }
 
+  /// Plays the win sound and waits for it to complete.
   Future<void> playWinSound() async {
     if (_settingsController.isSoundOn) {
-      // The play method completes when the sound starts. We need to wait for it to finish.
-      // We can listen to the onPlayerComplete stream for this.
-      await _player.play(AssetSource(_winSound));
-      await _player.onPlayerComplete.first; // Wait for the sound to finish
+      try {
+        await _audioPlayer.play(AssetSource(_winSoundPath));
+        // This robustly waits for the current playback to complete.
+        await _audioPlayer.onPlayerComplete.first;
+      } catch (e) {
+        print("Error playing win sound: $e");
+      }
     }
   }
 
+  /// Plays the draw sound.
   void playDrawSound() {
-    _playSound(_drawSound);
+    _playSound(_drawSoundPath);
   }
 
+  /// Releases the audio player resources.
   void dispose() {
-    // Release the audio player resources.
-    _player.dispose();
+    _audioPlayer.dispose();
   }
-}
-
-extension on AudioCache {
-  set fixedPlayer(AudioPlayer fixedPlayer) {}
 }
