@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'models/game_model.dart'; // Import the new game model
 
 /// A service class for all Firebase interactions.
 /// This follows the Repository Pattern, abstracting data sources from the UI.
@@ -16,7 +17,6 @@ class FirebaseService {
       final userCredential = await _auth.signInAnonymously();
       return userCredential.user;
     } on FirebaseAuthException catch (e) {
-      // Handle specific Firebase auth errors or rethrow a generic one
       print("Anonymous sign-in error: ${e.message}");
       throw Exception('Could not sign in anonymously. Please try again.');
     }
@@ -45,7 +45,6 @@ class FirebaseService {
   }
 
   /// Creates a new game document in Firestore.
-  /// Returns the gameId of the newly created game.
   Future<String> createGame() async {
     final user = currentUser;
     if (user == null) {
@@ -54,9 +53,9 @@ class FirebaseService {
 
     try {
       final gameDoc = await _firestore.collection('games').add({
-        'board': List.filled(9, ''), // Use empty string for none
+        'board': List.filled(9, ''), // '' for none, 'X', or 'O'
         'players': {'playerX_uid': user.uid},
-        'player_names': {user.uid: user.displayName ?? 'Player X'},
+        'player_names': {user.uid: user.displayName ?? 'Player X'}, // Use displayName if available
         'currentPlayerUid': user.uid,
         'status': 'waiting', // 'waiting', 'in_progress', 'finished'
         'winnerUid': null,
@@ -66,16 +65,12 @@ class FirebaseService {
       });
       return gameDoc.id;
     } on FirebaseException catch (e) {
-      // Log the error for debugging
       print("Error creating game: ${e.message}");
-      // Re-throw a more user-friendly error
       throw Exception('Could not create the game. Please try again.');
     }
   }
 
   /// Joins an existing game.
-  /// This uses a transaction to prevent race conditions where two players
-  /// might join the same game simultaneously.
   Future<void> joinGame(String gameId) async {
     final user = currentUser;
     if (user == null) {
@@ -116,27 +111,27 @@ class FirebaseService {
       print("Error joining game: ${e.message}");
       throw Exception('Could not join the game. Please try again.');
     }
-    // The exceptions from inside the transaction will be re-thrown here.
   }
 
-  /// Listens to real-time updates for a specific game.
-  Stream<DocumentSnapshot<Map<String, dynamic>>> getGameStream(String gameId) {
-    return _firestore.collection('games').doc(gameId).snapshots();
+  /// Listens to real-time updates for a specific game, returning a stream of `Game` objects.
+  Stream<Game> getGameStream(String gameId) {
+    return _firestore
+        .collection('games')
+        .doc(gameId)
+        .snapshots()
+        .map((snapshot) => Game.fromSnapshot(snapshot));
   }
 
   /// Makes a move in the game.
-  /// The game logic (e.g., checking for a winner) should be handled by a Cloud Function
-  /// triggered by this update for a secure online game. For now, we update the client.
-  Future<void> makeMove(String gameId, int index, String playerSymbol, String nextPlayerUid) async {
+  Future<void> makeMove(String gameId, int index, Player playerSymbol, String nextPlayerUid) async {
     final user = currentUser;
     if (user == null) throw FirebaseAuthException(code: 'unauthenticated', message: 'User not logged in.');
 
-    // In a real-world app, you would not update the board directly.
-    // Instead, you'd write the move to a 'moves' subcollection and have a Cloud Function
-    // validate it and update the board state to prevent cheating.
-    // For this project, direct update is acceptable.
+    // Convert Player enum back to string for Firestore
+    String symbol = playerSymbol == Player.X ? 'X' : 'O';
+
     await _firestore.collection('games').doc(gameId).update({
-      'board.$index': playerSymbol,
+      'board.$index': symbol,
       'currentPlayerUid': nextPlayerUid,
       'updatedAt': FieldValue.serverTimestamp(),
     });
@@ -150,5 +145,15 @@ class FirebaseService {
       'isDraw': isDraw,
       'updatedAt': FieldValue.serverTimestamp(),
     });
+  }
+
+  /// A stream of available games that are waiting for a second player.
+  Stream<QuerySnapshot> getAvailableGames() {
+    return _firestore
+        .collection('games')
+        .where('status', isEqualTo: 'waiting')
+        .orderBy('createdAt', descending: true)
+        .limit(20) // To prevent excessive reads and costs
+        .snapshots();
   }
 }

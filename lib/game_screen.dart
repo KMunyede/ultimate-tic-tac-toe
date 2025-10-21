@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:provider/provider.dart';
+import 'package:tictactoe/lobby_screen.dart';
 import 'package:window_manager/window_manager.dart';
 import 'settings_menu.dart';
 import 'settings_controller.dart';
@@ -306,6 +307,14 @@ class _TicTacToeGameState extends State<TicTacToeGame> with WindowListener {
           elevation: 0,
           actions: [
             IconButton(
+              icon: const Icon(Icons.public), // Icon for online mode
+              onPressed: () {
+                Navigator.of(context).push(MaterialPageRoute(
+                  builder: (context) => const LobbyScreen(),
+                ));
+              },
+            ),
+            IconButton(
               icon: const Icon(Icons.settings),
               onPressed: () => setState(() => _isMenuOpen = !_isMenuOpen),
             )
@@ -469,6 +478,14 @@ class GameBoard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // This widget can now be used for both online and local games.
+    // We try to look up the OnlineGameController. If it's null, we know we are in a local game.
+    final onlineGameController = context.watch<OnlineGameController?>();
+    final localGameController = context.watch<GameController?>();
+
+    final List<Player> board = onlineGameController?.game?.board ?? localGameController!.board;
+    final Function(int) handleTap = onlineGameController?.makeMove ?? localGameController!.handleTap;
+    
     final gameController = context.watch<GameController>();
     final theme = Theme.of(context);
 
@@ -497,8 +514,8 @@ class GameBoard extends StatelessWidget {
             itemCount: 9,
             itemBuilder: (context, index) {
               return GameCell(
-                player: gameController.board[index],
-                onTap: () => gameController.handleTap(index),
+                player: board[index],
+                onTap: () => handleTap(index),
                 gradientStart: gradientStart,
                 gradientEnd: gradientEnd,
                 shadowColor: shadowColor,
@@ -780,7 +797,7 @@ class _WinningLinePainter extends CustomPainter {
     final glowPaint = Paint()
       ..color = color.withOpacity(0.5 + (pulseProgress * 0.5)) // Pulsing opacity
       ..strokeWidth = 12.0 + (pulseProgress * 8.0) // Pulsing width
-      ..strokeCap = StrokeCap.round
+      ..strokeCap = Cap.round
       ..maskFilter = MaskFilter.blur(BlurStyle.normal, pulseProgress * 5); // Pulsing blur
 
     // Draw the glow first, so it's behind the main line
