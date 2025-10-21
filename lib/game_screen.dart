@@ -11,7 +11,7 @@ import 'settings_menu.dart';
 import 'settings_controller.dart';
 import 'sound_manager.dart';
 
-// V4: Explicitly removed duplicate enum definition.
+// V5: Renamed GameStatus widget to GameStatusDisplay to resolve name collision.
 
 class GameController with ChangeNotifier {
   final SoundManager _soundManager;
@@ -341,7 +341,7 @@ class _TicTacToeGameState extends State<TicTacToeGame> with WindowListener {
                   children: <Widget>[
                     const ScoreDisplay(),
                     const SizedBox(height: 16),
-                    const GameStatus(),
+                    const GameStatusDisplay(), // UPDATED
                     const SizedBox(height: 24),
                     Expanded(
                       child: GameBoard(
@@ -392,8 +392,8 @@ class _TicTacToeGameState extends State<TicTacToeGame> with WindowListener {
 
 }
 
-class GameStatus extends StatelessWidget {
-  const GameStatus({super.key});
+class GameStatusDisplay extends StatelessWidget { // RENAMED
+  const GameStatusDisplay({super.key});
 
   String _getStatusMessage(GameController gameController) {
     if (gameController.winner != null) {
