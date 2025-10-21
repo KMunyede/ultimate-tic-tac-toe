@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-// import 'package:tictactoe/game_screen.dart'; // V4: Removed to resolve import conflict
 import 'package:tictactoe/settings_controller.dart';
 import 'firebase_service.dart';
-import 'models/game_model.dart';
+import 'models/game_model.dart' as game_model;
 import 'online_game_controller.dart';
 import 'sound_manager.dart';
-import 'game_screen.dart'; // Re-adding for GameBoard
+import 'game_screen.dart';
 
+// V9: Resolved name collision with a prefixed import.
 
 /// The screen that hosts an online Tic-Tac-Toe game.
 ///
@@ -79,14 +79,14 @@ class _OnlineGameView extends StatelessWidget {
     );
   }
 
-  String _getGameStatus(Game game, String currentUserId) {
+  String _getGameStatus(game_model.Game game, String currentUserId) {
     switch (game.status) {
-      case GameStatus.waiting:
+      case game_model.GameStatus.waiting:
         return 'Waiting for another player...';
-      case GameStatus.finished:
+      case game_model.GameStatus.finished:
         if (game.isDraw) return "It's a Draw!";
         return game.winnerUid == currentUserId ? 'You Won!' : 'You Lost!';
-      case GameStatus.in_progress:
+      case game_model.GameStatus.in_progress:
         return game.currentPlayerUid == currentUserId ? 'Your Turn' : "Opponent's Turn";
     }
   }
@@ -94,7 +94,7 @@ class _OnlineGameView extends StatelessWidget {
 
 /// A widget to display the names of the players in an online game.
 class OnlinePlayerInfo extends StatelessWidget {
-  final Game game;
+  final game_model.Game game;
   const OnlinePlayerInfo({super.key, required this.game});
 
   @override

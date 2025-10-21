@@ -11,7 +11,7 @@ import 'settings_menu.dart';
 import 'settings_controller.dart';
 import 'sound_manager.dart';
 
-// V6: Renamed widget to resolve name collision.
+// V7: Renamed widget to resolve name collision and force cache update.
 
 class GameController with ChangeNotifier {
   final SoundManager _soundManager;
