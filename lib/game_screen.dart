@@ -11,7 +11,7 @@ import 'settings_menu.dart';
 import 'settings_controller.dart';
 import 'sound_manager.dart';
 
-// V5: Renamed GameStatus widget to GameStatusDisplay to resolve name collision.
+// V6: Renamed widget to resolve name collision.
 
 class GameController with ChangeNotifier {
   final SoundManager _soundManager;
