@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'models/player.dart'; // For the Player enum
+import 'models/player.dart'; // This is the correct import for the Player enum.
 
 /// Enum to represent the available themes in the application.
 enum AppTheme {
