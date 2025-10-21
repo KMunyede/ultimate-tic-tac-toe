@@ -1,15 +1,17 @@
 import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tictactoe/lobby_screen.dart';
+import 'package:tictactoe/models/player.dart';
+import 'package:tictactoe/online_game_controller.dart';
 import 'package:window_manager/window_manager.dart';
 import 'settings_menu.dart';
 import 'settings_controller.dart';
 import 'sound_manager.dart';
 
-enum Player { none, X, O }
+// The Player enum has been moved to lib/models/player.dart
 
 class GameController with ChangeNotifier {
   final SoundManager _soundManager;
@@ -486,7 +488,7 @@ class GameBoard extends StatelessWidget {
     final List<Player> board = onlineGameController?.game?.board ?? localGameController!.board;
     final Function(int) handleTap = onlineGameController?.makeMove ?? localGameController!.handleTap;
     
-    final gameController = context.watch<GameController>();
+    final gameController = context.watch<GameController?>();
     final theme = Theme.of(context);
 
     // Use theme colors for shadows. For Forest theme, use its specific colors.
@@ -524,10 +526,10 @@ class GameBoard extends StatelessWidget {
             },
             ),
             // The Winning Line Painter
-            if (gameController.winner != null && gameController.winningLine != null)
+            if (localGameController != null && localGameController.winner != null && localGameController.winningLine != null)
               AnimatedWinningLine(
-                winningLine: gameController.winningLine!,
-                color: gameController.winner == Player.X
+                winningLine: localGameController.winningLine!,
+                color: localGameController.winner == Player.X
                     ? const Color(0xFFD32F2F)
                     : const Color(0xFF388E3C),
               ),
@@ -797,7 +799,7 @@ class _WinningLinePainter extends CustomPainter {
     final glowPaint = Paint()
       ..color = color.withOpacity(0.5 + (pulseProgress * 0.5)) // Pulsing opacity
       ..strokeWidth = 12.0 + (pulseProgress * 8.0) // Pulsing width
-      ..strokeCap = Cap.round
+      ..strokeCap = StrokeCap.round // FIX: Was Cap.round
       ..maskFilter = MaskFilter.blur(BlurStyle.normal, pulseProgress * 5); // Pulsing blur
 
     // Draw the glow first, so it's behind the main line

@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'models/game_model.dart'; // Import the new game model
+import 'models/game_model.dart';
+import 'models/player.dart'; // Import the new player model
 
 /// A service class for all Firebase interactions.
 /// This follows the Repository Pattern, abstracting data sources from the UI.

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:tictactoe/models/player.dart';
 import 'firebase_service.dart';
 import 'models/game_model.dart';
 import 'sound_manager.dart';

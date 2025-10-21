@@ -1,8 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-
-// Re-using the Player enum from the local game for consistency.
-// We could also define it here if we wanted this model to be fully self-contained.
-import '../game_screen.dart';
+import 'package:tictactoe/models/player.dart';
 
 /// Enum representing the state of an online game.
 enum GameStatus { waiting, in_progress, finished }
