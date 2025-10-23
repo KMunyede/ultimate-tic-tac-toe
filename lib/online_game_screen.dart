@@ -5,6 +5,7 @@ import 'firebase_service.dart';
 import 'models/game_model.dart' as game_model;
 import 'online_game_controller.dart';
 import 'game_screen.dart';
+import 'sound_manager.dart';
 
 // V9: Resolved name collision with a prefixed import.
 
