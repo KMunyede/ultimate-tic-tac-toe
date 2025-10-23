@@ -21,9 +21,9 @@ class SoundManager {
 
   // Define asset paths as constants for easy management and to avoid typos.
   // Using .mp3 as per your confirmation.
-  static const String _moveSoundPath = 'sounds/move.mp3';
-  static const String _winSoundPath = 'sounds/win.mp3';
-  static const String _drawSoundPath = 'sounds/draw.mp3';
+  static const String _moveSoundPath = 'assets/sounds/move.mp3';
+  static const String _winSoundPath = 'assets/sounds/win.mp3';
+  static const String _drawSoundPath = 'assets/sounds/draw.mp3';
 
   SoundManager(this._settingsController);
 

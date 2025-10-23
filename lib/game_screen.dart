@@ -46,7 +46,7 @@ class GameController with ChangeNotifier {
   Future<void> _updateGameState() async {
     if (_checkWinner()) {
       _winner = _currentPlayer;
-      _soundManager.playWinSound(); // Play sound without awaiting
+       _soundManager.playWinSound(); // Play sound without awaiting
       _settingsController.updateScore(_winner!);
       notifyListeners(); // Update UI to show winning line and game over state
     } else if (_checkDraw()) {
