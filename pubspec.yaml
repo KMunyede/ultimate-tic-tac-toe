@@ -18,7 +18,7 @@ dependencies:
   firebase_core: ^4.2.0
   firebase_auth: ^6.1.1
   cloud_firestore: ^6.0.3
-  flutter_dotenv: ^6.0.0
+  flutter_dotenv: ^5.1.0
   firebase_database: ^12.0.3 # Add if you plan to use Realtime Database
 
 
@@ -29,5 +29,5 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
-  assets: # Make sure you have move.wav, win.wav, and draw.wav in this folder
+  assets:
     - assets/sound/
