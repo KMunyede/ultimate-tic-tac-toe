@@ -269,9 +269,7 @@ class _TicTacToeGameState extends State<TicTacToeGame> with WindowListener {
   void onWindowMinimize() {}
   @override
   void onWindowRestore() {}
-  @override
   void onWindowEnter() {}
-  @override
   void onWindowLeave() {}
   @override
   void onWindowDocked() {}
