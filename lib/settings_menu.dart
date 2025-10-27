@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:tictactoe/app_theme.dart';
 import 'auth_controller.dart';
 import 'settings_controller.dart';
 import 'firebase_service.dart';
@@ -56,7 +57,7 @@ class SettingsMenu extends StatelessWidget {
                   trailing: DropdownButton<AppTheme>(
                     value: settings.currentTheme,
                     underline: const SizedBox.shrink(),
-                    items: AppTheme.values.map((AppTheme theme) {
+                    items: appThemes.map((AppTheme theme) {
                       return DropdownMenuItem<AppTheme>(
                         value: theme,
                         child: Text(theme.name),

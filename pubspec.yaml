@@ -30,4 +30,6 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   assets:
+    # Explicitly declare the sounds directory to ensure assets are found at runtime.
+    - .env
     - assets/sounds/

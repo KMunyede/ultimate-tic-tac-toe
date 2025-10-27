@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:tictactoe/app_theme.dart';
 import 'package:tictactoe/lobby_screen.dart';
 import 'package:tictactoe/models/player.dart';
 import 'package:tictactoe/online_game_controller.dart';
@@ -290,7 +291,8 @@ class _TicTacToeGameState extends State<TicTacToeGame> with WindowListener {
 
     // Use theme colors for gradients. For Forest theme, use its specific colors.
     final Color gradientStart, gradientEnd;
-    if (settings.currentTheme == AppTheme.forest) {
+    // Compare AppTheme objects directly, which is more robust than comparing by name.
+    if (settings.currentTheme == const AppTheme(name: 'Forest Green', mainColor: Color(0xFF2D6A4F))) {
       gradientStart = theme.colorScheme.surface;
       gradientEnd = theme.colorScheme.secondary;
     } else {
@@ -491,7 +493,7 @@ class GameBoard extends StatelessWidget {
 
     // Use theme colors for shadows. For Forest theme, use its specific colors.
     final Color shadowColor, lightShadowColor;
-    if (currentTheme == AppTheme.forest) {
+    if (currentTheme == const AppTheme(name: 'Forest Green', mainColor: Color(0xFF2D6A4F))) {
       shadowColor = theme.colorScheme.primary;
       lightShadowColor = theme.colorScheme.surface.withOpacity(0.8);
     } else {

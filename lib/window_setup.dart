@@ -2,29 +2,36 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:window_manager/window_manager.dart';
 
-Future<void> setupWindow() async {
-  // Ensure that plugin services are initialized so that `windowManager` can be used.
-  WidgetsFlutterBinding.ensureInitialized();
-  // Must add this line.
-  await windowManager.ensureInitialized();
-
+Future<void> configureWindow({required bool isPrimaryInstance}) async {
   final prefs = await SharedPreferences.getInstance();
-  final width = prefs.getDouble('window_width') ?? 400;
-  final height = prefs.getDouble('window_height') ?? 400;
-  final offsetX = prefs.getDouble('window_offsetX');
-  final offsetY = prefs.getDouble('window_offsetY');
+  // Only the primary instance should restore the last size.
+  // Secondary instances should open with a default size to avoid overlap.
+  final width = isPrimaryInstance ? (prefs.getDouble('window_width') ?? 500) : 450;
+  final height = isPrimaryInstance ? (prefs.getDouble('window_height') ?? 650) : 600;
+
+  // ARCHITECTURAL DECISION:
+  // Due to a native C++ runtime conflict on Windows between the Firebase SDK
+  // and the library used by `window_manager` (WIL), calls to get display
+  // information like `getPrimaryDisplay()` are unstable and can crash the app.
+  // To ensure stability, we are removing the logic that restores the window
+  // position and will always center the window on startup.
 
   WindowOptions windowOptions = WindowOptions(
-    size: Size(width, height),
-    center: offsetX == null || offsetY == null, // Center if no position is saved
-    title: 'Ultimate Tic-Tac-Toe',
+    size: Size(width, constraints?.minHeight),
+    center: true,
+    title: isPrimaryInstance ? 'Ultimate Tic-Tac-Toe (P1)' : 'Ultimate Tic-Tac-Toe (P2)',
+    minimumSize: const Size(400, 400),
   );
 
   windowManager.waitUntilReadyToShow(windowOptions, () async {
     await windowManager.show();
     await windowManager.focus();
-    if (offsetX != null && offsetY != null) {
-      await windowManager.setPosition(Offset(offsetX, offsetY));
-    }
+    // Restore position logic is removed to prevent native crashes.
+    // If a last-known position exists, we can still try to set it,
+    // but we accept the risk that it might be off-screen. The centering
+    // above provides a safe default.
+    // if (offsetX != null && offsetY != null) {
+    //   await windowManager.setPosition(Offset(offsetX, offsetY));
+    // }
   });
 }

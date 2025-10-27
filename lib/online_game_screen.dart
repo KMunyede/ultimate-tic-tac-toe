@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:tictactoe/settings_controller.dart';
+import 'package:tictactoe/app_theme.dart';
+import 'package:tictactoe/settings_controller.dart' hide AppTheme;
 import 'firebase_service.dart';
 import 'models/game_model.dart' as game_model;
 import 'online_game_controller.dart';
@@ -62,7 +63,7 @@ class _OnlineGameView extends StatelessWidget {
                 // You may need to adjust these parameters based on your theming
                 gradientStart: Theme.of(context).colorScheme.surface,
                 gradientEnd: Theme.of(context).colorScheme.secondary,
-                currentTheme: context.read<SettingsController>().currentTheme,
+                currentTheme: context.read<SettingsController>().currentTheme as AppTheme,
               ),
             ),
             const SizedBox(height: 20),

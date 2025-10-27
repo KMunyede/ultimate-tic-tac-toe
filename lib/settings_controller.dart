@@ -1,17 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:tictactoe/app_theme.dart';
 import 'models/player.dart'; // Forcing a cache update.
-
-/// Enum to represent the available themes in the application.
-enum AppTheme {
-  light('Light'),
-  dark('Dark'),
-  ocean('Ocean Blue'),
-  forest('Forest Green');
-
-  const AppTheme(this.name);
-  final String name;
-}
 
 /// Enum to represent the game mode.
 enum GameMode {
@@ -36,48 +26,12 @@ class SettingsController with ChangeNotifier {
   late SharedPreferences _prefs;
 
   // Theme settings
-  AppTheme _currentTheme = AppTheme.light;
-  AppTheme get currentTheme => _currentTheme;
+  AppTheme _currentTheme = appThemes.first;
+  dynamic get currentTheme => _currentTheme;
 
   ThemeData get themeData {
-    switch (_currentTheme) {
-      case AppTheme.light:
-        return ThemeData.light().copyWith(
-          colorScheme: const ColorScheme.light(onPrimary: Colors.black),
-        );
-      case AppTheme.dark:
-        // A dark theme that is 10% lighter than the default pure black.
-        final baseDarkTheme = ThemeData.dark();
-        // Making the background color lighter as requested. 0xFF242424 is a lighter gray.
-        return baseDarkTheme.copyWith(
-          scaffoldBackgroundColor: const Color(0xFF242424), // Lighter dark
-          colorScheme: const ColorScheme.dark(
-              onPrimary: Colors.white, primary: Colors.tealAccent),
-        );
-      case AppTheme.ocean:
-        return ThemeData(
-          brightness: Brightness.dark,
-          scaffoldBackgroundColor: const Color(0xFF0A2E40),
-          colorScheme: const ColorScheme.dark(
-            primary: Color(0xFF0077B6),
-            secondary: Color(0xFF00B4D8),
-            onPrimary: Colors.white,
-          ),
-        );
-      case AppTheme.forest:
-        return ThemeData(
-          brightness: Brightness.light,
-          scaffoldBackgroundColor: const Color(0xFFF0F4F0),
-          // Define a more complete color scheme for the forest theme
-          colorScheme: const ColorScheme.light(
-            primary: Color(0xFF2d6a4f),
-            secondary: Color(0xFF40916c),
-            surface: Color(0xFFb7e4c7), // Lighter green for cell background
-            onSurface: Colors.black, // Text/icon color on surface
-            onPrimary: Colors.black,
-          ),
-        );
-    }
+    // Generate the theme based on the current theme's main color.
+    return generateTheme(_currentTheme.mainColor);
   }
 
   // Sound settings
@@ -104,10 +58,11 @@ class SettingsController with ChangeNotifier {
   Future<void> loadSettings() async {
     _prefs = await SharedPreferences.getInstance();
     // Load theme, default to light
-    final themeName = _prefs.getString('theme') ?? AppTheme.light.name;
-    _currentTheme = AppTheme.values.firstWhere(
+    final themeName = _prefs.getString('theme') ?? appThemes.first.name;
+    _currentTheme = appThemes.firstWhere(
       (theme) => theme.name == themeName,
-      orElse: () => AppTheme.light,
+      // If the saved theme is no longer available, default to the first one.
+      orElse: () => appThemes.first,
     );
 
     final gameModeName = _prefs.getString('gameMode') ?? GameMode.playerVsPlayer.name;
