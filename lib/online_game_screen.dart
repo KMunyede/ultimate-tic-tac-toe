@@ -19,11 +19,21 @@ class OnlineGameScreen extends StatefulWidget {
 }
 
 class _OnlineGameScreenState extends State<OnlineGameScreen> {
+
+  @override
+  void initState() {
+    super.initState();
+    // When the screen loads, allow the app to use any orientation
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+      DeviceOrientation.portraitDown,
+      DeviceOrientation.landscapeLeft,
+      DeviceOrientation.landscapeRight,
+    ]);
+  }
+
   @override
   Widget build(BuildContext context) {
-    // Set the orientation based on the screen size when the widget builds.
-    _setOrientation(context);
-
     return ChangeNotifierProvider(
       create: (context) => OnlineGameController(
         context.read<FirebaseService>(),
@@ -52,6 +62,7 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
           }
 
           final game = controller.game!;
+          // This now correctly listens to the OS orientation
           final orientation = MediaQuery.of(context).orientation;
 
           return Scaffold(
@@ -59,7 +70,6 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
               title: const Text('Online Game'),
             ),
             drawer: Drawer(
-              // FIX: This is a more robust way to create a scrollable drawer that won't overflow.
               child: ListView(
                 padding: EdgeInsets.zero,
                 children: [
@@ -85,7 +95,6 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
                        Navigator.pop(context); // Go back from game screen
                     },
                   ),
-                  // Add more dummy items to demonstrate scrolling
                   for (var i = 0; i < 10; i++)
                     ListTile(
                       title: Text('Menu Item ${i + 1}'),
@@ -135,12 +144,10 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
       children: [
         Expanded(
           flex: 3,
-          // FIX: Use a LayoutBuilder for explicit and reliable resizing.
           child: Center(
             child: LayoutBuilder(
               builder: (context, constraints) {
-                // This forces the GameBoard into a square that fits the available height.
-                final boardSize = constraints.maxHeight * 0.8; // Use 80% of height to add padding
+                final boardSize = constraints.maxHeight * 0.8;
                 return SizedBox(
                   width: boardSize,
                   height: boardSize,
@@ -175,15 +182,12 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
     );
   }
 
-
   // Shared UI for game status and post-game actions
   Widget _buildGameControls(BuildContext context, OnlineGameController controller, game_model.Game game) {
-    // If the game is finished, show action buttons
     if (game.status == game_model.GameStatus.finished) {
       return Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          // Display the final game status (Win/Loss/Draw)
           Text(
             _getGameStatus(game, context.read<FirebaseService>().currentUser!.uid),
             style: Theme.of(context).textTheme.headlineSmall,
@@ -193,23 +197,20 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
           ElevatedButton.icon(
             icon: const Icon(Icons.replay),
             label: const Text('Play Again'),
-            onPressed: () {
-              // TODO: Implement "Play Again" functionality. This might involve creating a new game or resetting the current one.
-            },
+            onPressed: () {},
           ),
           const SizedBox(height: 10),
           OutlinedButton.icon(
             icon: const Icon(Icons.close),
             label: const Text('Close'),
             onPressed: () {
-              Navigator.of(context).pop(); // Go back to the previous screen
+              Navigator.of(context).pop();
             },
           ),
         ],
       );
     }
 
-    // If the game is in progress, show the current status and a progress indicator
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
@@ -227,44 +228,6 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
     );
   }
 
-
-  // Helper function to determine the device's screen type and set orientation
-  void _setOrientation(BuildContext context) {
-    final size = MediaQuery.of(context).size;
-    final diagonal = size.shortestSide;
-    final inches = diagonal / 300; 
-    
-    if (inches <= 6.7) {
-      SystemChrome.setPreferredOrientations([
-        DeviceOrientation.landscapeLeft,
-        DeviceOrientation.landscapeRight,
-      ]);
-    } else if (inches >= 7.0) {
-      SystemChrome.setPreferredOrientations([
-        DeviceOrientation.portraitUp,
-        DeviceOrientation.portraitDown,
-      ]);
-    } else {
-      SystemChrome.setPreferredOrientations([
-        DeviceOrientation.landscapeLeft,
-        DeviceOrientation.landscapeRight,
-        DeviceOrientation.portraitUp,
-        DeviceOrientation.portraitDown,
-      ]);
-    }
-  }
-
-  @override
-  void dispose() {
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.portraitUp,
-      DeviceOrientation.portraitDown,
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]);
-    super.dispose();
-  }
-
   String _getGameStatus(game_model.Game game, String currentUserId) {
     switch (game.status) {
       case game_model.GameStatus.waiting:
@@ -273,7 +236,7 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
         if (game.isDraw) return "It's a Draw!";
         return game.winnerUid == currentUserId ? 'You Won!' : 'You Lost!';
       case game_model.GameStatus.in_progress:
-        return game.currentPlayerUid == currentUserId ? 'Your Turn' : "Opponent's Turn";
+        return game.currentPlayerUid == currentUserId ? "Opponent's Turn";
     }
   }
 }
