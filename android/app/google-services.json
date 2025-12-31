@@ -16,7 +16,26 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyAnACha5UIDRVeh4Xn7ty8AEW0FBnQu__Q"
+          "current_key": "AIzaSyC87kvAgjFsWW5o_QfdbORJkSCapxtIvHg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:669913142343:android:03ff8c14237053c4df8d62",
+        "android_client_info": {
+          "package_name": "net.hilmost.ultimatetictactoe"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC87kvAgjFsWW5o_QfdbORJkSCapxtIvHg"
         }
       ],
       "services": {

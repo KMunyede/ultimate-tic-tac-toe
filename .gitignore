@@ -41,6 +41,7 @@ app.*.map.json
 
 # Firebase
 /lib/firebase_options.dart
+google-services.json
 
 # Android Studio will place build artifacts here
 /android/app/debug

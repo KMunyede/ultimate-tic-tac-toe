@@ -1,9 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tictactoe/app_theme.dart';
-import 'models/player.dart'; // Forcing a cache update.
+import 'models/player.dart';
 
-/// Enum to represent the game mode.
+// ARCHITECTURAL ADDITION: Enums for new premium game modes.
+
+/// Enum to represent the game board layout.
+enum BoardLayout {
+  single('1 Board'),
+  double('2 Boards (Premium)'),
+  triple('3 Boards (Premium)');
+
+  const BoardLayout(this.name);
+  final String name;
+}
+
 enum GameMode {
   playerVsPlayer('Player vs Player'),
   playerVsAi('Player vs AI');
@@ -12,7 +23,6 @@ enum GameMode {
   final String name;
 }
 
-/// Enum to represent AI difficulty.
 enum AiDifficulty {
   easy('Easy'),
   medium('Medium'),
@@ -25,28 +35,20 @@ enum AiDifficulty {
 class SettingsController with ChangeNotifier {
   late SharedPreferences _prefs;
 
-  // Theme settings
+  // --- Existing Settings ---
   AppTheme _currentTheme = appThemes.first;
-  dynamic get currentTheme => _currentTheme;
+  AppTheme get currentTheme => _currentTheme;
+  ThemeData get themeData => generateTheme(_currentTheme.mainColor);
 
-  ThemeData get themeData {
-    // Generate the theme based on the current theme's main color.
-    return generateTheme(_currentTheme.mainColor);
-  }
-
-  // Sound settings
   bool _isSoundOn = true;
   bool get isSoundOn => _isSoundOn;
 
-  // Game Mode settings
   GameMode _gameMode = GameMode.playerVsPlayer;
   GameMode get gameMode => _gameMode;
 
-  // AI Difficulty settings
   AiDifficulty _aiDifficulty = AiDifficulty.hard;
   AiDifficulty get aiDifficulty => _aiDifficulty;
 
-  // Score settings
   int _scoreX = 0;
   int _scoreO = 0;
   int get scoreX => _scoreX;
@@ -55,31 +57,37 @@ class SettingsController with ChangeNotifier {
   bool _resetGameRequested = false;
   bool get resetGameRequested => _resetGameRequested;
 
+  // --- ARCHITECTURAL ADDITION: Premium Features State ---
+  BoardLayout _boardLayout = BoardLayout.single;
+  BoardLayout get boardLayout => _boardLayout;
+
+  bool _isPremium = false;
+  bool get isPremium => _isPremium;
+
+  // --- Methods ---
+
   Future<void> loadSettings() async {
     _prefs = await SharedPreferences.getInstance();
-    // Load theme, default to light
+    
+    // Load existing settings
     final themeName = _prefs.getString('theme') ?? appThemes.first.name;
-    _currentTheme = appThemes.firstWhere(
-      (theme) => theme.name == themeName,
-      // If the saved theme is no longer available, default to the first one.
-      orElse: () => appThemes.first,
-    );
+    _currentTheme = appThemes.firstWhere((t) => t.name == themeName, orElse: () => appThemes.first);
 
     final gameModeName = _prefs.getString('gameMode') ?? GameMode.playerVsPlayer.name;
-    _gameMode = GameMode.values.firstWhere(
-      (mode) => mode.name == gameModeName,
-      orElse: () => GameMode.playerVsPlayer,
-    );
+    _gameMode = GameMode.values.firstWhere((m) => m.name == gameModeName, orElse: () => GameMode.playerVsPlayer);
 
     final aiDifficultyName = _prefs.getString('aiDifficulty') ?? AiDifficulty.hard.name;
-    _aiDifficulty = AiDifficulty.values.firstWhere(
-      (difficulty) => difficulty.name == aiDifficultyName,
-      orElse: () => AiDifficulty.hard,
-    );
-
+    _aiDifficulty = AiDifficulty.values.firstWhere((d) => d.name == aiDifficultyName, orElse: () => AiDifficulty.hard);
+    
     _isSoundOn = _prefs.getBool('isSoundOn') ?? true;
     _scoreX = _prefs.getInt('scoreX') ?? 0;
     _scoreO = _prefs.getInt('scoreO') ?? 0;
+
+    // Load new premium settings
+    _isPremium = _prefs.getBool('isPremium') ?? false;
+    final boardLayoutName = _prefs.getString('boardLayout') ?? BoardLayout.single.name;
+    _boardLayout = BoardLayout.values.firstWhere((l) => l.name == boardLayoutName, orElse: () => BoardLayout.single);
+
     notifyListeners();
   }
 
@@ -107,6 +115,31 @@ class SettingsController with ChangeNotifier {
     notifyListeners();
   }
 
+  // ARCHITECTURAL ADDITION: Method to change board layout.
+  Future<void> setBoardLayout(BoardLayout layout) async {
+    // In a real app, you might show a paywall here.
+    if (!_isPremium && (layout == BoardLayout.double || layout == BoardLayout.triple)) {
+      print("This is a premium feature!");
+      return; // Don't allow setting premium layout if not premium.
+    }
+    _boardLayout = layout;
+    await _prefs.setString('boardLayout', layout.name);
+    notifyListeners();
+  }
+
+  // ARCHITECTURAL ADDITION: Simulate a purchase by toggling premium status.
+  Future<void> togglePremium() async {
+    _isPremium = !_isPremium;
+    await _prefs.setBool('isPremium', _isPremium);
+
+    // If premium is turned off, revert to a non-premium board layout.
+    if (!_isPremium && _boardLayout != BoardLayout.single) {
+      _boardLayout = BoardLayout.single;
+      await _prefs.setString('boardLayout', _boardLayout.name);
+    }
+    notifyListeners();
+  }
+
   Future<void> updateScore(Player winner) async {
     if (winner == Player.X) {
       _scoreX++;
@@ -129,7 +162,6 @@ class SettingsController with ChangeNotifier {
   void resetGameAndScores() {
     resetScores();
     _resetGameRequested = true;
-    // We notify listeners so the ProxyProvider in main.dart can see the change.
     notifyListeners();
   }
 

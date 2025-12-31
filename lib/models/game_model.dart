@@ -5,17 +5,13 @@ import 'package:tictactoe/models/player.dart';
 enum GameStatus { waiting, in_progress, finished }
 
 /// A type-safe representation of a 'game' document from Firestore.
-///
-/// ARCHITECTURAL DECISION:
-/// Creating a model class like this is a best practice (part of the Repository
-/// pattern). It decouples the rest of the app from the raw data structure of
-/// Firestore. It provides type safety, autocompletion, and a single place to
-/// handle the conversion from a Firestore `DocumentSnapshot` into a usable Dart object.
 class Game {
   final String id;
   final List<Player> board;
-  final Map<String, String> players; // e.g., {'playerX_uid': 'uid1', 'playerO_uid': 'uid2'}
-  final Map<String, String> playerNames; // e.g., {'uid1': 'Alice', 'uid2': 'Bob'}
+  // ARCHITECTURAL FIX: Use a more specific, correctly-typed map for players.
+  // This prevents runtime cast errors.
+  final Map<String, Map<String, dynamic>> players;
+  final Map<String, String> playerNames;
   final String currentPlayerUid;
   final GameStatus status;
   final String? winnerUid;
@@ -39,15 +35,22 @@ class Game {
       throw Exception("Game document was null for ID: ${snapshot.id}");
     }
 
+    // ARCHITECTURAL FIX: Deeply parse the nested players map.
+    // This ensures that the inner maps for playerX and playerO are also correctly
+    // typed as Map<String, dynamic>, preventing cast errors in the UI.
+    final playersData = data['players'] as Map<String, dynamic>? ?? {};
+    final parsedPlayers = playersData.map((key, value) {
+      return MapEntry(key, Map<String, dynamic>.from(value as Map));
+    });
+
     return Game(
       id: snapshot.id,
-      // Convert the List<dynamic> from Firestore (containing '', 'X', 'O') to List<Player>.
       board: (data['board'] as List<dynamic>).map((p) {
         if (p == 'X') return Player.X;
         if (p == 'O') return Player.O;
         return Player.none;
       }).toList(),
-      players: Map<String, String>.from(data['players'] ?? {}),
+      players: parsedPlayers, // Use the correctly parsed map
       playerNames: Map<String, String>.from(data['player_names'] ?? {}),
       currentPlayerUid: data['currentPlayerUid'] ?? '',
       status: _parseGameStatus(data['status']),
@@ -56,7 +59,6 @@ class Game {
     );
   }
 
-  /// A robust helper to parse the game status string from Firestore.
   static GameStatus _parseGameStatus(String? status) {
     switch (status) {
       case 'waiting':
@@ -66,29 +68,28 @@ class Game {
       case 'finished':
         return GameStatus.finished;
       default:
-        return GameStatus.waiting; // Default to a safe state
+        return GameStatus.waiting;
     }
   }
 
   // ==========
-  // UI Helpers
+  // UI Helpers (Now simpler and safer due to the typed `players` map)
   // ==========
 
-  /// Helper to get the display name for Player X.
   String get playerXName {
-    final playerXUid = players['playerX_uid'];
-    return playerNames[playerXUid] ?? 'Player X';
+    return players['playerX']?['displayName'] as String? ?? 'Player X';
   }
 
-  /// Helper to get the display name for Player O.
   String get playerOName {
-    final playerOUid = players['playerO_uid'];
-    return playerNames[playerOUid] ?? 'Player O';
+    // This is now safe because `players['playerO']` is guaranteed to be a Map or null.
+    return players['playerO']?['displayName'] as String? ?? 'Waiting...';
   }
 
-  /// Helper to determine if a specific user is Player X.
-  bool isPlayerX(String userId) => players['playerX_uid'] == userId;
+  bool isPlayerX(String userId) {
+    return players['playerX']?['uid'] == userId;
+  }
 
-  /// Helper to determine if a specific user is Player O.
-  bool isPlayerO(String userId) => players['playerO_uid'] == userId;
+  bool isPlayerO(String userId) {
+    return players['playerO']?['uid'] == userId;
+  }
 }
