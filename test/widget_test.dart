@@ -11,7 +11,6 @@ import 'package:tictactoe/game_controller.dart';
 import 'package:tictactoe/settings_controller.dart';
 import 'package:tictactoe/sound_manager.dart' show SoundManager;
 import 'package:tictactoe/auth_controller.dart';
-import 'package:tictactoe/game_screen.dart';
 
 import 'package:mockito/mockito.dart' show when;
 import 'widget_test.mocks.dart';

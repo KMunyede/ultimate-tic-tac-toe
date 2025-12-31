@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:tictactoe/game_controller.dart';
-import 'package:tictactoe/models/player.dart';
 
 class GameStatusDisplay extends StatelessWidget {
   const GameStatusDisplay({super.key});

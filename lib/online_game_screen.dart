@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import 'package:tictactoe/app_theme.dart';
 import 'package:tictactoe/settings_controller.dart' hide AppTheme;
 import 'package:tictactoe/widgets/game_board.dart';
 import 'firebase_service.dart';
@@ -23,13 +22,24 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
   @override
   void initState() {
     super.initState();
-    // When the screen loads, allow the app to use any orientation
+    // When this screen loads, allow the app to use any orientation.
     SystemChrome.setPreferredOrientations([
       DeviceOrientation.portraitUp,
       DeviceOrientation.portraitDown,
       DeviceOrientation.landscapeLeft,
       DeviceOrientation.landscapeRight,
     ]);
+  }
+
+  @override
+  void dispose() {
+    // IMPORTANT: When the screen is removed, lock the orientation back to portrait
+    // for the rest of the app. This prevents the app from getting stuck.
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+      DeviceOrientation.portraitDown,
+    ]);
+    super.dispose();
   }
 
   @override
@@ -127,7 +137,7 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
               boardIndex: 0,
               gradientStart: Theme.of(context).colorScheme.surface,
               gradientEnd: Theme.of(context).colorScheme.secondary,
-              currentTheme: context.read<SettingsController>().currentTheme as AppTheme,
+              currentTheme: context.read<SettingsController>().currentTheme,
             ),
           ),
           const SizedBox(height: 20),
@@ -155,7 +165,7 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
                     boardIndex: 0,
                     gradientStart: Theme.of(context).colorScheme.surface,
                     gradientEnd: Theme.of(context).colorScheme.secondary,
-                    currentTheme: context.read<SettingsController>().currentTheme as AppTheme,
+                    currentTheme: context.read<SettingsController>().currentTheme,
                   ),
                 );
               },
@@ -236,7 +246,8 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
         if (game.isDraw) return "It's a Draw!";
         return game.winnerUid == currentUserId ? 'You Won!' : 'You Lost!';
       case game_model.GameStatus.in_progress:
-        return game.currentPlayerUid == currentUserId ? "Opponent's Turn";
+        // FIX: Added the missing "else" part of the ternary operator
+        return game.currentPlayerUid == currentUserId ? 'Your Turn' : "Opponent's Turn";
     }
   }
 }
