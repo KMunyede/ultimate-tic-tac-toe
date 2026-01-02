@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:math';
-import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
 import 'package:tictactoe/firebase_service.dart';
 import 'package:tictactoe/models/player.dart';
@@ -19,6 +18,12 @@ class GameBoard {
         winner = null,
         winningLine = null,
         isDraw = false;
+
+  GameBoard.clone(GameBoard other)
+      : cells = List.from(other.cells),
+        winner = other.winner,
+        winningLine = other.winningLine != null ? List.from(other.winningLine!) : null,
+        isDraw = other.isDraw;
 
   bool get isGameOver => winner != null || isDraw;
 
@@ -45,6 +50,8 @@ class GameController with ChangeNotifier {
   Player _currentPlayer = Player.X;
   bool _isOverallDraw = false;
   String? _statusMessage;
+  final List<Map<String, dynamic>> _history = [];
+
 
   // --- GETTERS ---
   List<GameBoard> get boards => _boards;
@@ -53,6 +60,7 @@ class GameController with ChangeNotifier {
   bool get isOverallDraw => _isOverallDraw;
   bool get isOverallGameOver => _overallWinner != null || _isOverallDraw;
   String? get statusMessage => _statusMessage;
+  bool get canUndo => _history.isNotEmpty;
 
 
   int get _numberOfBoards {
@@ -71,6 +79,8 @@ class GameController with ChangeNotifier {
     _overallWinner = null;
     _currentPlayer = Player.X;
     _isOverallDraw = false;
+    _history.clear();
+    _updateStatusMessage();
     notifyListeners();
   }
 
@@ -79,6 +89,8 @@ class GameController with ChangeNotifier {
     if (isOverallGameOver || board.isGameOver || board.cells[cellIndex] != Player.none) {
       return;
     }
+
+    _saveStateToHistory();
 
     board.cells[cellIndex] = _currentPlayer;
     _soundManager.playMoveSound();
@@ -105,6 +117,7 @@ class GameController with ChangeNotifier {
       }
     }
     
+    _updateStatusMessage();
     notifyListeners();
   }
   
@@ -163,26 +176,15 @@ class GameController with ChangeNotifier {
     int? bestMove;
 
     if (_firebaseService != null && _settingsController.aiDifficulty != AiDifficulty.easy) {
-      try {
-        final boardState = board.cells.map((p) => p.toString().split('.').last).toList();
-        final difficulty = _settingsController.aiDifficulty.name;
-        final move = await _firebaseService!.getAiMove(boardState, _currentPlayer.toString().split('.').last, difficulty);
-        
-        _statusMessage = "AI move received successfully.";
-
-        if (move != null && board.cells[move] == Player.none) {
-          bestMove = move;
-        }
-      } on FirebaseFunctionsException catch (e) {
-        _statusMessage = "Error fetching AI move: ${e.message}";
-      } catch (e) {
-        _statusMessage = "An unknown error occurred.";
+      final boardState = board.cells.map((p) => p.toString().split('.').last).toList();
+      final move = await _firebaseService!.getAiMove(boardState, _currentPlayer.toString().split('.').last, _settingsController.aiDifficulty.name);
+      if (move != null && board.cells[move] == Player.none) {
+        bestMove = move;
       }
-      notifyListeners();
     }
 
     if (bestMove == null) {
-      // Fallback to random move
+      // Fallback to random move if Firebase is not available or fails
       final availableCells = board.cells.asMap().entries.where((entry) => entry.value == Player.none).map((e) => e.key).toList();
       if (availableCells.isNotEmpty) {
         bestMove = availableCells[Random().nextInt(availableCells.length)];
@@ -194,8 +196,38 @@ class GameController with ChangeNotifier {
     }
   }
 
-  void clearStatusMessage() {
-    _statusMessage = null;
+  void _saveStateToHistory() {
+    _history.add({
+      'boards': _boards.map((b) => GameBoard.clone(b)).toList(),
+      'currentPlayer': _currentPlayer,
+      'overallWinner': _overallWinner,
+      'isOverallDraw': _isOverallDraw,
+    });
+  }
+
+  void undoMove() {
+    if (_history.isEmpty) return;
+
+    final lastState = _history.removeLast();
+    _boards = lastState['boards'];
+    _currentPlayer = lastState['currentPlayer'];
+    _overallWinner = lastState['overallWinner'];
+    _isOverallDraw = lastState['isOverallDraw'];
+
+    _updateStatusMessage();
+    notifyListeners();
+  }
+
+  void _updateStatusMessage() {
+    if (isOverallGameOver) {
+      if (_overallWinner != null) {
+        _statusMessage = 'Player ${_overallWinner!.name} Wins!';
+      } else if (_isOverallDraw) {
+        _statusMessage = 'It\'s a Draw!';
+      }
+    } else {
+      _statusMessage = 'Player ${_currentPlayer.name}\'s Turn';
+    }
   }
 
   void updateDependencies(SettingsController newSettingsController) {

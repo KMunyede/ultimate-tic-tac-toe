@@ -4,10 +4,9 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-//import 'package:shared_preferences/shared_preferences.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:window_manager/window_manager.dart';
 import 'game_controller.dart';
-//import 'settings_controller.dart';
 import 'settings_menu.dart';
 import 'sound_manager.dart';
 import 'widgets/board_widget.dart';
@@ -24,6 +23,7 @@ class TicTacToeGame extends StatefulWidget {
 class _TicTacToeGameState extends State<TicTacToeGame> with WindowListener {
   Timer? _debounce;
   bool _isDesktop = false;
+  DateTime? _lastPressed;
 
   @override
   void initState() {
@@ -33,8 +33,6 @@ class _TicTacToeGameState extends State<TicTacToeGame> with WindowListener {
       _isDesktop = true;
       windowManager.addListener(this);
     }
-    // Add a listener to show SnackBars when a status message is available
-    context.read<GameController>().addListener(_showStatusMessage);
   }
 
   @override
@@ -42,50 +40,88 @@ class _TicTacToeGameState extends State<TicTacToeGame> with WindowListener {
     if (_isDesktop) {
       windowManager.removeListener(this);
     }
-    context.read<GameController>().removeListener(_showStatusMessage);
     _debounce?.cancel();
     super.dispose();
   }
 
-  void _showStatusMessage() {
-    final game = context.read<GameController>();
-    final message = game.statusMessage;
-    if (message != null) {
-      final isError = message.startsWith('Error');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(message),
-          backgroundColor: isError ? Colors.redAccent : Colors.green,
-        ),
-      );
-      game.clearStatusMessage();
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
+    final game = context.watch<GameController>();
     final soundManager = context.read<SoundManager>();
-    
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Ultimate TicTacToe'),
-        backgroundColor: Theme.of(context).colorScheme.primary,
-        foregroundColor: Theme.of(context).colorScheme.onPrimary,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.settings),
-            onPressed: () {
-              soundManager.playMoveSound();
-              showDialog(
-                context: context,
-                builder: (context) => const SettingsMenu(),
-              );
-            },
-          ),
-        ],
-      ),
-      body: const Center(
-        child: BoardWidget(),
+
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        final now = DateTime.now();
+        final backButtonHasNotBeenPressedOrSnackBarHasBeenClosed =
+            _lastPressed == null ||
+                now.difference(_lastPressed!) > const Duration(seconds: 2);
+
+        if (backButtonHasNotBeenPressedOrSnackBarHasBeenClosed) {
+          _lastPressed = DateTime.now();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Press back again to exit'),
+              duration: Duration(seconds: 2),
+            ),
+          );
+          return;
+        }
+        SystemNavigator.pop();
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Ultimate TicTacToe'),
+          backgroundColor: Theme.of(context).colorScheme.primary,
+          foregroundColor: Theme.of(context).colorScheme.onPrimary,
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.settings),
+              onPressed: () {
+                soundManager.playMoveSound();
+                showDialog(
+                  context: context,
+                  builder: (context) => const SettingsMenu(),
+                );
+              },
+            ),
+          ],
+        ),
+        body: Column(
+          children: [
+            const Expanded(
+              child: Center(
+                child: BoardWidget(),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 16.0),
+              child: Text(
+                game.statusMessage ?? '',
+                style: Theme.of(context).textTheme.headlineSmall,
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 32.0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  ElevatedButton.icon(
+                    icon: const Icon(Icons.undo),
+                    label: const Text('Undo'),
+                    onPressed: game.canUndo ? () => game.undoMove() : null,
+                  ),
+                  ElevatedButton.icon(
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('New Game'),
+                    onPressed: () => game.initializeGame(),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -105,6 +141,27 @@ class _TicTacToeGameState extends State<TicTacToeGame> with WindowListener {
       }
     }
   }
+
+  void _saveWindowState() {
+    if (!_isDesktop) return;
+
+    if (_debounce?.isActive ?? false) _debounce!.cancel();
+    _debounce = Timer(const Duration(milliseconds: 500), () async {
+      final prefs = await SharedPreferences.getInstance();
+      final size = await windowManager.getSize();
+      final position = await windowManager.getPosition();
+      await prefs.setDouble('window_width', size.width);
+      await prefs.setDouble('window_height', size.height);
+      await prefs.setDouble('window_offsetX', position.dx);
+      await prefs.setDouble('window_offsetY', position.dy);
+    });
+  }
+
+  @override
+  void onWindowResized() => _saveWindowState();
+
+  @override
+  void onWindowMoved() => _saveWindowState();
 
   Future<bool?> _showExitConfirmationDialog() {
     return showDialog<bool>(
