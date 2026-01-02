@@ -15,7 +15,7 @@ dependencies:
   window_manager: ^0.5.1
   scrollable_positioned_list: ^0.3.8
   audioplayers: ^6.0.0 # Let's keep this as is, but upgrade will fetch latest
-  firebase_core: ^4.2.0
+  firebase_core: ^4.3.0
   firebase_auth: ^6.1.1
   cloud_firestore: ^6.0.3
   cloud_functions: 6.0.5
