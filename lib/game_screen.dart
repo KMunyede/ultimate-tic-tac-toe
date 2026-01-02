@@ -6,7 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 //import 'package:shared_preferences/shared_preferences.dart';
 import 'package:window_manager/window_manager.dart';
-//import 'game_controller.dart';
+import 'game_controller.dart';
 //import 'settings_controller.dart';
 import 'settings_menu.dart';
 import 'sound_manager.dart';
@@ -33,6 +33,8 @@ class _TicTacToeGameState extends State<TicTacToeGame> with WindowListener {
       _isDesktop = true;
       windowManager.addListener(this);
     }
+    // Add a listener to show SnackBars when a status message is available
+    context.read<GameController>().addListener(_showStatusMessage);
   }
 
   @override
@@ -40,8 +42,24 @@ class _TicTacToeGameState extends State<TicTacToeGame> with WindowListener {
     if (_isDesktop) {
       windowManager.removeListener(this);
     }
+    context.read<GameController>().removeListener(_showStatusMessage);
     _debounce?.cancel();
     super.dispose();
+  }
+
+  void _showStatusMessage() {
+    final game = context.read<GameController>();
+    final message = game.statusMessage;
+    if (message != null) {
+      final isError = message.startsWith('Error');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: isError ? Colors.redAccent : Colors.green,
+        ),
+      );
+      game.clearStatusMessage();
+    }
   }
 
   @override
@@ -87,13 +105,6 @@ class _TicTacToeGameState extends State<TicTacToeGame> with WindowListener {
       }
     }
   }
-
-
-  // @override
-  // void onWindowResized() => _saveWindowState();
-
-  // @override
-  // void onWindowMoved() => _saveWindowState();
 
   Future<bool?> _showExitConfirmationDialog() {
     return showDialog<bool>(
