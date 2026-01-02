@@ -3,18 +3,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tictactoe/app_theme.dart';
 import 'models/player.dart';
 
-// ARCHITECTURAL ADDITION: Enums for new premium game modes.
-
-/// Enum to represent the game board layout.
-enum BoardLayout {
-  single('1 Board'),
-  double('2 Boards (Premium)'),
-  triple('3 Boards (Premium)');
-
-  const BoardLayout(this.name);
-  final String name;
-}
-
 enum GameMode {
   playerVsPlayer('Player vs Player'),
   playerVsAi('Player vs AI');
@@ -32,10 +20,18 @@ enum AiDifficulty {
   final String name;
 }
 
+enum BoardLayout {
+  single('Single'),
+  dual('Dual'),
+  trio('Trio');
+
+  const BoardLayout(this.name);
+  final String name;
+}
+
 class SettingsController with ChangeNotifier {
   late SharedPreferences _prefs;
 
-  // --- Existing Settings ---
   AppTheme _currentTheme = appThemes.first;
   AppTheme get currentTheme => _currentTheme;
   ThemeData get themeData => generateTheme(_currentTheme.mainColor);
@@ -49,6 +45,12 @@ class SettingsController with ChangeNotifier {
   AiDifficulty _aiDifficulty = AiDifficulty.hard;
   AiDifficulty get aiDifficulty => _aiDifficulty;
 
+  BoardLayout _boardLayout = BoardLayout.single;
+  BoardLayout get boardLayout => _boardLayout;
+
+  bool _isPremium = false;
+  bool get isPremium => _isPremium;
+
   int _scoreX = 0;
   int _scoreO = 0;
   int get scoreX => _scoreX;
@@ -57,19 +59,9 @@ class SettingsController with ChangeNotifier {
   bool _resetGameRequested = false;
   bool get resetGameRequested => _resetGameRequested;
 
-  // --- ARCHITECTURAL ADDITION: Premium Features State ---
-  BoardLayout _boardLayout = BoardLayout.single;
-  BoardLayout get boardLayout => _boardLayout;
-
-  bool _isPremium = false;
-  bool get isPremium => _isPremium;
-
-  // --- Methods ---
-
   Future<void> loadSettings() async {
     _prefs = await SharedPreferences.getInstance();
     
-    // Load existing settings
     final themeName = _prefs.getString('theme') ?? appThemes.first.name;
     _currentTheme = appThemes.firstWhere((t) => t.name == themeName, orElse: () => appThemes.first);
 
@@ -78,15 +70,14 @@ class SettingsController with ChangeNotifier {
 
     final aiDifficultyName = _prefs.getString('aiDifficulty') ?? AiDifficulty.hard.name;
     _aiDifficulty = AiDifficulty.values.firstWhere((d) => d.name == aiDifficultyName, orElse: () => AiDifficulty.hard);
-    
-    _isSoundOn = _prefs.getBool('isSoundOn') ?? true;
-    _scoreX = _prefs.getInt('scoreX') ?? 0;
-    _scoreO = _prefs.getInt('scoreO') ?? 0;
 
-    // Load new premium settings
-    _isPremium = _prefs.getBool('isPremium') ?? false;
     final boardLayoutName = _prefs.getString('boardLayout') ?? BoardLayout.single.name;
     _boardLayout = BoardLayout.values.firstWhere((l) => l.name == boardLayoutName, orElse: () => BoardLayout.single);
+    
+    _isSoundOn = _prefs.getBool('isSoundOn') ?? true;
+    _isPremium = _prefs.getBool('isPremium') ?? false;
+    _scoreX = _prefs.getInt('scoreX') ?? 0;
+    _scoreO = _prefs.getInt('scoreO') ?? 0;
 
     notifyListeners();
   }
@@ -109,34 +100,21 @@ class SettingsController with ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> setBoardLayout(BoardLayout layout) async {
+    _boardLayout = layout;
+    await _prefs.setString('boardLayout', layout.name);
+    notifyListeners();
+  }
+
   void toggleSound() {
     _isSoundOn = !_isSoundOn;
     _prefs.setBool('isSoundOn', _isSoundOn);
     notifyListeners();
   }
 
-  // ARCHITECTURAL ADDITION: Method to change board layout.
-  Future<void> setBoardLayout(BoardLayout layout) async {
-    // In a real app, you might show a paywall here.
-    if (!_isPremium && (layout == BoardLayout.double || layout == BoardLayout.triple)) {
-      print("This is a premium feature!");
-      return; // Don't allow setting premium layout if not premium.
-    }
-    _boardLayout = layout;
-    await _prefs.setString('boardLayout', layout.name);
-    notifyListeners();
-  }
-
-  // ARCHITECTURAL ADDITION: Simulate a purchase by toggling premium status.
-  Future<void> togglePremium() async {
+  void togglePremium() {
     _isPremium = !_isPremium;
-    await _prefs.setBool('isPremium', _isPremium);
-
-    // If premium is turned off, revert to a non-premium board layout.
-    if (!_isPremium && _boardLayout != BoardLayout.single) {
-      _boardLayout = BoardLayout.single;
-      await _prefs.setString('boardLayout', _boardLayout.name);
-    }
+    _prefs.setBool('isPremium', _isPremium);
     notifyListeners();
   }
 

@@ -1,25 +1,18 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart'; // Import this library
+import 'package:flutter/rendering.dart';
 import 'package:provider/provider.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:window_manager/window_manager.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'auth_controller.dart';
-import 'auth_screen.dart';
-import 'firebase_service.dart';
 import 'game_controller.dart';
 import 'game_screen.dart';
 import 'window_setup.dart';
 import 'settings_controller.dart';
 import 'sound_manager.dart';
-import 'firebase_options.dart';
+import 'firebase_service.dart';
 
 void main(List<String> args) async {
-  // Add this line to force error logging
-  debugPrintLayouts = true; 
+  debugPrintLayouts = true;
 
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -33,15 +26,6 @@ void main(List<String> args) async {
         await windowManager.setPreventClose(true);
       });
     }
-  }
-
-  await dotenv.load();
-
-  // Use the standard FlutterFire initialization
-  if (Firebase.apps.isEmpty) {
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    );
   }
 
   await configureWindow(isPrimaryInstance: isPrimaryInstance);
@@ -58,13 +42,11 @@ void main(List<String> args) async {
     MultiProvider(
       providers: [
         ChangeNotifierProvider.value(value: settingsController),
-        Provider.value(value: firebaseService),
-        ChangeNotifierProvider(
-            create: (context) => AuthController(firebaseService)),
         Provider<SoundManager>(
           create: (_) => soundManager,
           dispose: (_, manager) => manager.dispose(),
         ),
+        Provider<FirebaseService>.value(value: firebaseService),
         ChangeNotifierProxyProvider<SettingsController, GameController>(
           create: (context) => GameController(
             context.read<SoundManager>(),
@@ -107,7 +89,6 @@ class _MyAppState extends State<MyApp> {
   Widget build(BuildContext context) {
     final settings = context.watch<SettingsController>();
     return MaterialApp(
-      // UI FIX: Changed the main application title.
       title: 'Ultimate TicTacToe',
       theme: settings.themeData.copyWith(
         elevatedButtonTheme: ElevatedButtonThemeData(
@@ -117,19 +98,7 @@ class _MyAppState extends State<MyApp> {
           ),
         ),
       ),
-      home: StreamBuilder<User?>(
-        stream: context.read<FirebaseService>().authStateChanges,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Scaffold(
-              body: Center(child: CircularProgressIndicator()),
-            );
-          }
-          return snapshot.hasData
-              ? TicTacToeGame(isPrimaryInstance: widget.isPrimaryInstance)
-              : const AuthScreen();
-        },
-      ),
+      home: TicTacToeGame(isPrimaryInstance: widget.isPrimaryInstance),
       debugShowCheckedModeBanner: false,
     );
   }

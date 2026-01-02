@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:tictactoe/app_theme.dart';
-import 'auth_controller.dart';
+
 import 'settings_controller.dart';
-import 'firebase_service.dart';
 
 class SettingsMenu extends StatelessWidget {
   final bool isOpen;
@@ -19,8 +17,6 @@ class SettingsMenu extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final settings = context.watch<SettingsController>();
-    final firebaseService = context.read<FirebaseService>();
-    final User? user = firebaseService.currentUser;
     final theme = Theme.of(context);
 
     // UI UPDATE: Increased menu width to prevent text wrapping.
@@ -45,7 +41,7 @@ class SettingsMenu extends StatelessWidget {
       width: menuWidth,
       child: Material(
         elevation: 16,
-        color: theme.scaffoldBackgroundColor.withOpacity(0.95),
+        color: theme.scaffoldBackgroundColor.withAlpha(242),
         shape: const RoundedRectangleBorder(
             borderRadius: BorderRadius.only(bottomLeft: Radius.circular(16))
         ),
@@ -223,34 +219,6 @@ class SettingsMenu extends StatelessWidget {
                     ),
                   ),
                   const Spacer(),
-                  if (user != null)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 8.0),
-                      child: Text(
-                        user.isAnonymous
-                            ? 'Signed in as Guest'
-                            : user.email ?? 'Signed In',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.textTheme.bodySmall?.color?.withOpacity(0.7),
-                        ),
-                        textAlign: TextAlign.center,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  Center(
-                    child: ElevatedButton.icon(
-                      icon: const Icon(Icons.logout),
-                      label: const Text('Sign Out'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: theme.colorScheme.errorContainer,
-                        foregroundColor: theme.colorScheme.onErrorContainer,
-                      ),
-                      onPressed: () {
-                        closeMenu();
-                        context.read<AuthController>().signOut();
-                      },
-                    ),
-                  ),
                   const SizedBox(height: 16),
                 ],
               ),

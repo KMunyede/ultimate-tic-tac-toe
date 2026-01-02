@@ -25,7 +25,7 @@ class GradientButton extends StatelessWidget {
           padding: EdgeInsets.zero,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           elevation: 8,
-          shadowColor: Colors.black.withOpacity(0.4),
+          shadowColor: Colors.black.withAlpha(102),
         ),
         child: Ink(
           decoration: BoxDecoration(

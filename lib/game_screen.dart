@@ -7,7 +7,6 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tictactoe/app_theme.dart';
 import 'package:tictactoe/game_controller.dart';
-import 'package:tictactoe/online_lobby_screen.dart';
 import 'package:tictactoe/settings_controller.dart';
 import 'package:tictactoe/widgets/game_board.dart';
 import 'package:tictactoe/widgets/game_status_display.dart';
@@ -15,8 +14,6 @@ import 'package:tictactoe/widgets/gradient_button.dart';
 import 'package:tictactoe/widgets/score_display.dart';
 import 'package:window_manager/window_manager.dart';
 import 'settings_menu.dart';
-
-const bool isLiteVersion = bool.fromEnvironment('LITE_VERSION');
 
 class TicTacToeGame extends StatefulWidget {
   final bool isPrimaryInstance;
@@ -146,37 +143,27 @@ class _TicTacToeGameState extends State<TicTacToeGame> with WindowListener {
   @override
   void onWindowEvent(String eventName) {}
 
-  Widget _buildGameArea(SettingsController settings, Color gradientStart, Color gradientEnd) {
-    int boardCount = context.read<GameController>().boards.length;
-    if (boardCount == 0) return const Center(child: CircularProgressIndicator());
-
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-      children: List.generate(boardCount, (index) {
-        return Expanded(
-          child: Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: GameBoard(
-              boardIndex: index,
-              gradientStart: gradientStart,
-              gradientEnd: gradientEnd,
-              currentTheme: settings.currentTheme,
+  Widget _buildGameArea(GameController gameController, SettingsController settings, Color gradientStart, Color gradientEnd) {
+    return Center(
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: gameController.boards.asMap().entries.map((entry) {
+          int boardIndex = entry.key;
+          return Flexible(
+            child: Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: GameBoardWidget(
+                boardIndex: boardIndex,
+                gradientStart: gradientStart,
+                gradientEnd: gradientEnd,
+                currentTheme: settings.currentTheme,
+              ),
             ),
-          ),
-        );
-      }),
+          );
+        }).toList(),
+      ),
     );
   }
-
-  // Helper method to get the position of the settings button
-  Offset? _getSettingsButtonPosition() {
-    final RenderBox? renderBox = _settingsButtonKey.currentContext?.findRenderObject() as RenderBox?;
-    if (renderBox != null) {
-      return renderBox.localToGlobal(Offset.zero);
-    }
-    return null;
-  }
-
 
   @override
   Widget build(BuildContext context) {
@@ -193,10 +180,6 @@ class _TicTacToeGameState extends State<TicTacToeGame> with WindowListener {
       gradientEnd = Color.lerp(theme.scaffoldBackgroundColor, Colors.black, 0.1)!;
     }
 
-    // ARCHITECTURAL CHANGE: Wrapped Scaffold in a Stack and moved SettingsMenu
-    // to the top level. This allows the SettingsMenu to overlay the AppBar,
-    // enabling it to be "attached to the top of the window title bar" (y=0)
-    // as requested.
     return Stack(
       children: [
         Scaffold(
@@ -207,16 +190,6 @@ class _TicTacToeGameState extends State<TicTacToeGame> with WindowListener {
               backgroundColor: Colors.transparent,
               elevation: 0,
               actions: [
-                if (!isLiteVersion)
-                  IconButton(
-                    icon: const Icon(Icons.public),
-                    tooltip: 'Online Game Lobby',
-                    onPressed: () {
-                      Navigator.of(context).push(MaterialPageRoute(
-                        builder: (context) => const OnlineLobbyScreen(),
-                      ));
-                    },
-                  ),
                 IconButton(
                   key: _settingsButtonKey, // Assign the key to the settings button
                   icon: const Icon(Icons.settings),
@@ -245,14 +218,14 @@ class _TicTacToeGameState extends State<TicTacToeGame> with WindowListener {
                     const GameStatusDisplay(),
                     const SizedBox(height: 24),
                     Expanded(
-                      child: _buildGameArea(settings, gradientStart, gradientEnd),
+                      child: _buildGameArea(gameController, settings, gradientStart, gradientEnd),
                     ),
                     const SizedBox(height: 24),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         GradientButton(
-                          onPressed: gameController.isGameOver ? gameController.initializeGame : null,
+                          onPressed: gameController.isOverallGameOver ? gameController.initializeGame : null,
                           gradient: LinearGradient(
                             colors: [gradientStart, gradientEnd],
                             begin: Alignment.topLeft,

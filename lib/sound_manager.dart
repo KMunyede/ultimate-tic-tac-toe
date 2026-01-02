@@ -1,4 +1,5 @@
 import 'package:audioplayers/audioplayers.dart';
+import 'package:flutter/foundation.dart';
 import 'settings_controller.dart';
 
 /// A service for managing and playing sound effects.
@@ -39,7 +40,9 @@ class SoundManager {
         await _audioPlayer.play(AssetSource(soundPath));
       } catch (e) {
         // Production-ready code should handle errors, e.g., if a file is missing.
-        print("Error playing sound: $e");
+        if (kDebugMode) {
+          print("Error playing sound: $e");
+        }
       }
     }
   }
@@ -57,7 +60,9 @@ class SoundManager {
         // This robustly waits for the current playback to complete.
         await _audioPlayer.onPlayerComplete.first;
       } catch (e) {
-        print("Error playing win sound: $e");
+        if (kDebugMode) {
+          print("Error playing win sound: $e");
+        }
       }
     }
   }
