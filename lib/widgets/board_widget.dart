@@ -6,9 +6,7 @@ import 'game_status_display.dart';
 import 'score_display.dart';
 
 class BoardWidget extends StatelessWidget {
-  final GameController game;
-
-  const BoardWidget({super.key, required this.game});
+  const BoardWidget({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -98,16 +96,16 @@ class BoardWidget extends StatelessWidget {
       return Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
+          GameBoardWidget(boardIndex: 0, size: boardSize),
+          const SizedBox(height: 20),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              GameBoardWidget(boardIndex: 0, size: boardSize),
-              const SizedBox(width: 20),
               GameBoardWidget(boardIndex: 1, size: boardSize),
+              const SizedBox(width: 20),
+              GameBoardWidget(boardIndex: 2, size: boardSize),
             ],
           ),
-          const SizedBox(height: 20),
-          GameBoardWidget(boardIndex: 2, size: boardSize),
         ],
       );
     }

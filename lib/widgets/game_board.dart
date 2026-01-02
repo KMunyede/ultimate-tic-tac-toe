@@ -1,9 +1,9 @@
-import 'package.flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../app_theme.dart';
-import '../game_controller.dart';
-import '../models/player.dart';
-import '../settings_controller.dart';
+//import 'package:tictactoe/app_theme.dart';
+import 'package:tictactoe/game_controller.dart';
+import 'package:tictactoe/models/player.dart';
+import 'package:tictactoe/settings_controller.dart';
 
 class GameBoardWidget extends StatelessWidget {
   final int boardIndex;

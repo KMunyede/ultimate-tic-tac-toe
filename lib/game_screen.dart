@@ -4,11 +4,13 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+//import 'package:shared_preferences/shared_preferences.dart';
 import 'package:window_manager/window_manager.dart';
-import 'game_controller.dart';
+//import 'game_controller.dart';
+//import 'settings_controller.dart';
 import 'settings_menu.dart';
 import 'sound_manager.dart';
+import 'widgets/board_widget.dart';
 
 class TicTacToeGame extends StatefulWidget {
   final bool isPrimaryInstance;
@@ -44,10 +46,8 @@ class _TicTacToeGameState extends State<TicTacToeGame> with WindowListener {
 
   @override
   Widget build(BuildContext context) {
-    final game = context.watch<GameController>();
     final soundManager = context.read<SoundManager>();
-    final settings = context.watch<SettingsController>();
-
+    
     return Scaffold(
       appBar: AppBar(
         title: const Text('Ultimate TicTacToe'),
@@ -60,17 +60,14 @@ class _TicTacToeGameState extends State<TicTacToeGame> with WindowListener {
               soundManager.playMoveSound();
               showDialog(
                 context: context,
-                builder: (context) => SettingsMenu(
-                  controller: settings,
-                  soundManager: soundManager,
-                ),
+                builder: (context) => const SettingsMenu(),
               );
             },
           ),
         ],
       ),
-      body: Center(
-        child: BoardWidget(game: game),
+      body: const Center(
+        child: BoardWidget(),
       ),
     );
   }
@@ -91,20 +88,6 @@ class _TicTacToeGameState extends State<TicTacToeGame> with WindowListener {
     }
   }
 
-  void _saveWindowState() {
-    if (!_isDesktop) return;
-
-    if (_debounce?.isActive ?? false) _debounce!.cancel();
-    _debounce = Timer(const Duration(milliseconds: 500), () async {
-      final prefs = await SharedPreferences.getInstance();
-      final size = await windowManager.getSize();
-      final position = await windowManager.getPosition();
-      await prefs.setDouble('window_width', size.width);
-      await prefs.setDouble('window_height', size.height);
-      await prefs.setDouble('window_offsetX', position.dx);
-      await prefs.setDouble('window_offsetY', position.dy);
-    });
-  }
 
   // @override
   // void onWindowResized() => _saveWindowState();
