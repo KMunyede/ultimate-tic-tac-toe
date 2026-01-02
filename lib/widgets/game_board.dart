@@ -1,35 +1,30 @@
-import 'package:flutter/material.dart';
+import 'package.flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:tictactoe/app_theme.dart';
-import 'package:tictactoe/game_controller.dart';
-import 'package:tictactoe/models/player.dart';
+import '../app_theme.dart';
+import '../game_controller.dart';
+import '../models/player.dart';
+import '../settings_controller.dart';
 
 class GameBoardWidget extends StatelessWidget {
   final int boardIndex;
-  final Color gradientStart;
-  final Color gradientEnd;
-  final AppTheme currentTheme;
+  final double size;
 
   const GameBoardWidget({
     super.key,
     required this.boardIndex,
-    required this.gradientStart,
-    required this.gradientEnd,
-    required this.currentTheme,
+    required this.size,
   });
 
   @override
   Widget build(BuildContext context) {
     final game = context.watch<GameController>();
+    final settings = context.watch<SettingsController>();
     final board = game.boards[boardIndex];
-
-    final boardSize = MediaQuery.of(context).size.width < 600
-        ? MediaQuery.of(context).size.width * 0.8
-        : 300.0;
+    final theme = settings.currentTheme;
 
     return SizedBox(
-      width: boardSize,
-      height: boardSize,
+      width: size,
+      height: size,
       child: Material(
         elevation: 8,
         borderRadius: BorderRadius.circular(16),
@@ -37,7 +32,7 @@ class GameBoardWidget extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
             gradient: LinearGradient(
-              colors: [gradientStart, gradientEnd],
+              colors: [theme.gradientStart, theme.gradientEnd],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -54,7 +49,7 @@ class GameBoardWidget extends StatelessWidget {
                     onTap: () => game.handleTap(boardIndex, index),
                     child: Container(
                       decoration: BoxDecoration(
-                        border: Border.all(color: currentTheme.mainColor.withAlpha(128)),
+                        border: Border.all(color: theme.mainColor.withAlpha(128)),
                       ),
                       child: Center(
                         child: _buildPlayerIcon(board.cells[index]),
