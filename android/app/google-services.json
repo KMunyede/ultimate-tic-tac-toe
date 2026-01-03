@@ -8,9 +8,9 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:224361974858:android:0e4a4c1bd55256bbaceab3",
+        "mobilesdk_app_id": "1:224361974858:android:8976ffa236e7b428aceab3",
         "android_client_info": {
-          "package_name": "net.hilmost.ultimate_tictactoe"
+          "package_name": "net.hilmost.ultimatetictactoe"
         }
       },
       "oauth_client": [],
