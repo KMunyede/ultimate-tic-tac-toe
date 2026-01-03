@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:provider/provider.dart';
 import 'package:window_manager/window_manager.dart';
+import 'firebase_options.dart';
 import 'game_controller.dart';
 import 'game_screen.dart';
 import 'window_setup.dart';
@@ -16,7 +17,9 @@ void main(List<String> args) async {
   debugPrintLayouts = true;
 
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
 
   bool isPrimaryInstance = true;
   if (!kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS)) {
