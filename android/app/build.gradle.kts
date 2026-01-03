@@ -50,12 +50,7 @@ android {
                 keyPassword = keystoreProperties.getProperty("keyPassword")
                 storeFile = file(keystoreProperties.getProperty("storeFile"))
                 storePassword = keystoreProperties.getProperty("storePassword")
-            } else {
-                throw GradleException("key.properties file not found in android directory!")
-            }
-            if (keyAlias == null || keyPassword == null || storeFile == null || storePassword == null) {
-                throw GradleException("One of the required signing properties (keyAlias, keyPassword, storeFile, storePassword) is missing from key.properties.")
-            }
+            } 
         }
     }
 
@@ -64,6 +59,7 @@ android {
             signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = true
             isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
 }

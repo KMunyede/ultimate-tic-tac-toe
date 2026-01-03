@@ -1,33 +1,14 @@
 {
   "project_info": {
-    "project_number": "669913142343",
-    "firebase_url": "https://tictactoe-9f51e-default-rtdb.firebaseio.com",
-    "project_id": "tictactoe-9f51e",
-    "storage_bucket": "tictactoe-9f51e.firebasestorage.app"
+    "project_number": "224361974858",
+    "firebase_url": "https://ultimate-tic-tac-toe-359-deaec-default-rtdb.firebaseio.com",
+    "project_id": "ultimate-tic-tac-toe-359-deaec",
+    "storage_bucket": "ultimate-tic-tac-toe-359-deaec.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:669913142343:android:f2306615076570a6df8d62",
-        "android_client_info": {
-          "package_name": "com.example.tictactoe"
-        }
-      },
-      "oauth_client": [],
-      "api_key": [
-        {
-          "current_key": "AIzaSyC87kvAgjFsWW5o_QfdbORJkSCapxtIvHg"
-        }
-      ],
-      "services": {
-        "appinvite_service": {
-          "other_platform_oauth_client": []
-        }
-      }
-    },
-    {
-      "client_info": {
-        "mobilesdk_app_id": "1:669913142343:android:03ff8c14237053c4df8d62",
+        "mobilesdk_app_id": "1:224361974858:android:8976ffa236e7b428aceab3",
         "android_client_info": {
           "package_name": "net.hilmost.ultimatetictactoe"
         }
@@ -35,7 +16,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyC87kvAgjFsWW5o_QfdbORJkSCapxtIvHg"
+          "current_key": "AIzaSyBWJyIj-C6AbYHCLH_1C4H94hbG3YpNy_M"
         }
       ],
       "services": {

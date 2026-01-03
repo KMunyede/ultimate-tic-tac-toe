@@ -48,3 +48,13 @@ The "Player vs. AI" mode leverages a Firebase Cloud Function to determine the AI
 
 - **`getAiMove` Function**: When it's the AI's turn, the app calls the `getAiMove` Firebase Function, passing the current board state and the current player. The function returns the AI's calculated best move.
 - **AI Difficulty**: The AI's difficulty level (Medium or Hard) is passed to the Firebase Function to adjust the complexity of the move calculation. For the "Easy" difficulty, a random move is generated locally on the device.
+
+## Troubleshooting
+
+### Firebase Initialization Errors
+
+If you encounter initialization errors or `flutterfire configure` fails:
+
+1.  **Missing `google-services.json`**: This file is required for Android if you don't use `firebase_options.dart`. Download it from the [Firebase Console](https://console.firebase.google.com/) (Project Settings > General > Your Apps > Android) and place it in `android/app/`.
+2.  **Missing `firebase_options.dart`**: If the CLI failed, you can manually create `lib/firebase_options.dart`. A template is provided in the code, but you will need your API Key from the Firebase Console.
+3.  **CLI Issues**: If `flutterfire configure` fails with `firebase-tools.json` not found, try reinstalling the Firebase CLI or running `firebase login --reauth`.

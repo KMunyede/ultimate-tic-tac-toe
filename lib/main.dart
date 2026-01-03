@@ -1,22 +1,53 @@
 import 'dart:io';
+
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart'; // Import dotenv
 import 'package:provider/provider.dart';
 import 'package:window_manager/window_manager.dart';
+
+import 'firebase_options.dart';
+import 'firebase_service.dart';
 import 'game_controller.dart';
 import 'game_screen.dart';
-import 'window_setup.dart';
 import 'settings_controller.dart';
 import 'sound_manager.dart';
-import 'firebase_service.dart';
+import 'window_setup.dart';
 
 void main(List<String> args) async {
-  debugPrintLayouts = true;
+  // Removing debugPrintLayouts as it clogs the console in production
+  // debugPrintLayouts = true;
 
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
+
+  // Load .env file
+  try {
+    await dotenv.load(fileName: ".env");
+  } catch (e) {
+    debugPrint("Warning: Could not load .env file: $e");
+  }
+
+  try {
+    // Try explicit initialization first (more robust if keys are present)
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    debugPrint("Firebase initialized using DefaultFirebaseOptions.");
+  } catch (e) {
+    debugPrint(
+        "Warning: explicit initialization failed: $e. Falling back to native init.");
+    try {
+      // Fallback to native init
+      await Firebase.initializeApp();
+      debugPrint(
+          "Firebase initialized using native resources (google-services.json).");
+    } catch (e2) {
+      debugPrint("CRITICAL: Firebase initialization failed completely: $e2");
+      debugPrint(
+          "Please ensure 'lib/firebase_options.dart' has valid keys OR 'android/app/google-services.json' exists.");
+    }
+  }
 
   bool isPrimaryInstance = true;
   if (!kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS)) {
@@ -56,20 +87,21 @@ void main(List<String> args) async {
             context.read<FirebaseService>(),
           ),
           update: (context, settings, previousGameController) {
-            if (previousGameController == null) {
-              return GameController(
-                context.read<SoundManager>(),
-                settings,
-                context.read<FirebaseService>(),
-              );
-            }
+            // Re-create the GameController if settings that affect game logic change
+            // Or just update dependencies. Here we handle the logic to potentially reset.
+            final controller = previousGameController ??
+                GameController(
+                  context.read<SoundManager>(),
+                  settings,
+                  context.read<FirebaseService>(),
+                );
 
             if (settings.resetGameRequested) {
-              previousGameController.initializeGame();
+              controller.initializeGame();
               settings.consumeGameResetRequest();
             }
-            previousGameController.updateDependencies(settings);
-            return previousGameController;
+            controller.updateDependencies(settings);
+            return controller;
           },
         ),
       ],
@@ -95,8 +127,8 @@ class _MyAppState extends State<MyApp> {
       theme: settings.themeData.copyWith(
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ButtonStyle(
-            foregroundColor:
-                WidgetStateProperty.all(settings.themeData.colorScheme.onPrimary),
+            foregroundColor: WidgetStateProperty.all(
+                settings.themeData.colorScheme.onPrimary),
           ),
         ),
       ),
