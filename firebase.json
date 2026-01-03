@@ -18,8 +18,8 @@
         "lib/firebase_options.dart": {
           "projectId": "ultimate-tic-tac-toe-359-deaec",
           "configurations": {
-            "android": "1:224361974858:android:8976ffa236e7b428aceab3",
-            "windows": "1:224361974858:web:REPLACE_WITH_WEB_APP_ID"
+            "android": "1:669913142343:android:f2306615076570a6df8d62",
+            "windows": "1:669913142343:web:0c3e22078fa7e9d1df8d62"
           }
         }
       }

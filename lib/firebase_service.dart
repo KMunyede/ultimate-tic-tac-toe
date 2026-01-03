@@ -2,6 +2,10 @@ import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/foundation.dart';
 
 class FirebaseService {
+  // Specify the correct region if it's not 'us-central1'
+  // final FirebaseFunctions _functions = FirebaseFunctions.instanceFor(region: 'your-region-here');
+
+  // If your function IS in 'us-central1', use this line:
   final FirebaseFunctions _functions = FirebaseFunctions.instance;
 
   Future<int?> getAiMove(
@@ -12,11 +16,12 @@ class FirebaseService {
     }
 
     try {
+      // The name here must EXACTLY match the name in the Firebase Console
       final callable = _functions.httpsCallable('getAiMove');
       final response = await callable.call<Map<String, dynamic>>({
         'board': board,
         'player': player,
-        'difficulty': difficulty, // Added the missing parameter
+        'difficulty': difficulty,
       });
 
       if (response.data.containsKey('move')) {

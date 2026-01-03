@@ -6,9 +6,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart'; // Import dotenv
 import 'package:provider/provider.dart';
 import 'package:window_manager/window_manager.dart';
-
-import 'firebase_options.dart';
-import 'firebase_service.dart';
 import 'game_controller.dart';
 import 'game_screen.dart';
 import 'settings_controller.dart';
@@ -20,34 +17,7 @@ void main(List<String> args) async {
   // debugPrintLayouts = true;
 
   WidgetsFlutterBinding.ensureInitialized();
-
-  // Load .env file
-  try {
-    await dotenv.load(fileName: ".env");
-  } catch (e) {
-    debugPrint("Warning: Could not load .env file: $e");
-  }
-
-  try {
-    // Try explicit initialization first (more robust if keys are present)
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    );
-    debugPrint("Firebase initialized using DefaultFirebaseOptions.");
-  } catch (e) {
-    debugPrint(
-        "Warning: explicit initialization failed: $e. Falling back to native init.");
-    try {
-      // Fallback to native init
-      await Firebase.initializeApp();
-      debugPrint(
-          "Firebase initialized using native resources (google-services.json).");
-    } catch (e2) {
-      debugPrint("CRITICAL: Firebase initialization failed completely: $e2");
-      debugPrint(
-          "Please ensure 'lib/firebase_options.dart' has valid keys OR 'android/app/google-services.json' exists.");
-    }
-  }
+  await Firebase.initializeApp();
 
   bool isPrimaryInstance = true;
   if (!kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS)) {

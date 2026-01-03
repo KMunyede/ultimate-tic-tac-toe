@@ -11,6 +11,29 @@ import 'package:tictactoe/models/player.dart';
 import 'package:tictactoe/settings_controller.dart';
 import 'package:tictactoe/sound_manager.dart';
 
+// Represents a single Tic-Tac-Toe board
+class GameBoard {
+  List<Player> cells;
+  Player? winner;
+  List<int>? winningLine;
+  bool isDraw;
+
+  GameBoard()
+      : cells = List.filled(9, Player.none),
+        winner = null,
+        winningLine = null,
+        isDraw = false;
+
+  bool get isGameOver => winner != null || isDraw;
+
+  void reset() {
+    cells = List.filled(9, Player.none);
+    winner = null;
+    winningLine = null;
+    isDraw = false;
+  }
+}
+
 class GameController with ChangeNotifier {
   final SoundManager _soundManager;
   SettingsController _settingsController;
@@ -88,7 +111,7 @@ class GameController with ChangeNotifier {
         _makeAiMove();
       }
     }
-
+    
     notifyListeners();
   }
 
@@ -148,12 +171,44 @@ class GameController with ChangeNotifier {
     await Future.delayed(const Duration(milliseconds: 600));
     if (isOverallGameOver) return;
 
-    // Use the separate AiLogic class
-    final move = AiLogic.getBestMove(_boards, _settingsController.aiDifficulty,
-        _settingsController.boardLayout);
+    final availableBoards = _boards.asMap().entries.where((entry) => !entry.value.isGameOver).toList();
+    if (availableBoards.isEmpty) return;
 
-    if (move != null) {
-      handleTap(move.boardIndex, move.cellIndex);
+    final randomBoardEntry = availableBoards[Random().nextInt(availableBoards.length)];
+    final boardIndex = randomBoardEntry.key;
+    final board = randomBoardEntry.value;
+    
+    int? bestMove;
+
+    if (_firebaseService != null && _settingsController.aiDifficulty != AiDifficulty.easy) {
+      try {
+        final boardState = board.cells.map((p) => p.toString().split('.').last).toList();
+        final difficulty = _settingsController.aiDifficulty.name;
+        final move = await _firebaseService!.getAiMove(boardState, _currentPlayer.toString().split('.').last, difficulty);
+        
+        _statusMessage = "AI move received successfully.";
+
+        if (move != null && board.cells[move] == Player.none) {
+          bestMove = move;
+        }
+      } on FirebaseFunctionsException catch (e) {
+        _statusMessage = "Error fetching AI move: ${e.message}";
+      } catch (e) {
+        _statusMessage = "An unknown error occurred.";
+      }
+      notifyListeners();
+    }
+
+    if (bestMove == null) {
+      // Fallback to random move
+      final availableCells = board.cells.asMap().entries.where((entry) => entry.value == Player.none).map((e) => e.key).toList();
+      if (availableCells.isNotEmpty) {
+        bestMove = availableCells[Random().nextInt(availableCells.length)];
+      }
+    }
+
+    if (bestMove != null) {
+      handleTap(boardIndex, bestMove);
     }
   }
 
