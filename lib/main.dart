@@ -3,9 +3,11 @@ import 'dart:io';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart'; // Import dotenv
+//import 'package:flutter_dotenv/flutter_dotenv.dart'; // Import dotenv
 import 'package:provider/provider.dart';
 import 'package:window_manager/window_manager.dart';
+
+import 'firebase_service.dart'; // Added Import
 import 'game_controller.dart';
 import 'game_screen.dart';
 import 'settings_controller.dart';

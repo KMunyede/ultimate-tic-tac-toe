@@ -4,9 +4,7 @@ import 'dart:math';
 
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
-import 'package:tictactoe/ai_logic.dart';
 import 'package:tictactoe/firebase_service.dart';
-import 'package:tictactoe/models/game_board.dart';
 import 'package:tictactoe/models/player.dart';
 import 'package:tictactoe/settings_controller.dart';
 import 'package:tictactoe/sound_manager.dart';
@@ -59,6 +57,9 @@ class GameController with ChangeNotifier {
   bool get isOverallGameOver => _overallWinner != null || _isOverallDraw;
   String? get statusMessage => _statusMessage;
 
+  // Undo is not yet implemented, returning false to disable the button
+  bool get canUndo => false;
+
   int get _numberOfBoards {
     switch (_settingsController.boardLayout) {
       case BoardLayout.single:
@@ -92,6 +93,11 @@ class GameController with ChangeNotifier {
     _updateGameState(boardIndex);
   }
 
+  void undoMove() {
+    // Undo logic to be implemented
+    notifyListeners();
+  }
+
   void _updateGameState(int boardIndex) {
     final board = _boards[boardIndex];
 
@@ -111,7 +117,7 @@ class GameController with ChangeNotifier {
         _makeAiMove();
       }
     }
-    
+
     notifyListeners();
   }
 
@@ -171,21 +177,29 @@ class GameController with ChangeNotifier {
     await Future.delayed(const Duration(milliseconds: 600));
     if (isOverallGameOver) return;
 
-    final availableBoards = _boards.asMap().entries.where((entry) => !entry.value.isGameOver).toList();
+    final availableBoards = _boards
+        .asMap()
+        .entries
+        .where((entry) => !entry.value.isGameOver)
+        .toList();
     if (availableBoards.isEmpty) return;
 
-    final randomBoardEntry = availableBoards[Random().nextInt(availableBoards.length)];
+    final randomBoardEntry =
+        availableBoards[Random().nextInt(availableBoards.length)];
     final boardIndex = randomBoardEntry.key;
     final board = randomBoardEntry.value;
-    
+
     int? bestMove;
 
-    if (_firebaseService != null && _settingsController.aiDifficulty != AiDifficulty.easy) {
+    if (_firebaseService != null &&
+        _settingsController.aiDifficulty != AiDifficulty.easy) {
       try {
-        final boardState = board.cells.map((p) => p.toString().split('.').last).toList();
+        final boardState =
+            board.cells.map((p) => p.toString().split('.').last).toList();
         final difficulty = _settingsController.aiDifficulty.name;
-        final move = await _firebaseService!.getAiMove(boardState, _currentPlayer.toString().split('.').last, difficulty);
-        
+        final move = await _firebaseService!.getAiMove(
+            boardState, _currentPlayer.toString().split('.').last, difficulty);
+
         _statusMessage = "AI move received successfully.";
 
         if (move != null && board.cells[move] == Player.none) {
@@ -201,7 +215,12 @@ class GameController with ChangeNotifier {
 
     if (bestMove == null) {
       // Fallback to random move
-      final availableCells = board.cells.asMap().entries.where((entry) => entry.value == Player.none).map((e) => e.key).toList();
+      final availableCells = board.cells
+          .asMap()
+          .entries
+          .where((entry) => entry.value == Player.none)
+          .map((e) => e.key)
+          .toList();
       if (availableCells.isNotEmpty) {
         bestMove = availableCells[Random().nextInt(availableCells.length)];
       }
