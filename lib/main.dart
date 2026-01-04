@@ -12,7 +12,7 @@ import 'game_controller.dart';
 import 'game_screen.dart';
 import 'settings_controller.dart';
 import 'sound_manager.dart';
-import 'window_setup.dart';
+import 'window_setup.dart'; //
 
 void main(List<String> args) async {
   // Removing debugPrintLayouts as it clogs the console in production
@@ -84,6 +84,7 @@ void main(List<String> args) async {
 
 class MyApp extends StatefulWidget {
   final bool isPrimaryInstance;
+
   const MyApp({super.key, required this.isPrimaryInstance});
 
   @override
