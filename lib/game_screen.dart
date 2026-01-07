@@ -1,11 +1,13 @@
 import 'dart:async';
 import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:window_manager/window_manager.dart';
+
 import 'game_controller.dart';
 import 'settings_menu.dart';
 import 'sound_manager.dart';
@@ -48,6 +50,17 @@ class _TicTacToeGameState extends State<TicTacToeGame> with WindowListener {
   Widget build(BuildContext context) {
     final game = context.watch<GameController>();
     final soundManager = context.read<SoundManager>();
+
+    // Calculate a brighter version of the primary color for buttons
+    final theme = Theme.of(context);
+    final primaryColor = theme.colorScheme.primary;
+    final hsl = HSLColor.fromColor(primaryColor);
+    final brighterColor =
+        hsl.withLightness((hsl.lightness * 1.7).clamp(0.0, 1.0)).toColor();
+
+    // Ensure text contrast on the brighter button
+    final buttonTextColor =
+        brighterColor.computeLuminance() > 0.5 ? Colors.black : Colors.white;
 
     return PopScope(
       canPop: false,
@@ -108,14 +121,22 @@ class _TicTacToeGameState extends State<TicTacToeGame> with WindowListener {
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
                   ElevatedButton.icon(
-                    icon: const Icon(Icons.undo),
-                    label: const Text('Undo'),
-                    onPressed: game.canUndo ? () => game.undoMove() : null,
-                  ),
-                  ElevatedButton.icon(
                     icon: const Icon(Icons.refresh),
                     label: const Text('New Game'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: brighterColor,
+                      foregroundColor: buttonTextColor,
+                    ),
                     onPressed: () => game.initializeGame(),
+                  ),
+                  ElevatedButton.icon(
+                    icon: const Icon(Icons.undo),
+                    label: const Text('Undo'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: brighterColor,
+                      foregroundColor: buttonTextColor,
+                    ),
+                    onPressed: game.canUndo ? () => game.undoMove() : null,
                   ),
                 ],
               ),

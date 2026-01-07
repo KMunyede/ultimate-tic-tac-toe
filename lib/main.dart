@@ -3,7 +3,6 @@ import 'dart:io';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-//import 'package:flutter_dotenv/flutter_dotenv.dart'; // Import dotenv
 import 'package:provider/provider.dart';
 import 'package:window_manager/window_manager.dart';
 
@@ -12,7 +11,7 @@ import 'game_controller.dart';
 import 'game_screen.dart';
 import 'settings_controller.dart';
 import 'sound_manager.dart';
-import 'window_setup.dart'; //
+import 'window_setup.dart';
 
 void main(List<String> args) async {
   // Removing debugPrintLayouts as it clogs the console in production

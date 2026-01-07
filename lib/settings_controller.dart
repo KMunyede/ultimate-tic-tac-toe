@@ -1,33 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tictactoe/app_theme.dart';
+
+import 'models/game_enums.dart';
 import 'models/player.dart';
 
-enum GameMode {
-  playerVsPlayer('Player vs Player'),
-  playerVsAi('Player vs AI');
-
-  const GameMode(this.name);
-  final String name;
-}
-
-enum AiDifficulty {
-  easy('Easy'),
-  medium('Medium'),
-  hard('Hard');
-
-  const AiDifficulty(this.name);
-  final String name;
-}
-
-enum BoardLayout {
-  single('Single'),
-  dual('Dual'),
-  trio('Trio');
-
-  const BoardLayout(this.name);
-  final String name;
-}
+export 'models/game_enums.dart';
 
 class SettingsController with ChangeNotifier {
   late SharedPreferences _prefs;
@@ -61,19 +39,28 @@ class SettingsController with ChangeNotifier {
 
   Future<void> loadSettings() async {
     _prefs = await SharedPreferences.getInstance();
-    
+
     final themeName = _prefs.getString('theme') ?? appThemes.first.name;
-    _currentTheme = appThemes.firstWhere((t) => t.name == themeName, orElse: () => appThemes.first);
+    _currentTheme = appThemes.firstWhere((t) => t.name == themeName,
+        orElse: () => appThemes.first);
 
-    final gameModeName = _prefs.getString('gameMode') ?? GameMode.playerVsPlayer.name;
-    _gameMode = GameMode.values.firstWhere((m) => m.name == gameModeName, orElse: () => GameMode.playerVsPlayer);
+    final gameModeName =
+        _prefs.getString('gameMode') ?? GameMode.playerVsPlayer.name;
+    _gameMode = GameMode.values.firstWhere((m) => m.name == gameModeName,
+        orElse: () => GameMode.playerVsPlayer);
 
-    final aiDifficultyName = _prefs.getString('aiDifficulty') ?? AiDifficulty.hard.name;
-    _aiDifficulty = AiDifficulty.values.firstWhere((d) => d.name == aiDifficultyName, orElse: () => AiDifficulty.hard);
+    final aiDifficultyName =
+        _prefs.getString('aiDifficulty') ?? AiDifficulty.hard.name;
+    _aiDifficulty = AiDifficulty.values.firstWhere(
+        (d) => d.name == aiDifficultyName,
+        orElse: () => AiDifficulty.hard);
 
-    final boardLayoutName = _prefs.getString('boardLayout') ?? BoardLayout.single.name;
-    _boardLayout = BoardLayout.values.firstWhere((l) => l.name == boardLayoutName, orElse: () => BoardLayout.single);
-    
+    final boardLayoutName =
+        _prefs.getString('boardLayout') ?? BoardLayout.single.name;
+    _boardLayout = BoardLayout.values.firstWhere(
+        (l) => l.name == boardLayoutName,
+        orElse: () => BoardLayout.single);
+
     _isSoundOn = _prefs.getBool('isSoundOn') ?? true;
     _isPremium = _prefs.getBool('isPremium') ?? false;
     _scoreX = _prefs.getInt('scoreX') ?? 0;
