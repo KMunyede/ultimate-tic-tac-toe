@@ -21,7 +21,6 @@ class GameBoard {
     winningLine = null;
     isDraw = false;
   }
-
   bool checkWinner(Player player) {
     const List<List<int>> winningCombos = [
       [0, 1, 2],

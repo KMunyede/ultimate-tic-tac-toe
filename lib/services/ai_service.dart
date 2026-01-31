@@ -66,14 +66,14 @@ class AiService {
     final opponent = aiPlayer == Player.X ? Player.O : Player.X;
 
     // Otherwise, try to be smart:
-    // 1. Check for immediate win
+    // 1. Check for immediate win across ANY board
     for (var move in moves) {
       if (_simulateMove(boards[move.boardIndex], move.cellIndex, aiPlayer)) {
         return move;
       }
     }
 
-    // 2. Check for blocking opponent win
+    // 2. Check for blocking opponent win across ANY board
     for (var move in moves) {
       if (_simulateMove(boards[move.boardIndex], move.cellIndex, opponent)) {
         return move;
@@ -88,6 +88,16 @@ class AiService {
   // Evaluates moves strategically considering the multi-board layout.
   AiMove _getHardMove(List<GameBoard> boards, List<AiMove> moves,
       BoardLayout layout, Player aiPlayer) {
+    // Check if it's the very early game (all boards completely empty).
+    bool isEarlyGame = boards
+        .every((board) => board.cells.every((cell) => cell == Player.none));
+
+    if (isEarlyGame && moves.isNotEmpty) {
+      // For the very first move, pick a completely random move from all available options
+      // to ensure variety and non-repetitive openings as requested.
+      return moves[_random.nextInt(moves.length)];
+    }
+
     AiMove? bestMove;
     int bestScore = -999999;
 
@@ -97,7 +107,8 @@ class AiService {
         bestScore = score;
         bestMove = move;
       } else if (score == bestScore) {
-        // Randomly pick between equal moves to avoid repetitive patterns
+        // Randomly pick between equal strategic moves (those not guaranteeing a game win/block)
+        // to avoid repetitive patterns. This is the main method for non-critical move variety.
         if (_random.nextBool()) {
           bestMove = move;
         }
@@ -117,40 +128,33 @@ class AiService {
 
     // Can we win this board now?
     if (_simulateMove(board, move.cellIndex, aiPlayer)) {
-      // Base score for winning a board
-      // INCREASED: Makes winning a board ALWAYS better than defending one (unless game over)
-      int winBonus = 20000;
-
-      // CRITICAL: In Duo/Trio, winning a board is GAME WIN if we already have others.
-      // If winning this board achieves the Global Victory, prioritize it absolutely.
       if (_willWinGame(boards, move.boardIndex, aiPlayer, layout)) {
-        winBonus = 100000;
+        score += 100000; // Global Win is paramount
+      } else {
+        score += 500; // Drastically lowered score for local win only
       }
-      score += winBonus;
     }
     // Must we block an opponent win on this board?
     else if (_simulateMove(board, move.cellIndex, opponent)) {
-      // Blocking is critical.
-      // Defending score must be lower than Local Win score to prioritize Winning over Defending
-      int blockBonus = 15000;
-
-      // If opponent winning this board causes them to win the GAME, blocking is absolute priority.
       if (_willWinGame(boards, move.boardIndex, opponent, layout)) {
-        blockBonus = 80000;
+        score += 80000; // Critical block to save the entire game
+      } else {
+        score += 400; // Drastically lowered score for local block only
       }
-      score += blockBonus;
     } else {
       // Normal positional scoring
       if (move.cellIndex == 4) score += 5; // Center
       if ([0, 2, 6, 8].contains(move.cellIndex)) score += 3; // Corners
     }
 
-    // --- 2. GLOBAL STRATEGIC WEIGHTS ---
-    // Increase aggression: Prioritize winning moves on ANY board over passive blocking
-    // unless the block saves the entire game.
+    // --- NEW: Board Freshness Bonus to promote variety (board switching) ---
+    // Add a bonus inversely proportional to pieces played.
+    // Max bonus of 45 (for empty board), min of 0 (for full board).
+    final piecesPlayed = board.cells.where((c) => c != Player.none).length;
+    score += (9 - piecesPlayed) * 5;
 
+    // --- 2. GLOBAL STRATEGIC WEIGHTS ---
     // Check if we are close to winning this specific board (e.g. 2 in a row)
-    // This makes the AI "build" towards a win even if it's not immediate.
     if (_hasTwoInRow(board, aiPlayer, move.cellIndex)) {
       score += 50;
     }
@@ -238,19 +242,26 @@ class AiService {
   // Checks if winning [targetBoardIndex] results in a Global Victory for [player].
   bool _willWinGame(List<GameBoard> boards, int targetBoardIndex, Player player,
       BoardLayout layout) {
-    int requiredWins = (layout == BoardLayout.single)
-        ? 1
-        : (layout == BoardLayout.dual ? 2 : 3);
+    final numberOfBoards = boards.length;
+    // Calculate required wins: ceil(numberOfBoards / 2)
+    final requiredWins = (numberOfBoards / 2).ceil();
+
     int currentWins = 0;
 
     for (int i = 0; i < boards.length; i++) {
-      if (i == targetBoardIndex) continue; // We are simulating winning this one
+      // Simulate that the target board is won
+      if (i == targetBoardIndex) {
+        currentWins++;
+        continue;
+      }
+
+      // Count wins on other boards
       if (boards[i].winner == player) {
         currentWins++;
       }
     }
 
-    // If current wins + this new win == required, then yes.
-    return (currentWins + 1) == requiredWins;
+    // Check if the total number of wins (including the simulated one) meets the majority requirement.
+    return currentWins >= requiredWins;
   }
 }

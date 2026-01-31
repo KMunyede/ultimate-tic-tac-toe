@@ -3,9 +3,11 @@ import 'dart:io';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart'; // Added Import
 import 'package:provider/provider.dart';
 import 'package:window_manager/window_manager.dart';
 
+import 'firebase_options.dart'; // [FIX] Required for multi-platform configuration
 import 'firebase_service.dart'; // Added Import
 import 'game_controller.dart';
 import 'game_screen.dart';
@@ -18,7 +20,29 @@ void main(List<String> args) async {
   // debugPrintLayouts = true;
 
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
+
+  // FIX: Initialize DotEnv before accessing it in DefaultFirebaseOptions
+  await dotenv.load(fileName: ".env");
+
+  // [FIX] Initialize Firebase with platform-specific options.
+  // We use a try-catch block to handle the "duplicate-app" error on Android
+  // which sometimes occurs even with the Firebase.apps.isEmpty check.
+  try {
+    if (Firebase.apps.isEmpty) {
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
+    }
+  } on FirebaseException catch (e) {
+    if (e.code != 'duplicate-app') {
+      rethrow;
+    } else {
+      // If duplicate-app, we assume initialization succeeded in the background.
+      if (kDebugMode) {
+        print("Firebase already initialized by native layer. Continuing...");
+      }
+    }
+  }
 
   bool isPrimaryInstance = true;
   if (!kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS)) {
@@ -55,7 +79,7 @@ void main(List<String> args) async {
           create: (context) => GameController(
             context.read<SoundManager>(),
             context.read<SettingsController>(),
-            context.read<FirebaseService>(),
+            context.read<FirebaseService>(), // Added argument
           ),
           update: (context, settings, previousGameController) {
             // Re-create the GameController if settings that affect game logic change
@@ -64,11 +88,11 @@ void main(List<String> args) async {
                 GameController(
                   context.read<SoundManager>(),
                   settings,
-                  context.read<FirebaseService>(),
+                  context.read<FirebaseService>(), // Added argument
                 );
 
             if (settings.resetGameRequested) {
-              controller.initializeGame();
+              controller.initializeGame(useMicrotask: true);
               settings.consumeGameResetRequest();
             }
             controller.updateDependencies(settings);

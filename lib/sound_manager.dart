@@ -15,41 +15,30 @@ class SoundManager {
   final AudioPlayer _audioPlayer = AudioPlayer();
 
   // Define asset paths as constants for easy management and to avoid typos.
+  // Paths should align with the 'assets/' prefix defined in pubspec.yaml
   static const String _moveSoundPath = 'sounds/move.mp3';
   static const String _winSoundPath = 'sounds/win.mp3';
   static const String _drawSoundPath = 'sounds/draw.mp3';
 
   SoundManager(this._settingsController);
 
-  /// Initializes the sound manager and pre-loads sounds into the cache.
+  /// Initializes the sound manager. Pre-loading is now handled implicitly by
+  /// the modern audioplayers API when using AssetSource.
   Future<void> init() async {
-    // Pre-caching sounds at startup to prevent any lag on the first play.
-    await _preLoadSounds();
-  }
-
-  /// Loads all game sounds into the audioplayers cache.
-  Future<void> _preLoadSounds() async {
-    // Use a separate, temporary audio cache instance for pre-loading.
-    final cache = AudioCache(prefix: 'assets/');
-    try {
-      await cache.loadAll([_moveSoundPath, _winSoundPath, _drawSoundPath]);
-      if (kDebugMode) {
-        print("All sounds pre-loaded into cache.");
-      }
-    } catch (e) {
-      if (kDebugMode) {
-        print("Error pre-loading sounds: $e");
-      }
+    if (kDebugMode) {
+      print("SoundManager initialized. Sounds will be loaded on first play.");
     }
+    // No explicit pre-loading necessary with AssetSource.
   }
 
   /// A private helper to play a sound from assets, respecting sound settings.
   Future<void> _playSound(String soundPath) async {
     if (_settingsController.isSoundOn) {
       try {
+        await _audioPlayer.stop(); // Stop any currently playing sound
+        // We use AssetSource as recommended by the latest audioplayers API
         await _audioPlayer.play(AssetSource(soundPath));
       } catch (e) {
-        // Production-ready code should handle errors, e.g., if a file is missing.
         if (kDebugMode) {
           print("Error playing sound: $e");
         }
@@ -62,24 +51,25 @@ class SoundManager {
     _playSound(_moveSoundPath);
   }
 
-  /// Plays the win sound and waits for it to complete.
+  /// Plays the win sound.
   Future<void> playWinSound() async {
-    if (_settingsController.isSoundOn) {
-      try {
-        await _audioPlayer.play(AssetSource(_winSoundPath));
-        // This robustly waits for the current playback to complete.
-        await _audioPlayer.onPlayerComplete.first;
-      } catch (e) {
-        if (kDebugMode) {
-          print("Error playing win sound: $e");
-        }
-      }
-    }
+    await _playSound(_winSoundPath);
   }
 
   /// Plays the draw sound.
   void playDrawSound() {
     _playSound(_drawSoundPath);
+  }
+
+  /// Stops any currently playing sound.
+  Future<void> stop() async {
+    try {
+      await _audioPlayer.stop();
+    } catch (e) {
+      if (kDebugMode) {
+        print("Error stopping sound: $e");
+      }
+    }
   }
 
   /// Releases the audio player resources.

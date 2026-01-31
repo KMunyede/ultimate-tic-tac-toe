@@ -62,6 +62,15 @@ class _TicTacToeGameState extends State<TicTacToeGame> with WindowListener {
     final buttonTextColor =
         brighterColor.computeLuminance() > 0.5 ? Colors.black : Colors.white;
 
+    // Base button dimensions for scaling
+    final screenWidth = MediaQuery.of(context).size.width;
+    // Use a percentage of the screen width for a responsive base size
+    const double baseWidthFactor = 0.4;
+    const double baseHeight = 48.0; // Standard material button height
+
+    final double newWidth = screenWidth * baseWidthFactor * 1.20; // 20% larger
+    final double newHeight = baseHeight * 1.10; // 10% larger
+
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, result) {
@@ -120,23 +129,18 @@ class _TicTacToeGameState extends State<TicTacToeGame> with WindowListener {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
-                  ElevatedButton.icon(
-                    icon: const Icon(Icons.refresh),
-                    label: const Text('New Game'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: brighterColor,
-                      foregroundColor: buttonTextColor,
+                  SizedBox(
+                    width: newWidth,
+                    height: newHeight,
+                    child: ElevatedButton.icon(
+                      icon: const Icon(Icons.refresh),
+                      label: const Text('New Game'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: brighterColor,
+                        foregroundColor: buttonTextColor,
+                      ),
+                      onPressed: () => game.initializeGame(),
                     ),
-                    onPressed: () => game.initializeGame(),
-                  ),
-                  ElevatedButton.icon(
-                    icon: const Icon(Icons.undo),
-                    label: const Text('Undo'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: brighterColor,
-                      foregroundColor: buttonTextColor,
-                    ),
-                    onPressed: game.canUndo ? () => game.undoMove() : null,
                   ),
                 ],
               ),

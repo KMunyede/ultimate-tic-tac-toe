@@ -75,22 +75,35 @@ class SettingsController with ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> setGameMode(GameMode mode) async {
-    _gameMode = mode;
-    await _prefs.setString('gameMode', mode.name);
+  // Central function to trigger game reset when settings change
+  void _triggerGameReset() {
+    _resetGameRequested = true;
+    // Notify listeners so main.dart's ProxyProvider can check and reset the game
     notifyListeners();
+  }
+
+  Future<void> setGameMode(GameMode mode) async {
+    if (_gameMode != mode) {
+      _gameMode = mode;
+      await _prefs.setString('gameMode', mode.name);
+      _triggerGameReset(); // Trigger reset on change
+    }
   }
 
   Future<void> setAiDifficulty(AiDifficulty difficulty) async {
-    _aiDifficulty = difficulty;
-    await _prefs.setString('aiDifficulty', difficulty.name);
-    notifyListeners();
+    if (_aiDifficulty != difficulty) {
+      _aiDifficulty = difficulty;
+      await _prefs.setString('aiDifficulty', difficulty.name);
+      _triggerGameReset(); // Trigger reset on change
+    }
   }
 
   Future<void> setBoardLayout(BoardLayout layout) async {
-    _boardLayout = layout;
-    await _prefs.setString('boardLayout', layout.name);
-    notifyListeners();
+    if (_boardLayout != layout) {
+      _boardLayout = layout;
+      await _prefs.setString('boardLayout', layout.name);
+      _triggerGameReset(); // Trigger reset on change
+    }
   }
 
   void toggleSound() {
@@ -126,8 +139,7 @@ class SettingsController with ChangeNotifier {
 
   void resetGameAndScores() {
     resetScores();
-    _resetGameRequested = true;
-    notifyListeners();
+    _triggerGameReset(); // Reusing the reset function
   }
 
   void consumeGameResetRequest() {
