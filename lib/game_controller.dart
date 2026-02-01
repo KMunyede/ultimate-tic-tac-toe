@@ -9,6 +9,9 @@ import 'package:tictactoe/services/ai_service.dart';
 import 'package:tictactoe/settings_controller.dart';
 import 'package:tictactoe/sound_manager.dart';
 
+import 'logic/match_referee.dart';
+// or 'package:tictactoe/models/game_enums.dart'
+
 class GameController with ChangeNotifier {
   final SoundManager _soundManager;
   SettingsController _settingsController;
@@ -17,6 +20,7 @@ class GameController with ChangeNotifier {
 
   final StreamController<String> _aiErrorController =
       StreamController<String>.broadcast();
+
   Stream<String> get aiErrorStream => _aiErrorController.stream;
 
   GameController(
@@ -41,10 +45,15 @@ class GameController with ChangeNotifier {
 
   // --- GETTERS ---
   List<GameBoard> get boards => _boards;
+
   Player get currentPlayer => _currentPlayer;
+
   Player? get overallWinner => _overallWinner;
+
   bool get isOverallDraw => _isOverallDraw;
+
   bool get isOverallGameOver => _overallWinner != null || _isOverallDraw;
+
   String? get statusMessage => _statusMessage;
 
   int get _numberOfBoards {
@@ -160,11 +169,11 @@ class GameController with ChangeNotifier {
     double scoreO = 0.0;
 
     for (var b in _boards) {
-      if (b.winner == Player.X)
+      if (b.winner == Player.X) {
         scoreX += 1.0;
-      else if (b.winner == Player.O)
+      } else if (b.winner == Player.O) {
         scoreO += 1.0;
-      else if (b.isDraw) {
+      } else if (b.isDraw) {
         scoreX += 0.5;
         scoreO += 0.5;
       }
@@ -288,8 +297,9 @@ class GameController with ChangeNotifier {
           return true;
         }
       } else {
-        if (kDebugMode)
+        if (kDebugMode) {
           print("DEBUG: Remote move returned null or invalid data structure");
+        }
       }
     } catch (e) {
       if (kDebugMode) print("DEBUG: Exception in remote AI call: $e");
@@ -305,5 +315,35 @@ class GameController with ChangeNotifier {
         _settingsController.boardLayout != newSettingsController.boardLayout;
     _settingsController = newSettingsController;
     if (shouldReset) initializeGame(useMicrotask: true);
+  }
+
+  void checkWinCondition() {
+    // 1. Convert GameBoard status to Referee format
+    List<BoardResult> boardStates = _boards.map((board) {
+      // FIX: Use 'Player.X' and 'Player.O' (The Enum values)
+      if (board.winner == Player.X) return BoardResult.playerX;
+      if (board.winner == Player.O) return BoardResult.playerO;
+      if (board.isDraw) return BoardResult.draw;
+      return BoardResult.active;
+    }).toList();
+
+    // 2. Ask the Referee
+    BoardResult matchResult = MatchReferee.checkMatchWinner(boardStates);
+
+    // 3. Act on the decision
+    if (matchResult != BoardResult.active) {
+      if (matchResult == BoardResult.playerX) {
+        _overallWinner = Player.X; // FIX: Assign Enum directly
+        _soundManager.playWinSound();
+      } else if (matchResult == BoardResult.playerO) {
+        _overallWinner = Player.O; // FIX: Assign Enum directly
+        _soundManager.playWinSound();
+      } else if (matchResult == BoardResult.draw) {
+        _isOverallDraw = true;
+        _soundManager.playDrawSound();
+      }
+
+      notifyListeners();
+    }
   }
 }
