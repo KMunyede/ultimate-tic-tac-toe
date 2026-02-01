@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart'; // Added for ScaffoldMessenger
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -27,6 +27,9 @@ class _TicTacToeGameState extends State<TicTacToeGame> with WindowListener {
   bool _isDesktop = false;
   DateTime? _lastPressed;
 
+  // NEW: Subscription for GameController error events
+  StreamSubscription<String>? _aiErrorSubscription;
+
   @override
   void initState() {
     super.initState();
@@ -38,12 +41,43 @@ class _TicTacToeGameState extends State<TicTacToeGame> with WindowListener {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+
+    // Lazy-load the subscription when dependencies change (i.e., when widget mounts)
+    if (_aiErrorSubscription == null) {
+      final gameController = context.read<GameController>();
+
+      // Subscribe to the AI error stream
+      _aiErrorSubscription = gameController.aiErrorStream.listen((message) {
+        // Use Future.microtask to ensure the SnackBar call happens after the build phase is complete,
+        // preventing "Scaffold.of() called with a context that does not contain a Scaffold" errors.
+        if (mounted) {
+          Future.microtask(() => _showErrorSnackbar(message));
+        }
+      });
+    }
+  }
+
+  @override
   void dispose() {
+    // CRUCIAL: Cancel the subscription to avoid memory leaks
+    _aiErrorSubscription?.cancel();
     if (_isDesktop) {
       windowManager.removeListener(this);
     }
     _debounce?.cancel();
     super.dispose();
+  }
+
+  void _showErrorSnackbar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Theme.of(context).colorScheme.error,
+        duration: const Duration(seconds: 4),
+      ),
+    );
   }
 
   @override

@@ -29,6 +29,10 @@ class SettingsController with ChangeNotifier {
   bool _isPremium = false;
   bool get isPremium => _isPremium;
 
+  // Added missing Online AI setting
+  bool _useOnlineAi = false;
+  bool get useOnlineAi => _useOnlineAi;
+
   int _scoreX = 0;
   int _scoreO = 0;
   int get scoreX => _scoreX;
@@ -63,6 +67,7 @@ class SettingsController with ChangeNotifier {
 
     _isSoundOn = _prefs.getBool('isSoundOn') ?? true;
     _isPremium = _prefs.getBool('isPremium') ?? false;
+    _useOnlineAi = _prefs.getBool('useOnlineAi') ?? false; // Load Online AI setting
     _scoreX = _prefs.getInt('scoreX') ?? 0;
     _scoreO = _prefs.getInt('scoreO') ?? 0;
 
@@ -116,6 +121,15 @@ class SettingsController with ChangeNotifier {
     _isPremium = !_isPremium;
     _prefs.setBool('isPremium', _isPremium);
     notifyListeners();
+  }
+
+  // Added setter for Online AI
+  Future<void> setUseOnlineAi(bool value) async {
+    if (_useOnlineAi != value) {
+      _useOnlineAi = value;
+      await _prefs.setBool('useOnlineAi', value);
+      notifyListeners();
+    }
   }
 
   Future<void> updateScore(Player winner) async {

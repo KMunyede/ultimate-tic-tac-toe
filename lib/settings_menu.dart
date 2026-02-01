@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import 'app_theme.dart';
 import 'settings_controller.dart';
 import 'sound_manager.dart';
@@ -23,8 +24,18 @@ class SettingsMenu extends StatelessWidget {
             _buildThemeSelector(context, settings),
             const SizedBox(height: 16),
             _buildGameModeSelector(context, settings),
-            if (settings.gameMode == GameMode.playerVsAi)
+            if (settings.gameMode == GameMode.playerVsAi) ...[
               _buildAiDifficultySelector(context, settings),
+              const SizedBox(height: 8),
+              SwitchListTile(
+                title: const Text('Use Online AI'),
+                subtitle: const Text('Call Firebase for moves'),
+                value: settings.useOnlineAi,
+                onChanged: (value) {
+                  settings.setUseOnlineAi(value);
+                },
+              ),
+            ],
             const SizedBox(height: 16),
             _buildBoardLayoutSelector(context, settings),
             const SizedBox(height: 16),
@@ -64,7 +75,8 @@ class SettingsMenu extends StatelessWidget {
     );
   }
 
-  Widget _buildThemeSelector(BuildContext context, SettingsController settings) {
+  Widget _buildThemeSelector(
+      BuildContext context, SettingsController settings) {
     return _buildDropdown(
       context: context,
       label: 'Theme',

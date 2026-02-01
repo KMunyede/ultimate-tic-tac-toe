@@ -1,8 +1,8 @@
-//Modified game_controller 03/01/2026 23:25 CAT
+//Modified game_controller 04/01/2026 00:30 CAT
 import 'dart:async';
 
-import 'package:flutter/foundation.dart'; // Import for kDebugMode
-import 'package:tictactoe/firebase_service.dart'; // Added Import
+import 'package:flutter/foundation.dart';
+import 'package:tictactoe/firebase_service.dart';
 import 'package:tictactoe/models/game_board.dart';
 import 'package:tictactoe/models/player.dart';
 import 'package:tictactoe/services/ai_service.dart';
@@ -12,23 +12,32 @@ import 'package:tictactoe/sound_manager.dart';
 class GameController with ChangeNotifier {
   final SoundManager _soundManager;
   SettingsController _settingsController;
-  final FirebaseService _firebaseService; // Added FirebaseService
-  final AiService _aiService = AiService(); // Local Fallback AI
+  final FirebaseService _firebaseService;
+  final AiService _aiService = AiService();
+
+  final StreamController<String> _aiErrorController =
+      StreamController<String>.broadcast();
+  Stream<String> get aiErrorStream => _aiErrorController.stream;
 
   GameController(
       this._soundManager, this._settingsController, this._firebaseService) {
     initializeGame();
   }
 
+  @override
+  void dispose() {
+    _aiErrorController.close();
+    super.dispose();
+  }
+
   // --- STATE ---
   late List<GameBoard> _boards;
   Player? _overallWinner;
-  Player _currentPlayer = Player.X;
   bool _isOverallDraw = false;
   String? _statusMessage;
-
-  // Game generation ID to handle async AI moves during resets
   int _gameId = 0;
+
+  Player _currentPlayer = Player.X;
 
   // --- GETTERS ---
   List<GameBoard> get boards => _boards;
@@ -50,9 +59,8 @@ class GameController with ChangeNotifier {
   }
 
   void initializeGame({bool useMicrotask = false}) {
-    _gameId++; // Invalidate any pending AI moves
-    _soundManager.stop(); // Stop any playing sounds (e.g., win sound)
-
+    _gameId++;
+    _soundManager.stop();
     _boards = List.generate(_numberOfBoards, (_) => GameBoard());
     _overallWinner = null;
     _currentPlayer = Player.X;
@@ -73,28 +81,21 @@ class GameController with ChangeNotifier {
         board.cells[cellIndex] != Player.none) {
       return;
     }
-
     board.cells[cellIndex] = _currentPlayer;
     _soundManager.playMoveSound();
-
     _updateGameState(boardIndex);
   }
 
   void _updateGameState(int boardIndex) {
     final board = _boards[boardIndex];
-
     final winningLine = _findWinningLine(board);
+
     if (winningLine != null) {
       board.winner = _currentPlayer;
       _soundManager.playWinSound();
-
-      // Delay drawing the victory line to allow the last move to be fully rendered
-      // We also check _gameId to ensure we don't update state if game was reset
       final int currentId = _gameId;
       Future.delayed(const Duration(milliseconds: 500), () {
         if (_gameId != currentId) return;
-
-        // Ensure the game state hasn't been reset while waiting
         if (board.winner == _currentPlayer && !board.isDraw) {
           board.winningLine = winningLine;
           notifyListeners();
@@ -108,43 +109,102 @@ class GameController with ChangeNotifier {
 
     if (!isOverallGameOver) {
       _currentPlayer = (_currentPlayer == Player.X) ? Player.O : Player.X;
+
+      // LOGGING: Check why AI might not be triggering
+      if (kDebugMode) {
+        print(
+            "DEBUG: Current Player is $_currentPlayer. GameMode is ${_settingsController.gameMode}");
+      }
+
       if (_settingsController.gameMode == GameMode.playerVsAi &&
           _currentPlayer == Player.O) {
         _makeAiMove();
       }
     }
-
     notifyListeners();
   }
 
   void _checkOverallGameStatus() {
-    final wonBoardsByX = _boards.where((b) => b.winner == Player.X).length;
-    final wonBoardsByO = _boards.where((b) => b.winner == Player.O).length;
+    final int count = _boards.length;
+    final bool allFinished = _boards.every((b) => b.isGameOver);
 
-    // Calculate required wins for an overall win (majority for multi-board)
-    final int requiredWins = (_numberOfBoards / 2).ceil();
-
-    if (wonBoardsByX >= requiredWins) {
-      _overallWinner = Player.X;
-      _settingsController.updateScore(Player.X);
-      _soundManager.playWinSound();
-      return;
-    }
-    if (wonBoardsByO >= requiredWins) {
-      _overallWinner = Player.O;
-      _settingsController.updateScore(Player.O);
-      _soundManager.playWinSound();
-      return;
+    if (count == 1) {
+      _handleSingleBoardResult();
+    } else if (count == 2) {
+      _handleTwoBoardResult(allFinished);
+    } else if (count == 3) {
+      _handleThreeBoardResult(allFinished);
     }
 
-    final activeBoards = _boards.where((b) => !b.isGameOver).length;
-    final maxPossibleX = wonBoardsByX + activeBoards;
-    final maxPossibleO = wonBoardsByO + activeBoards;
+    if (isOverallGameOver) {
+      if (_overallWinner != null) {
+        _settingsController.updateScore(_overallWinner!);
+        _soundManager.playWinSound();
+      } else if (_isOverallDraw) {
+        _soundManager.playDrawSound();
+      }
+    }
+  }
 
-    // Check if it's impossible for either to win a majority of boards
-    if (maxPossibleX < requiredWins && maxPossibleO < requiredWins) {
+  void _handleSingleBoardResult() {
+    final board = _boards[0];
+    if (board.winner != null) {
+      _overallWinner = board.winner;
+    } else if (board.isDraw) {
       _isOverallDraw = true;
-      _soundManager.playDrawSound();
+    }
+  }
+
+  void _handleTwoBoardResult(bool allFinished) {
+    double scoreX = 0.0;
+    double scoreO = 0.0;
+
+    for (var b in _boards) {
+      if (b.winner == Player.X)
+        scoreX += 1.0;
+      else if (b.winner == Player.O)
+        scoreO += 1.0;
+      else if (b.isDraw) {
+        scoreX += 0.5;
+        scoreO += 0.5;
+      }
+    }
+
+    if (allFinished) {
+      if (scoreX > scoreO) {
+        _overallWinner = Player.X;
+      } else if (scoreO > scoreX) {
+        _overallWinner = Player.O;
+      } else {
+        _isOverallDraw = true;
+      }
+    } else {
+      if (scoreX > 1.0) _overallWinner = Player.X;
+      if (scoreO > 1.0) _overallWinner = Player.O;
+    }
+  }
+
+  void _handleThreeBoardResult(bool allFinished) {
+    int winsX = _boards.where((b) => b.winner == Player.X).length;
+    int winsO = _boards.where((b) => b.winner == Player.O).length;
+
+    if (winsX >= 2) {
+      _overallWinner = Player.X;
+      return;
+    }
+    if (winsO >= 2) {
+      _overallWinner = Player.O;
+      return;
+    }
+
+    if (allFinished) {
+      if (winsX > winsO) {
+        _overallWinner = Player.X;
+      } else if (winsO > winsX) {
+        _overallWinner = Player.O;
+      } else {
+        _isOverallDraw = true;
+      }
     }
   }
 
@@ -159,7 +219,6 @@ class GameController with ChangeNotifier {
       [0, 4, 8],
       [2, 4, 6],
     ];
-
     for (final line in winningCombos) {
       final Player first = board.cells[line[0]];
       if (first != Player.none &&
@@ -174,67 +233,77 @@ class GameController with ChangeNotifier {
   Future<void> _makeAiMove() async {
     final int capturingGameId = _gameId;
 
-    // Artificial delay for realism
-    await Future.delayed(const Duration(milliseconds: 600));
-
-    // If game has been reset (ID changed), abort
-    if (_gameId != capturingGameId) return;
-
-    if (isOverallGameOver) return;
-
-    // --- 1. Attempt Remote AI Move via Firebase Function ---
-    // Log the intent to call the function
     if (kDebugMode) {
-      print("Attempting REMOTE AI move via Firebase Function...");
+      print(
+          "DEBUG: AI Move Triggered. useOnlineAi is ${_settingsController.useOnlineAi}");
     }
 
-    // Flatten the boards data structure for remote transmission
+    await Future.delayed(const Duration(milliseconds: 600));
+    if (_gameId != capturingGameId || isOverallGameOver) return;
+
     final List<dynamic> serializedBoards =
         _boards.map((b) => b.cells.map((c) => c.name).toList()).toList();
 
-    // The remote function is expected to return a single flattened index (0-8)
-    // or null on failure.
-    final moveIndex = await _firebaseService.getAiMove(
-      serializedBoards,
-      _currentPlayer.name,
-      _settingsController.aiDifficulty.name,
-    );
+    final bool remoteMoveSuccess = await _attemptRemoteAiMove(serializedBoards);
 
-    // We expect the Firebase service logs to confirm if the remote function was called.
-    // Since we can't rely on the remote move structure for multi-board yet,
-    // we fall through to the local AI if the remote call succeeds but returns an un-usable move,
-    // or if it fails/returns null.
-
-    // --- 2. Fallback to Local AI Move ---
-    final move = _aiService.getBestMove(
-      _boards,
-      _currentPlayer,
-      _settingsController.aiDifficulty,
-      _settingsController.boardLayout,
-    );
-
-    if (move != null) {
-      handleTap(move.boardIndex, move.cellIndex);
-      _statusMessage = "AI made a move.";
-    } else {
-      // Should technically not happen if game is not over
-      _statusMessage = "AI stuck.";
+    if (!remoteMoveSuccess) {
+      if (kDebugMode) {
+        print("DEBUG: Remote move failed or disabled. Executing local AI...");
+      }
+      final move = _aiService.getBestMove(_boards, _currentPlayer,
+          _settingsController.aiDifficulty, _settingsController.boardLayout);
+      if (move != null) handleTap(move.boardIndex, move.cellIndex);
     }
   }
 
-  void clearStatusMessage() {
-    _statusMessage = null;
+  Future<bool> _attemptRemoteAiMove(List<dynamic> serializedBoards) async {
+    if (!_settingsController.useOnlineAi) {
+      if (kDebugMode) {
+        print("DEBUG: Skipping remote call - useOnlineAi is false");
+      }
+      return false;
+    }
+
+    if (kDebugMode) {
+      print("DEBUG: Attempting REMOTE AI move via Firebase Function...");
+    }
+
+    try {
+      final remoteMoveResult = await _firebaseService.getAiMove(
+          serializedBoards,
+          _currentPlayer.name,
+          _settingsController.aiDifficulty.name);
+
+      if (remoteMoveResult != null &&
+          remoteMoveResult.containsKey('boardIndex') &&
+          remoteMoveResult.containsKey('cellIndex')) {
+        final int moveBoardIndex =
+            (remoteMoveResult['boardIndex'] as num).toInt();
+        final int moveCellIndex =
+            (remoteMoveResult['cellIndex'] as num).toInt();
+        if (moveBoardIndex >= 0 &&
+            moveBoardIndex < _boards.length &&
+            _boards[moveBoardIndex].cells[moveCellIndex] == Player.none) {
+          handleTap(moveBoardIndex, moveCellIndex);
+          return true;
+        }
+      } else {
+        if (kDebugMode)
+          print("DEBUG: Remote move returned null or invalid data structure");
+      }
+    } catch (e) {
+      if (kDebugMode) print("DEBUG: Exception in remote AI call: $e");
+      _aiErrorController
+          .add("Failed to get Online AI Move. Switching to onboard AI.");
+    }
+    return false;
   }
 
   void updateDependencies(SettingsController newSettingsController) {
     final bool shouldReset = _settingsController.gameMode !=
             newSettingsController.gameMode ||
         _settingsController.boardLayout != newSettingsController.boardLayout;
-
     _settingsController = newSettingsController;
-
-    if (shouldReset) {
-      initializeGame(useMicrotask: true);
-    }
+    if (shouldReset) initializeGame(useMicrotask: true);
   }
 }
