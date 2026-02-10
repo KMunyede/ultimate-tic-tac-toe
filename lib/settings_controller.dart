@@ -29,7 +29,6 @@ class SettingsController with ChangeNotifier {
   bool _isPremium = false;
   bool get isPremium => _isPremium;
 
-  // Added missing Online AI setting
   bool _useOnlineAi = false;
   bool get useOnlineAi => _useOnlineAi;
 
@@ -37,6 +36,9 @@ class SettingsController with ChangeNotifier {
   int _scoreO = 0;
   int get scoreX => _scoreX;
   int get scoreO => _scoreO;
+
+  int _lastStartingBoardIndex = -1;
+  int get lastStartingBoardIndex => _lastStartingBoardIndex;
 
   bool _resetGameRequested = false;
   bool get resetGameRequested => _resetGameRequested;
@@ -67,9 +69,10 @@ class SettingsController with ChangeNotifier {
 
     _isSoundOn = _prefs.getBool('isSoundOn') ?? true;
     _isPremium = _prefs.getBool('isPremium') ?? false;
-    _useOnlineAi = _prefs.getBool('useOnlineAi') ?? false; // Load Online AI setting
+    _useOnlineAi = _prefs.getBool('useOnlineAi') ?? false;
     _scoreX = _prefs.getInt('scoreX') ?? 0;
     _scoreO = _prefs.getInt('scoreO') ?? 0;
+    _lastStartingBoardIndex = _prefs.getInt('lastStartingBoardIndex') ?? -1;
 
     notifyListeners();
   }
@@ -80,10 +83,8 @@ class SettingsController with ChangeNotifier {
     notifyListeners();
   }
 
-  // Central function to trigger game reset when settings change
   void _triggerGameReset() {
     _resetGameRequested = true;
-    // Notify listeners so main.dart's ProxyProvider can check and reset the game
     notifyListeners();
   }
 
@@ -91,7 +92,7 @@ class SettingsController with ChangeNotifier {
     if (_gameMode != mode) {
       _gameMode = mode;
       await _prefs.setString('gameMode', mode.name);
-      _triggerGameReset(); // Trigger reset on change
+      _triggerGameReset();
     }
   }
 
@@ -99,7 +100,7 @@ class SettingsController with ChangeNotifier {
     if (_aiDifficulty != difficulty) {
       _aiDifficulty = difficulty;
       await _prefs.setString('aiDifficulty', difficulty.name);
-      _triggerGameReset(); // Trigger reset on change
+      _triggerGameReset();
     }
   }
 
@@ -107,7 +108,7 @@ class SettingsController with ChangeNotifier {
     if (_boardLayout != layout) {
       _boardLayout = layout;
       await _prefs.setString('boardLayout', layout.name);
-      _triggerGameReset(); // Trigger reset on change
+      _triggerGameReset();
     }
   }
 
@@ -123,11 +124,11 @@ class SettingsController with ChangeNotifier {
     notifyListeners();
   }
 
-  // Added setter for Online AI
   Future<void> setUseOnlineAi(bool value) async {
     if (_useOnlineAi != value) {
       _useOnlineAi = value;
       await _prefs.setBool('useOnlineAi', value);
+      _triggerGameReset(); // This will now start a new game
       notifyListeners();
     }
   }
@@ -143,6 +144,12 @@ class SettingsController with ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> setLastStartingBoardIndex(int index) async {
+    _lastStartingBoardIndex = index;
+    await _prefs.setInt('lastStartingBoardIndex', index);
+    notifyListeners();
+  }
+
   Future<void> resetScores() async {
     _scoreX = 0;
     _scoreO = 0;
@@ -153,7 +160,7 @@ class SettingsController with ChangeNotifier {
 
   void resetGameAndScores() {
     resetScores();
-    _triggerGameReset(); // Reusing the reset function
+    _triggerGameReset();
   }
 
   void consumeGameResetRequest() {

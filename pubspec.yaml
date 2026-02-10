@@ -14,30 +14,26 @@ dependencies:
   shared_preferences: ^2.2.3
   window_manager: ^0.5.1
   scrollable_positioned_list: ^0.3.8
-  audioplayers: ^6.0.0 # Let's keep this as is, but upgrade will fetch latest
+  audioplayers: ^6.0.0
   firebase_core: ^4.3.0
   firebase_auth: ^6.1.1
   cloud_firestore: ^6.0.3
   cloud_functions: ^6.0.6
   flutter_dotenv: ^6.0.0
-  firebase_database: ^12.0.3 # Add if you plan to use Realtime Database
-  
+  firebase_database: ^12.0.3
+  sensors_plus: ^7.0.0 # Upgraded to fix RangeError in internal platform channel
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
   flutter_launcher_icons: ^0.14.4
-  # ARCHITECTURAL ADDITION: Add build_runner and mockito for testing.
-  # build_runner is the tool that generates code.
-  # mockito provides the framework for creating mock objects in tests.
   build_runner: ^2.4.11
   mockito: ^5.4.4
 
 flutter:
   uses-material-design: true
   assets:
-    # Explicitly declare the sounds directory to ensure assets are found at runtime.
     - .env
     - assets/sounds/
     - assets/icon.png

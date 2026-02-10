@@ -8,15 +8,12 @@ class FirebaseService {
   Future<Map<String, dynamic>?> getAiMove(
       List<dynamic> boards, String player, String difficulty) async {
     if (kDebugMode) {
-      print(
-          'FirebaseService: Calling getAiMove (Diff: $difficulty, Player: $player)');
+      print('FirebaseService: Calling getAiMove (Diff: $difficulty, Player: $player)');
     }
 
     try {
       final callable = _functions.httpsCallable('getAiMove');
 
-      // Sending BOTH 'board' (legacy/single) and 'boards' (multi) to ensure server compatibility
-      // We also send the first board as 'board' for backward compatibility with 1-board functions
       final response = await callable.call({
         'board': boards.isNotEmpty ? boards[0] : [],
         'boards': boards,
@@ -33,31 +30,38 @@ class FirebaseService {
       if (data is Map &&
           data.containsKey('boardIndex') &&
           data.containsKey('cellIndex')) {
-        return Map<String, dynamic>.from(data);
+        return {
+          'boardIndex': (data['boardIndex'] as num).toInt(),
+          'cellIndex': (data['cellIndex'] as num).toInt(),
+        };
       }
 
       // Scenario B: Function returns { move: { boardIndex: X, cellIndex: Y } }
       if (data is Map && data.containsKey('move') && data['move'] is Map) {
-        return Map<String, dynamic>.from(data['move']);
+        final move = data['move'] as Map;
+        return {
+          'boardIndex': (move['boardIndex'] as num?)?.toInt() ?? 0,
+          'cellIndex': (move['cellIndex'] as num?)?.toInt() ?? 0,
+        };
       }
 
       // Scenario C: Function returns { move: 4 } (Legacy single board)
-      if (data is Map && data.containsKey('move') && data['move'] is int) {
+      if (data is Map && data.containsKey('move') && data['move'] is num) {
         return {
           'boardIndex': 0,
-          'cellIndex': data['move'],
+          'cellIndex': (data['move'] as num).toInt(),
         };
       }
 
       // Scenario D: Function returns raw int 4 (Legacy single board raw)
-      if (data is int) {
+      if (data is num) {
         return {
           'boardIndex': 0,
-          'cellIndex': data,
+          'cellIndex': data.toInt(),
         };
       }
 
-      if (kDebugMode) print('FirebaseService: Unknown data format received.');
+      if (kDebugMode) print('FirebaseService: Unknown data format or empty response.');
       return null;
     } on FirebaseFunctionsException catch (e) {
       if (kDebugMode) {

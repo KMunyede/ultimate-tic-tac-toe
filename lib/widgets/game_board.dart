@@ -1,126 +1,140 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-//import 'package:tictactoe/app_theme.dart';
-import 'package:tictactoe/game_controller.dart';
-import 'package:tictactoe/models/player.dart';
-import 'package:tictactoe/settings_controller.dart';
 
-class GameBoardWidget extends StatelessWidget {
-  final int boardIndex;
-  final double size;
+import '../game_controller.dart';
+import 'board_widget.dart';
 
-  const GameBoardWidget({
-    super.key,
-    required this.boardIndex,
-    required this.size,
-  });
+class MultiBoardView extends StatelessWidget {
+  const MultiBoardView({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final game = context.watch<GameController>();
-    final settings = context.watch<SettingsController>();
-    final board = game.boards[boardIndex];
-    final theme = settings.currentTheme;
+    return Consumer<GameController>(
+      builder: (context, controller, child) {
+        final boards = controller.boards;
 
-    return SizedBox(
-      width: size,
-      height: size,
-      child: Material(
-        elevation: 8,
-        borderRadius: BorderRadius.circular(16),
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            gradient: LinearGradient(
-              colors: [theme.gradientStart, theme.gradientEnd],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
+        if (boards.length == 1) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(12.0),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 450, maxHeight: 450),
+                child: _buildBoard(context, 0, 'Board 1'),
+              ),
+            ),
+          );
+        }
+
+        if (boards.length == 2) {
+          return OrientationBuilder(
+            builder: (context, orientation) {
+              final isLandscape = orientation == Orientation.landscape;
+              return Center(
+                child: Flex(
+                  direction: isLandscape ? Axis.horizontal : Axis.vertical,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Flexible(child: _buildBoard(context, 0, 'Board 1')),
+                    Flexible(child: _buildBoard(context, 1, 'Board 2')),
+                  ],
+                ),
+              );
+            },
+          );
+        }
+
+        if (boards.length == 3) {
+          return Center(
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Spacer(flex: 1),
+                      Expanded(
+                        flex: 2,
+                        child: _buildBoard(context, 0, 'Board 1'),
+                      ),
+                      const Spacer(flex: 1),
+                    ],
+                  ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Expanded(
+                        flex: 2,
+                        child: _buildBoard(context, 1, 'Board 2'),
+                      ),
+                      Expanded(
+                        flex: 2,
+                        child: _buildBoard(context, 2, 'Board 3'),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
+        if (boards.length == 4) {
+          return Center(
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Expanded(child: _buildBoard(context, 0, 'Board 1')),
+                      Expanded(child: _buildBoard(context, 1, 'Board 2')),
+                    ],
+                  ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Expanded(child: _buildBoard(context, 2, 'Board 3')),
+                      Expanded(child: _buildBoard(context, 3, 'Board 4')),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
+        return const Center(child: Text("Unsupported Board Count"));
+      },
+    );
+  }
+
+  Widget _buildBoard(BuildContext context, int index, String label) {
+    return Padding(
+      padding: const EdgeInsets.all(4.0),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            label,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 10,
+                ),
+          ),
+          const SizedBox(height: 2),
+          Flexible(
+            child: AspectRatio(
+              aspectRatio: 1,
+              child: BoardWidget(boardIndex: index),
             ),
           ),
-          child: Stack(
-            children: [
-              GridView.builder(
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 3,
-                ),
-                itemCount: 9,
-                itemBuilder: (context, index) {
-                  return GestureDetector(
-                    onTap: () => game.handleTap(boardIndex, index),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        border: Border.all(color: theme.mainColor.withAlpha(128)),
-                      ),
-                      child: Center(
-                        child: _buildPlayerIcon(board.cells[index]),
-                      ),
-                    ),
-                  );
-                },
-              ),
-              if (board.winningLine != null)
-                CustomPaint(
-                  size: Size.infinite,
-                  painter: WinningLinePainter(
-                    winningLine: board.winningLine!,
-                    lineColor: board.winner == Player.X ? Colors.blue.withAlpha(204) : Colors.red.withAlpha(204),
-                  ),
-                ),
-            ],
-          ),
-        ),
+        ],
       ),
     );
   }
-
-  Widget _buildPlayerIcon(Player player) {
-    if (player == Player.none) return const SizedBox.shrink();
-    final icon = player == Player.X ? Icons.close : Icons.circle_outlined;
-    final color = player == Player.X ? Colors.blue : Colors.red;
-    return Icon(
-      icon,
-      size: 50.0,
-      color: color,
-      shadows: [
-        Shadow(blurRadius: 8.0, color: color.withAlpha(128)),
-      ],
-    );
-  }
-}
-
-class WinningLinePainter extends CustomPainter {
-  final List<int> winningLine;
-  final Color lineColor;
-  final double strokeWidth;
-
-  WinningLinePainter({
-    required this.winningLine,
-    this.lineColor = Colors.white,
-    this.strokeWidth = 6.0,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = lineColor
-      ..strokeWidth = strokeWidth
-      ..strokeCap = StrokeCap.round;
-
-    final double cellWidth = size.width / 3;
-    final double cellHeight = size.height / 3;
-
-    Offset getCellCenter(int index) {
-      final double x = (index % 3) * cellWidth + cellWidth / 2;
-      final double y = (index ~/ 3) * cellHeight + cellHeight / 2;
-      return Offset(x, y);
-    }
-
-    final startPoint = getCellCenter(winningLine[0]);
-    final endPoint = getCellCenter(winningLine[2]);
-
-    canvas.drawLine(startPoint, endPoint, paint);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

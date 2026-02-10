@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../game_controller.dart';
 import '../models/player.dart';
 
@@ -11,15 +12,15 @@ class GameStatusDisplay extends StatelessWidget {
     return Consumer<GameController>(
       builder: (context, game, child) {
         final text = _getStatusText(game);
-        return text.isEmpty
-            ? const SizedBox.shrink()
-            : Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Text(
-                  text,
-                  style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 16.0),
+          child: Text(
+            text,
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
                 ),
-              );
+          ),
+        );
       },
     );
   }
@@ -27,12 +28,14 @@ class GameStatusDisplay extends StatelessWidget {
   String _getStatusText(GameController game) {
     if (game.isOverallGameOver) {
       if (game.overallWinner != null) {
-        return 'Player ${game.overallWinner == Player.X ? 'X' : 'O'} wins!';
+        return 'Player ${game.overallWinner == Player.X ? 'X' : 'O'} Wins!';
       } else {
-        return 'It\'s a draw!';
+        return "It's a Draw!";
       }
+    } else if (game.isAiThinking) {
+      return 'AI is thinking...';
     } else {
-      return 'Player ${game.currentPlayer == Player.X ? 'X' : 'O'}\'s turn';
+      return "Player ${game.currentPlayer == Player.X ? 'X' : 'O'}'s Turn";
     }
   }
 }

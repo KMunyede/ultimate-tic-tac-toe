@@ -2,150 +2,113 @@ const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const logger = require("firebase-functions/logger");
 
 exports.getAiMove = onCall((request) => {
-  // 1. Extract Data safely
   const data = request.data;
-  const board = data.board; // Array of 9 strings/nulls/ints
-  const player = data.player; // "X" or "O" (The AI)
+  // Support both 'boards' (multi) and 'board' (single)
+  let boards = data.boards;
+  if (!boards && data.board) {
+    boards = [data.board];
+  }
+
+  const player = data.player || "O";
   const difficulty = data.difficulty || "hard";
 
-  // 2. Validate Input
-  if (!board || board.length !== 9) {
-    throw new HttpsError("invalid-argument", "Invalid board data");
+  if (!boards || !Array.isArray(boards)) {
+    throw new HttpsError("invalid-argument", "Invalid boards data provided.");
   }
 
-  // 3. Get Available Moves
-  const availableMoves = getAvailableMoves(board);
+  logger.info(`AI Turn: ${player}, Difficulty: ${difficulty}, Board Count: ${boards.length}`);
 
-  // CRITICAL FIX: Handle Draw/Full Board immediately
-  if (availableMoves.length === 0) {
-    return { move: -1 }; // Game is over, no moves possible.
-  }
+  // 1. Find ALL valid moves across ALL boards that are not yet decided (won/lost)
+  const allPossibleMoves = [];
+  for (let b = 0; b < boards.length; b++) {
+    const board = boards[b];
 
-  // 4. Calculate Best Move
-  let bestMove;
-
-  // If Easy, just pick random
-  if (difficulty === "easy") {
-    bestMove = availableMoves[Math.floor(Math.random() * availableMoves.length)];
-  } else {
-    // Hard/Medium: Use Minimax
-    // Optimization: If it's the very first move of the game, pick center (4) or corner (0) instantly to save CPU.
-    if (availableMoves.length === 9) {
-      bestMove = 4;
-    } else if (availableMoves.length === 8 && board[4] === null) {
-      bestMove = 4;
-    } else {
-      const isMaximizing = true; // AI wants to maximize its own score
-      const opponent = player === "X" ? "O" : "X";
-
-      // Depth limited to preventing timeouts, though 3x3 is fast enough for full depth.
-      const result = minimax(board, player, opponent, 0, isMaximizing);
-      bestMove = result.index;
+    // A board is playable if no one has won it yet
+    const winner = getBoardWinner(board);
+    if (!winner) {
+      for (let c = 0; c < board.length; c++) {
+        // Handle various ways an empty cell might be represented
+        const val = board[c];
+        if (val === "" || val === null || val === "none" || val === undefined) {
+          allPossibleMoves.push({ boardIndex: b, cellIndex: c });
+        }
+      }
     }
   }
 
-  // 5. SAFETY NET (The Fix for your Crash)
-  // If Minimax returned -1 (because it thinks it will lose anyway),
-  // we force it to pick the first available move so the game continues.
-  if (bestMove === -1 || bestMove === undefined) {
-    logger.warn("Minimax failed to find a move. Using fallback.");
-    bestMove = availableMoves[0];
+  // 2. If no moves exist anywhere, the match is over
+  if (allPossibleMoves.length === 0) {
+    logger.info("Match is complete. No moves available.");
+    return { move: -1 };
   }
 
-  logger.info(`AI (${player}) Chose move: ${bestMove}`);
-  return { move: bestMove };
+  // 3. Strategic Move Selection
+  let chosen;
+
+  if (difficulty === "easy") {
+    chosen = allPossibleMoves[Math.floor(Math.random() * allPossibleMoves.length)];
+  } else {
+    // Priority 1: Can I win any board right now?
+    for (const move of allPossibleMoves) {
+      const tempBoard = [...boards[move.boardIndex]];
+      tempBoard[move.cellIndex] = player;
+      if (checkWin(tempBoard, player)) {
+        chosen = move;
+        break;
+      }
+    }
+
+    // Priority 2: Do I need to block the opponent from winning any board?
+    if (!chosen) {
+      const opponent = player === "X" ? "O" : "X";
+      for (const move of allPossibleMoves) {
+        const tempBoard = [...boards[move.boardIndex]];
+        tempBoard[move.cellIndex] = opponent;
+        if (checkWin(tempBoard, opponent)) {
+          chosen = move;
+          break;
+        }
+      }
+    }
+
+    // Priority 3: Strategic positions (Centers/Corners)
+    if (!chosen) {
+      const centers = allPossibleMoves.filter(m => m.cellIndex === 4);
+      if (centers.length > 0) {
+        chosen = centers[Math.floor(Math.random() * centers.length)];
+      } else {
+        const corners = allPossibleMoves.filter(m => [0, 2, 6, 8].includes(m.cellIndex));
+        if (corners.length > 0) {
+          chosen = corners[Math.floor(Math.random() * corners.length)];
+        }
+      }
+    }
+
+    // Fallback: Random move
+    if (!chosen) {
+      chosen = allPossibleMoves[Math.floor(Math.random() * allPossibleMoves.length)];
+    }
+  }
+
+  logger.info(`Decision: Board ${chosen.boardIndex}, Cell ${chosen.cellIndex}`);
+
+  return {
+    boardIndex: chosen.boardIndex,
+    cellIndex: chosen.cellIndex
+  };
 });
 
-// --- HELPER FUNCTIONS ---
-
-function getAvailableMoves(board) {
-  const moves = [];
-  for (let i = 0; i < board.length; i++) {
-    // Check for null, empty string, or explicit "null" string depending on how Flutter sends it
-    if (board[i] === null || board[i] === "" || board[i] === "null") {
-      moves.push(i);
-    }
-  }
-  return moves;
+function getBoardWinner(board) {
+  if (checkWin(board, "X")) return "X";
+  if (checkWin(board, "O")) return "O";
+  return null;
 }
 
-function checkWinner(board, player) {
-  const winConditions = [
-    [0, 1, 2], [3, 4, 5], [6, 7, 8], // Rows
-    [0, 3, 6], [1, 4, 7], [2, 5, 8], // Cols
-    [0, 4, 8], [2, 4, 6], // Diagonals
+function checkWin(board, p) {
+  const wins = [
+    [0, 1, 2], [3, 4, 5], [6, 7, 8],
+    [0, 3, 6], [1, 4, 7], [2, 5, 8],
+    [0, 4, 8], [2, 4, 6],
   ];
-
-  for (const condition of winConditions) {
-    const [a, b, c] = condition;
-    // Check if board[a] matches player, ignoring empty/null
-    if (board[a] === player && board[b] === player && board[c] === player) {
-      return true;
-    }
-  }
-  return false;
-}
-
-// The Recursive Brain
-function minimax(newBoard, aiPlayer, humanPlayer, depth, isMaximizing) {
-  const availSpots = getAvailableMoves(newBoard);
-
-  // Terminal States (End of recursion)
-  if (checkWinner(newBoard, humanPlayer)) {
-    return { score: -10 + depth }; // Human won (Bad for AI)
-  }
-  if (checkWinner(newBoard, aiPlayer)) {
-    return { score: 10 - depth }; // AI won (Good for AI)
-  }
-  if (availSpots.length === 0) {
-    return { score: 0 }; // Draw
-  }
-
-  const moves = [];
-
-  // Loop through available spots
-  for (let i = 0; i < availSpots.length; i++) {
-    const move = {};
-    move.index = availSpots[i];
-
-    // Make the move temporarily
-    newBoard[availSpots[i]] = isMaximizing ? aiPlayer : humanPlayer;
-
-    // Recursion
-    if (isMaximizing) {
-      // If we are AI, next turn is Human (minimizing)
-      const result = minimax(newBoard, aiPlayer, humanPlayer, depth + 1, false);
-      move.score = result.score;
-    } else {
-      // If we are Human, next turn is AI (maximizing)
-      const result = minimax(newBoard, aiPlayer, humanPlayer, depth + 1, true);
-      move.score = result.score;
-    }
-
-    // Undo the move
-    newBoard[availSpots[i]] = null;
-    moves.push(move);
-  }
-
-  // Pick the best move from the array
-  let bestMove;
-  if (isMaximizing) {
-    let bestScore = -10000;
-    for (let i = 0; i < moves.length; i++) {
-      if (moves[i].score > bestScore) {
-        bestScore = moves[i].score;
-        bestMove = i;
-      }
-    }
-  } else {
-    let bestScore = 10000;
-    for (let i = 0; i < moves.length; i++) {
-      if (moves[i].score < bestScore) {
-        bestScore = moves[i].score;
-        bestMove = i;
-      }
-    }
-  }
-
-  return moves[bestMove];
+  return wins.some(line => line.every(idx => board[idx] === p));
 }

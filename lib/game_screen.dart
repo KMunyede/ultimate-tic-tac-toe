@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart'; // Added for ScaffoldMessenger
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -11,7 +11,7 @@ import 'package:window_manager/window_manager.dart';
 import 'game_controller.dart';
 import 'settings_menu.dart';
 import 'sound_manager.dart';
-import 'widgets/board_widget.dart';
+import 'widgets/game_board.dart'; // Import MultiBoardView
 
 class TicTacToeGame extends StatefulWidget {
   final bool isPrimaryInstance;
@@ -27,7 +27,6 @@ class _TicTacToeGameState extends State<TicTacToeGame> with WindowListener {
   bool _isDesktop = false;
   DateTime? _lastPressed;
 
-  // NEW: Subscription for GameController error events
   StreamSubscription<String>? _aiErrorSubscription;
 
   @override
@@ -43,15 +42,9 @@ class _TicTacToeGameState extends State<TicTacToeGame> with WindowListener {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-
-    // Lazy-load the subscription when dependencies change (i.e., when widget mounts)
     if (_aiErrorSubscription == null) {
       final gameController = context.read<GameController>();
-
-      // Subscribe to the AI error stream
       _aiErrorSubscription = gameController.aiErrorStream.listen((message) {
-        // Use Future.microtask to ensure the SnackBar call happens after the build phase is complete,
-        // preventing "Scaffold.of() called with a context that does not contain a Scaffold" errors.
         if (mounted) {
           Future.microtask(() => _showErrorSnackbar(message));
         }
@@ -61,7 +54,6 @@ class _TicTacToeGameState extends State<TicTacToeGame> with WindowListener {
 
   @override
   void dispose() {
-    // CRUCIAL: Cancel the subscription to avoid memory leaks
     _aiErrorSubscription?.cancel();
     if (_isDesktop) {
       windowManager.removeListener(this);
@@ -85,36 +77,29 @@ class _TicTacToeGameState extends State<TicTacToeGame> with WindowListener {
     final game = context.watch<GameController>();
     final soundManager = context.read<SoundManager>();
 
-    // Calculate a brighter version of the primary color for buttons
     final theme = Theme.of(context);
     final primaryColor = theme.colorScheme.primary;
     final hsl = HSLColor.fromColor(primaryColor);
     final brighterColor =
         hsl.withLightness((hsl.lightness * 1.7).clamp(0.0, 1.0)).toColor();
 
-    // Ensure text contrast on the brighter button
     final buttonTextColor =
         brighterColor.computeLuminance() > 0.5 ? Colors.black : Colors.white;
 
-    // Base button dimensions for scaling
     final screenWidth = MediaQuery.of(context).size.width;
-    // Use a percentage of the screen width for a responsive base size
     const double baseWidthFactor = 0.4;
-    const double baseHeight = 48.0; // Standard material button height
+    const double baseHeight = 48.0;
 
-    final double newWidth = screenWidth * baseWidthFactor * 1.20; // 20% larger
-    final double newHeight = baseHeight * 1.10; // 10% larger
+    final double newWidth = screenWidth * baseWidthFactor * 1.20;
+    final double newHeight = baseHeight * 1.10;
 
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) return;
         final now = DateTime.now();
-        final backButtonHasNotBeenPressedOrSnackBarHasBeenClosed =
-            _lastPressed == null ||
-                now.difference(_lastPressed!) > const Duration(seconds: 2);
-
-        if (backButtonHasNotBeenPressedOrSnackBarHasBeenClosed) {
+        if (_lastPressed == null ||
+            now.difference(_lastPressed!) > const Duration(seconds: 2)) {
           _lastPressed = DateTime.now();
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -129,8 +114,8 @@ class _TicTacToeGameState extends State<TicTacToeGame> with WindowListener {
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Ultimate TicTacToe'),
-          backgroundColor: Theme.of(context).colorScheme.primary,
-          foregroundColor: Theme.of(context).colorScheme.onPrimary,
+          backgroundColor: theme.colorScheme.primary,
+          foregroundColor: theme.colorScheme.onPrimary,
           actions: [
             IconButton(
               icon: const Icon(Icons.settings),
@@ -148,14 +133,14 @@ class _TicTacToeGameState extends State<TicTacToeGame> with WindowListener {
           children: [
             const Expanded(
               child: Center(
-                child: BoardWidget(),
+                child: MultiBoardView(), // Use MultiBoardView here
               ),
             ),
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 16.0),
               child: Text(
                 game.statusMessage ?? '',
-                style: Theme.of(context).textTheme.headlineSmall,
+                style: theme.textTheme.headlineSmall,
               ),
             ),
             Padding(
@@ -194,7 +179,6 @@ class _TicTacToeGameState extends State<TicTacToeGame> with WindowListener {
           await windowManager.destroy();
           exit(0);
         } else {
-          // On Mobile/Web, use SystemNavigator to pop the app
           SystemNavigator.pop();
         }
       }
@@ -203,7 +187,6 @@ class _TicTacToeGameState extends State<TicTacToeGame> with WindowListener {
 
   void _saveWindowState() {
     if (!_isDesktop) return;
-
     if (_debounce?.isActive ?? false) _debounce!.cancel();
     _debounce = Timer(const Duration(milliseconds: 500), () async {
       final prefs = await SharedPreferences.getInstance();

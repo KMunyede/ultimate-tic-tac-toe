@@ -1,62 +1,54 @@
 enum BoardResult { playerX, playerO, draw, active }
 
 class MatchReferee {
+  /// Determines how many board wins are needed for an instant match victory.
+  static int getRequiredWins(int boardCount) {
+    if (boardCount <= 1) return 1;
+    switch (boardCount) {
+      case 2:
+        return 2; 
+      case 3:
+        return 2; // Must win at least 2 boards (2 or 3 wins = WIN)
+      case 4:
+        return 3; // Must win at least 3 boards (3 or 4 wins = WIN)
+      default:
+        return (boardCount / 2).floor() + 1;
+    }
+  }
+
   /// Determines the match winner based on the state of all boards.
   static BoardResult checkMatchWinner(List<BoardResult> boardResults) {
-    int boardCount = boardResults.length;
+    final boardCount = boardResults.length;
+    if (boardCount == 0) return BoardResult.active;
+    if (boardCount == 1) return boardResults.first;
 
-    // SCENARIO 1: ONE BOARD
-    if (boardCount == 1) {
-      return boardResults.first;
+    final requiredWins = getRequiredWins(boardCount);
+
+    final winsX = boardResults.where((r) => r == BoardResult.playerX).length;
+    final winsO = boardResults.where((r) => r == BoardResult.playerO).length;
+    final activeBoards = boardResults.where((b) => b == BoardResult.active).length;
+
+    // 1. Instant Win: If someone reaches the required number of wins, they win the match.
+    if (winsX >= requiredWins) return BoardResult.playerX;
+    if (winsO >= requiredWins) return BoardResult.playerO;
+
+    // 2. Early Draw Detection (Multi-board Strategy):
+    // If no moves are possible on other boards, OR if it is impossible for either 
+    // player to reach the required win threshold with the remaining boards.
+    bool xCanStillWin = (winsX + activeBoards) >= requiredWins;
+    bool oCanStillWin = (winsO + activeBoards) >= requiredWins;
+
+    if (!xCanStillWin && !oCanStillWin) {
+      // If no one can reach the threshold, the match is a DRAW.
+      return BoardResult.draw;
     }
 
-    // SCENARIO 2: TWO BOARDS (Points System)
-    // Win = 1.0, Draw = 0.5, Loss = 0.0
-    if (boardCount == 2) {
-      double scoreX = _calculatePoints(boardResults, BoardResult.playerX);
-      double scoreO = _calculatePoints(boardResults, BoardResult.playerO);
-
-      if (scoreX > scoreO) return BoardResult.playerX;
-      if (scoreO > scoreX) return BoardResult.playerO;
-
-      // If scores are equal (e.g., 1 win each, or 2 draws), it's a draw ONLY if both boards are finished.
-      if (boardResults.every((b) => b != BoardResult.active)) {
-        return BoardResult.draw;
-      }
+    // 3. Continue playing as long as there are active boards and someone can still win.
+    if (activeBoards > 0) {
       return BoardResult.active;
     }
 
-    // SCENARIO 3: THREE BOARDS (Majority Rule)
-    if (boardCount == 3) {
-      int winsX = boardResults.where((r) => r == BoardResult.playerX).length;
-      int winsO = boardResults.where((r) => r == BoardResult.playerO).length;
-
-      // Instant Win Condition: 2 wins secures the match
-      if (winsX >= 2) return BoardResult.playerX;
-      if (winsO >= 2) return BoardResult.playerO;
-
-      // If all boards are finished, check who has the most wins
-      bool allFinished = boardResults.every((b) => b != BoardResult.active);
-      if (allFinished) {
-        if (winsX > winsO) return BoardResult.playerX;
-        if (winsO > winsX) return BoardResult.playerO;
-        return BoardResult.draw;
-      }
-    }
-
-    return BoardResult.active;
-  }
-
-  static double _calculatePoints(
-      List<BoardResult> results, BoardResult player) {
-    double points = 0;
-    for (var result in results) {
-      if (result == player) {
-        points += 1.0;
-      } else if (result == BoardResult.draw) {
-        points += 0.5;
-      }
-    }
-    return points;
+    // 4. Final Conclusion: All boards are finished and no one hit the threshold.
+    return BoardResult.draw;
   }
 }

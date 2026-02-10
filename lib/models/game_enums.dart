@@ -13,4 +13,5 @@ enum BoardLayout {
   single,
   dual,
   trio,
+  quad, // Added 4-board layout
 }
