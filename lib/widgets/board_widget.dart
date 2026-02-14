@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:sensors_plus/sensors_plus.dart';
@@ -27,8 +28,6 @@ class _BoardWidgetState extends State<BoardWidget> {
     _subscription = accelerometerEventStream().listen((AccelerometerEvent event) {
       if (mounted) {
         setState(() {
-          // Normalize accelerometer data to a reasonable tilt range (approx -0.1 to 0.1 radians)
-          // Adjust sensitivity by changing the divisor (e.g., 50.0)
           yRotation = event.x / 50.0;
           xRotation = -event.y / 50.0;
         });
@@ -54,51 +53,151 @@ class _BoardWidgetState extends State<BoardWidget> {
 
     return Transform(
       transform: Matrix4.identity()
-        ..setEntry(3, 2, 0.001) // Perspective
+        ..setEntry(3, 2, 0.001) 
         ..rotateX(xRotation)
         ..rotateY(yRotation),
       alignment: FractionalOffset.center,
-      child: Container(
-        decoration: BoxDecoration(
-          color: boardColor,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: NeumorphicColors.getDarkShadow(themeBgColor),
-              offset: Offset(6 + (yRotation * 10), 6 + (xRotation * 10)),
-              blurRadius: 12,
+      child: Stack(
+        children: [
+          Container(
+            decoration: BoxDecoration(
+              color: boardColor,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: NeumorphicColors.getDarkShadow(themeBgColor),
+                  offset: Offset(6 + (yRotation * 10), 6 + (xRotation * 10)),
+                  blurRadius: 12,
+                ),
+                BoxShadow(
+                  color: NeumorphicColors.getLightShadow(themeBgColor),
+                  offset: Offset(-6 + (yRotation * 10), -6 + (xRotation * 10)),
+                  blurRadius: 12,
+                ),
+              ],
             ),
-            BoxShadow(
-              color: NeumorphicColors.getLightShadow(themeBgColor),
-              offset: Offset(-6 + (yRotation * 10), -6 + (xRotation * 10)),
-              blurRadius: 12,
+            padding: const EdgeInsets.all(12),
+            child: GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 3,
+                crossAxisSpacing: 10,
+                mainAxisSpacing: 10,
+              ),
+              itemCount: 9,
+              itemBuilder: (context, cellIndex) {
+                final cellValue = board.cells[cellIndex];
+                return NeumorphicCell(
+                  onTap: () => controller.makeMove(widget.boardIndex, cellIndex),
+                  player: cellValue,
+                  baseColor: boardColor,
+                  xTilt: xRotation,
+                  yTilt: yRotation,
+                );
+              },
             ),
-          ],
-        ),
-        padding: const EdgeInsets.all(12),
-        child: GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 3,
-            crossAxisSpacing: 10,
-            mainAxisSpacing: 10,
           ),
-          itemCount: 9,
-          itemBuilder: (context, cellIndex) {
-            final cellValue = board.cells[cellIndex];
-            return NeumorphicCell(
-              onTap: () => controller.makeMove(widget.boardIndex, cellIndex),
-              player: cellValue,
-              baseColor: boardColor,
-              xTilt: xRotation,
-              yTilt: yRotation,
-            );
-          },
+          if (board.winner != null)
+            Positioned.fill(
+              child: BoardWinnerEffect(winner: board.winner!),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class BoardWinnerEffect extends StatefulWidget {
+  final Player winner;
+  const BoardWinnerEffect({super.key, required this.winner});
+
+  @override
+  State<BoardWinnerEffect> createState() => _BoardWinnerEffectState();
+}
+
+class _BoardWinnerEffectState extends State<BoardWinnerEffect> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  final List<Particle> _particles = [];
+  final Random _random = Random();
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1500),
+    )..addListener(() => setState(() {}));
+
+    _createParticles();
+    _controller.forward();
+  }
+
+  void _createParticles() {
+    final color = widget.winner == Player.X ? Colors.redAccent : const Color(0xFF1A237E);
+    for (int i = 0; i < 40; i++) {
+      _particles.add(Particle(
+        color: color.withOpacity(_random.nextDouble() * 0.8 + 0.2),
+        angle: _random.nextDouble() * 2 * pi,
+        speed: _random.nextDouble() * 4 + 2,
+        size: _random.nextDouble() * 6 + 2,
+      ));
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: CustomPaint(
+        painter: ParticlePainter(
+          particles: _particles,
+          progress: _controller.value,
         ),
       ),
     );
   }
+}
+
+class Particle {
+  final Color color;
+  final double angle;
+  final double speed;
+  final double size;
+
+  Particle({required this.color, required this.angle, required this.speed, required this.size});
+}
+
+class ParticlePainter extends CustomPainter {
+  final List<Particle> particles;
+  final double progress;
+
+  ParticlePainter({required this.particles, required this.progress});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final paint = Paint();
+
+    for (var particle in particles) {
+      final distance = particle.speed * progress * 150;
+      final x = center.dx + cos(particle.angle) * distance;
+      final y = center.dy + sin(particle.angle) * distance;
+      
+      final opacity = (1.0 - progress).clamp(0.0, 1.0);
+      paint.color = particle.color.withOpacity(opacity * (particle.color.opacity));
+      
+      canvas.drawCircle(Offset(x, y), particle.size, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(ParticlePainter oldDelegate) => true;
 }
 
 class NeumorphicCell extends StatelessWidget {
@@ -128,7 +227,6 @@ class NeumorphicCell extends StatelessWidget {
           boxShadow: [
             BoxShadow(
               color: NeumorphicColors.getDarkShadow(baseColor),
-              // Dynamic shadow offset based on tilt
               offset: Offset(3 + (yTilt * 20), 3 + (xTilt * 20)),
               blurRadius: 5,
             ),

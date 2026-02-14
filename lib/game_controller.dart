@@ -4,9 +4,7 @@ import 'dart:math';
 import 'package:flutter/foundation.dart';
 
 import 'firebase_service.dart';
-//import 'logic/match_referee.dart';
 import 'models/game_board.dart';
-//import 'models/game_enums.dart';
 import 'models/match_session.dart';
 import 'models/player.dart';
 import 'services/ai_service.dart';
@@ -22,6 +20,7 @@ class GameController with ChangeNotifier {
 
   MatchSession? _session;
   bool _isAiThinking = false;
+  int _shakeCounter = 0;
   final _aiErrorController = StreamController<String>.broadcast();
 
   GameController(this._soundManager, this._settings, this._firebaseService) {
@@ -30,17 +29,13 @@ class GameController with ChangeNotifier {
 
   // Getters delegated to MatchSession
   List<GameBoard> get boards => _session?.boards ?? [];
-
   Player get currentPlayer => _session?.currentPlayer ?? Player.X;
-
   Player? get matchWinner => _session?.matchWinner;
-
   bool get isMatchDraw => _session?.isMatchDraw ?? false;
-
   bool get isOverallGameOver => _session?.isGameOver ?? false;
 
   bool get isAiThinking => _isAiThinking;
-
+  int get shakeCounter => _shakeCounter;
   Stream<String> get aiErrorStream => _aiErrorController.stream;
 
   String? get statusMessage {
@@ -67,6 +62,7 @@ class GameController with ChangeNotifier {
     );
 
     _isAiThinking = false;
+    _shakeCounter = 0;
 
     if (count > 1) {
       int lastIndex = _settings.lastStartingBoardIndex;
@@ -104,10 +100,39 @@ class GameController with ChangeNotifier {
       }
     }
 
+    // Capture state before move for aggression detection
+    final boardBeforeMove = boards[boardIndex];
+    final bool wasBoardWonBefore = boardBeforeMove.winner != null;
+    final bool wasMatchOverBefore = isOverallGameOver;
+
     final success = _session!.applyMove(boardIndex, cellIndex);
 
     if (success) {
       _soundManager.playMoveSound();
+
+      // Detection of "Aggressive" AI moves
+      if (isAiMove) {
+        final boardAfterMove = boards[boardIndex];
+        bool isAggressive = false;
+
+        // 1. AI wins the board
+        if (!wasBoardWonBefore && boardAfterMove.winner == Player.O) {
+          isAggressive = true;
+        }
+        // 2. AI wins the entire match
+        if (!wasMatchOverBefore && isOverallGameOver && matchWinner == Player.O) {
+          isAggressive = true;
+        }
+        // 3. AI creates a threat on the board
+        if (boardAfterMove.hasThreat(Player.O)) {
+          isAggressive = true;
+        }
+
+        if (isAggressive) {
+          _shakeCounter++;
+        }
+      }
+
       notifyListeners();
 
       if (isOverallGameOver) {
@@ -150,7 +175,6 @@ class GameController with ChangeNotifier {
         .map((b) => b.cells.map((c) => c == Player.none ? "" : c.name).toList())
         .toList();
 
-    // Context for Online AI: What is the result of each board?
     final boardResults = boards.map((b) {
       if (b.winner == Player.X) return "playerX";
       if (b.winner == Player.O) return "playerO";
@@ -170,7 +194,6 @@ class GameController with ChangeNotifier {
       if (result != null) {
         int? finalBoardIndex = result.boardIndex;
 
-        // Smart Mapping for Legacy or Invalid Responses
         if (finalBoardIndex == null || boards[finalBoardIndex].isGameOver) {
           finalBoardIndex = _findBestAvailableBoardForCell(result.cellIndex);
         }
@@ -204,7 +227,6 @@ class GameController with ChangeNotifier {
     }
     if (candidates.isEmpty) return null;
 
-    // Strategy: Prefer boards that aren't won/drawn yet
     return candidates[_random.nextInt(candidates.length)];
   }
 

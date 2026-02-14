@@ -17,88 +17,93 @@ class MultiBoardView extends StatelessWidget {
 
         if (count == 0) return const SizedBox.shrink();
 
-        return LayoutBuilder(
-          builder: (context, constraints) {
-            const double spacing = 16.0;
-            const double padding = 12.0;
-            // Height reserved for the "Board X" label and spacing
-            const double labelAreaHeight = 28.0; 
+        return TweenAnimationBuilder<double>(
+          key: ValueKey(controller.shakeCounter),
+          tween: Tween(begin: 0.0, end: 1.0),
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+          builder: (context, value, child) {
+            // A single horizontal oscillation (0 -> 1 -> 0 -> -1 -> 0)
+            final double shakeOffset = sin(value * pi * 2) * 12.0;
 
-            // Determine layout based on board count and screen orientation
-            final int itemsPerRow;
-            if (count == 1) {
-              itemsPerRow = 1;
-            } else if (count == 2) {
-              // For 2 boards, adapt to screen aspect ratio to maximize space usage
-              if (constraints.maxWidth > constraints.maxHeight) {
-                itemsPerRow = 2; // Horizontal for landscape
-              } else {
-                itemsPerRow = 1; // Vertical for portrait
-              }
-            } else if (count > 6) {
-              itemsPerRow = 3;
-            } else {
-              itemsPerRow = 2;
-            }
-
-            final int rowCount = (count / itemsPerRow).ceil();
-
-            // Calculate max width possible for a board to fit in the row
-            final double maxBoardWidth =
-                (constraints.maxWidth - (padding * 2) - (spacing * (itemsPerRow - 1))) / itemsPerRow;
-
-            // Calculate max height possible for a board to fit in the column (accounting for labels)
-            final double maxBoardHeight =
-                (constraints.maxHeight - (padding * 2) - (spacing * (rowCount - 1)) - (labelAreaHeight * rowCount)) / rowCount;
-
-            // Use the smaller dimension to ensure the square board fits both ways.
-            // Increased the upper clamp to 600.0 to allow growth on tablets/desktops.
-            final double boardSize = min(maxBoardWidth, maxBoardHeight).clamp(100.0, 600.0);
-
-            List<Widget> rows = [];
-            for (int i = 0; i < count; i += itemsPerRow) {
-              List<Widget> rowChildren = [];
-
-              for (int j = 0; j < itemsPerRow; j++) {
-                final int boardIndex = i + j;
-                if (boardIndex < count) {
-                  rowChildren.add(
-                    _buildBoard(context, boardIndex, 'Board ${boardIndex + 1}', boardSize),
-                  );
-                }
-              }
-
-              List<Widget> spacedRowChildren = [];
-              if (rowChildren.isNotEmpty) {
-                spacedRowChildren.add(rowChildren.first);
-                for (int k = 1; k < rowChildren.length; k++) {
-                  spacedRowChildren.add(const SizedBox(width: spacing));
-                  spacedRowChildren.add(rowChildren[k]);
-                }
-              }
-
-              rows.add(
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: spacedRowChildren,
-                ),
-              );
-
-              if (i + itemsPerRow < count) {
-                rows.add(const SizedBox(height: spacing));
-              }
-            }
-
-            return Center(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(padding),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: rows,
-                ),
-              ),
+            return Transform.translate(
+              offset: Offset(shakeOffset, 0),
+              child: child,
             );
           },
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              const double spacing = 16.0;
+              const double padding = 12.0;
+              const double labelAreaHeight = 28.0;
+
+              final int itemsPerRow;
+              if (count == 1) {
+                itemsPerRow = 1;
+              } else if (count == 2) {
+                if (constraints.maxWidth > constraints.maxHeight) {
+                  itemsPerRow = 2;
+                } else {
+                  itemsPerRow = 1;
+                }
+              } else if (count > 6) {
+                itemsPerRow = 3;
+              } else {
+                itemsPerRow = 2;
+              }
+
+              final int rowCount = (count / itemsPerRow).ceil();
+              final double maxBoardWidth =
+                  (constraints.maxWidth - (padding * 2) - (spacing * (itemsPerRow - 1))) / itemsPerRow;
+              final double maxBoardHeight =
+                  (constraints.maxHeight - (padding * 2) - (spacing * (rowCount - 1)) - (labelAreaHeight * rowCount)) / rowCount;
+
+              final double boardSize = min(maxBoardWidth, maxBoardHeight).clamp(100.0, 600.0);
+
+              List<Widget> rows = [];
+              for (int i = 0; i < count; i += itemsPerRow) {
+                List<Widget> rowChildren = [];
+                for (int j = 0; j < itemsPerRow; j++) {
+                  final int boardIndex = i + j;
+                  if (boardIndex < count) {
+                    rowChildren.add(
+                      _buildBoard(context, boardIndex, 'Board ${boardIndex + 1}', boardSize),
+                    );
+                  }
+                }
+
+                List<Widget> spacedRowChildren = [];
+                if (rowChildren.isNotEmpty) {
+                  spacedRowChildren.add(rowChildren.first);
+                  for (int k = 1; k < rowChildren.length; k++) {
+                    spacedRowChildren.add(const SizedBox(width: spacing));
+                    spacedRowChildren.add(rowChildren[k]);
+                  }
+                }
+
+                rows.add(
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: spacedRowChildren,
+                  ),
+                );
+
+                if (i + itemsPerRow < count) {
+                  rows.add(const SizedBox(height: spacing));
+                }
+              }
+
+              return Center(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(padding),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: rows,
+                  ),
+                ),
+              );
+            },
+          ),
         );
       },
     );
