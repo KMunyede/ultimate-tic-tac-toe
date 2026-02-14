@@ -100,9 +100,7 @@ class GameController with ChangeNotifier {
       }
     }
 
-    // Capture state before move for aggression detection
-    final boardBeforeMove = boards[boardIndex];
-    final bool wasBoardWonBefore = boardBeforeMove.winner != null;
+    // Capture state before move
     final bool wasMatchOverBefore = isOverallGameOver;
 
     final success = _session!.applyMove(boardIndex, cellIndex);
@@ -110,27 +108,9 @@ class GameController with ChangeNotifier {
     if (success) {
       _soundManager.playMoveSound();
 
-      // Detection of "Aggressive" AI moves
-      if (isAiMove) {
-        final boardAfterMove = boards[boardIndex];
-        bool isAggressive = false;
-
-        // 1. AI wins the board
-        if (!wasBoardWonBefore && boardAfterMove.winner == Player.O) {
-          isAggressive = true;
-        }
-        // 2. AI wins the entire match
-        if (!wasMatchOverBefore && isOverallGameOver && matchWinner == Player.O) {
-          isAggressive = true;
-        }
-        // 3. AI creates a threat on the board
-        if (boardAfterMove.hasThreat(Player.O)) {
-          isAggressive = true;
-        }
-
-        if (isAggressive) {
-          _shakeCounter++;
-        }
+      // Only trigger global shake on overall match win
+      if (!wasMatchOverBefore && isOverallGameOver && matchWinner != null) {
+        _shakeCounter++;
       }
 
       notifyListeners();

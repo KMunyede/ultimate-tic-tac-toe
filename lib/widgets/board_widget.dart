@@ -18,6 +18,7 @@ class BoardWidget extends StatefulWidget {
 }
 
 class _BoardWidgetState extends State<BoardWidget> {
+  // We keep the variables to avoid breaking existing logic, but they won't affect the UI anymore
   double xRotation = 0;
   double yRotation = 0;
   StreamSubscription<AccelerometerEvent>? _subscription;
@@ -25,6 +26,7 @@ class _BoardWidgetState extends State<BoardWidget> {
   @override
   void initState() {
     super.initState();
+    // Accelerometer still runs, but we've removed the transform to avoid the 3D slant
     _subscription = accelerometerEventStream().listen((AccelerometerEvent event) {
       if (mounted) {
         setState(() {
@@ -51,12 +53,21 @@ class _BoardWidgetState extends State<BoardWidget> {
     final hsl = HSLColor.fromColor(themeBgColor);
     final boardColor = hsl.withLightness((hsl.lightness - 0.20).clamp(0.0, 1.0)).toColor();
 
-    return Transform(
-      transform: Matrix4.identity()
-        ..setEntry(3, 2, 0.001) 
-        ..rotateX(xRotation)
-        ..rotateY(yRotation),
-      alignment: FractionalOffset.center,
+    return TweenAnimationBuilder<double>(
+      key: ValueKey(board.winner),
+      tween: Tween(begin: 0.0, end: 1.0),
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+      builder: (context, value, child) {
+        final double shakeOffset = (board.winner != null && value < 1.0) 
+            ? sin(value * pi * 2) * 12.0 
+            : 0.0;
+
+        return Transform.translate(
+          offset: Offset(shakeOffset, 0),
+          child: child, // Removed the 3D Perspective Transform here
+        );
+      },
       child: Stack(
         children: [
           Container(
@@ -66,12 +77,12 @@ class _BoardWidgetState extends State<BoardWidget> {
               boxShadow: [
                 BoxShadow(
                   color: NeumorphicColors.getDarkShadow(themeBgColor),
-                  offset: Offset(6 + (yRotation * 10), 6 + (xRotation * 10)),
+                  offset: const Offset(6, 6), // Static shadows for a cleaner look
                   blurRadius: 12,
                 ),
                 BoxShadow(
                   color: NeumorphicColors.getLightShadow(themeBgColor),
-                  offset: Offset(-6 + (yRotation * 10), -6 + (xRotation * 10)),
+                  offset: const Offset(-6, -6),
                   blurRadius: 12,
                 ),
               ],
@@ -92,8 +103,6 @@ class _BoardWidgetState extends State<BoardWidget> {
                   onTap: () => controller.makeMove(widget.boardIndex, cellIndex),
                   player: cellValue,
                   baseColor: boardColor,
-                  xTilt: xRotation,
-                  yTilt: yRotation,
                 );
               },
             ),
@@ -204,16 +213,12 @@ class NeumorphicCell extends StatelessWidget {
   final VoidCallback onTap;
   final Player player;
   final Color baseColor;
-  final double xTilt;
-  final double yTilt;
 
   const NeumorphicCell({
     super.key,
     required this.onTap,
     required this.player,
     required this.baseColor,
-    required this.xTilt,
-    required this.yTilt,
   });
 
   @override
@@ -227,12 +232,12 @@ class NeumorphicCell extends StatelessWidget {
           boxShadow: [
             BoxShadow(
               color: NeumorphicColors.getDarkShadow(baseColor),
-              offset: Offset(3 + (yTilt * 20), 3 + (xTilt * 20)),
+              offset: const Offset(3, 3),
               blurRadius: 5,
             ),
             BoxShadow(
               color: NeumorphicColors.getLightShadow(baseColor),
-              offset: Offset(-3 + (yTilt * 20), -3 + (xTilt * 20)),
+              offset: const Offset(-3, -3),
               blurRadius: 5,
             ),
           ],
