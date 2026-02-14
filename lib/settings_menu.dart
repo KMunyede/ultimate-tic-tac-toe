@@ -37,7 +37,7 @@ class SettingsMenu extends StatelessWidget {
               ),
             ],
             const SizedBox(height: 16),
-            _buildBoardLayoutSelector(context, settings),
+            _buildBoardCountSelector(context, settings),
             const SizedBox(height: 16),
             SwitchListTile(
               title: const Text('Sound'),
@@ -138,24 +138,23 @@ class SettingsMenu extends StatelessWidget {
     );
   }
 
-  Widget _buildBoardLayoutSelector(
+  Widget _buildBoardCountSelector(
       BuildContext context, SettingsController settings) {
-    return _buildDropdown(
-      context: context,
-      label: 'Board Layout',
-      value: settings.boardLayout,
-      items: BoardLayout.values,
-      onChanged: (BoardLayout? layout) {
-        if (layout != null) {
-          settings.setBoardLayout(layout);
-        }
-      },
-      itemBuilder: (BoardLayout layout) {
-        return DropdownMenuItem<BoardLayout>(
-          value: layout,
-          child: Text(layout.name),
-        );
-      },
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Boards: ${settings.boardCount}'),
+        Slider(
+          value: settings.boardCount.toDouble(),
+          min: 1,
+          max: 9,
+          divisions: 8,
+          label: settings.boardCount.toString(),
+          onChanged: (double value) {
+            settings.setBoardCount(value.toInt());
+          },
+        ),
+      ],
     );
   }
 

@@ -27,8 +27,8 @@ class GameStatusDisplay extends StatelessWidget {
 
   String _getStatusText(GameController game) {
     if (game.isOverallGameOver) {
-      if (game.overallWinner != null) {
-        return 'Player ${game.overallWinner == Player.X ? 'X' : 'O'} Wins!';
+      if (game.matchWinner != null) {
+        return 'Player ${game.matchWinner == Player.X ? 'X' : 'O'} Wins!';
       } else {
         return "It's a Draw!";
       }

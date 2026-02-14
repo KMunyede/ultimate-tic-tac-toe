@@ -115,7 +115,7 @@ ThemeData generateTheme(Color seedColor) {
 class NeumorphicColors {
   static Color getLightShadow(Color baseColor) {
     final hsl = HSLColor.fromColor(baseColor);
-    return hsl.withLightness((hsl.lightness + 0.12).clamp(0.0, 1.0)).toColor().withOpacity(1.0);
+    return hsl.withLightness((hsl.lightness + 0.12).clamp(0.0, 1.0)).toColor().withValues(alpha: 1.0);
   }
 
   static Color getDarkShadow(Color baseColor) {
@@ -124,6 +124,6 @@ class NeumorphicColors {
         .withLightness((hsl.lightness - 0.20).clamp(0.0, 1.0))
         .withSaturation((hsl.saturation + 0.1).clamp(0.0, 1.0))
         .toColor()
-        .withOpacity(0.5);
+        .withValues(alpha: 0.5);
   }
 }

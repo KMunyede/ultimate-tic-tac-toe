@@ -23,8 +23,8 @@ class SettingsController with ChangeNotifier {
   AiDifficulty _aiDifficulty = AiDifficulty.hard;
   AiDifficulty get aiDifficulty => _aiDifficulty;
 
-  BoardLayout _boardLayout = BoardLayout.single;
-  BoardLayout get boardLayout => _boardLayout;
+  int _boardCount = 1;
+  int get boardCount => _boardCount;
 
   bool _isPremium = false;
   bool get isPremium => _isPremium;
@@ -61,11 +61,7 @@ class SettingsController with ChangeNotifier {
         (d) => d.name == aiDifficultyName,
         orElse: () => AiDifficulty.hard);
 
-    final boardLayoutName =
-        _prefs.getString('boardLayout') ?? BoardLayout.single.name;
-    _boardLayout = BoardLayout.values.firstWhere(
-        (l) => l.name == boardLayoutName,
-        orElse: () => BoardLayout.single);
+    _boardCount = _prefs.getInt('boardCount') ?? 1;
 
     _isSoundOn = _prefs.getBool('isSoundOn') ?? true;
     _isPremium = _prefs.getBool('isPremium') ?? false;
@@ -104,10 +100,10 @@ class SettingsController with ChangeNotifier {
     }
   }
 
-  Future<void> setBoardLayout(BoardLayout layout) async {
-    if (_boardLayout != layout) {
-      _boardLayout = layout;
-      await _prefs.setString('boardLayout', layout.name);
+  Future<void> setBoardCount(int count) async {
+    if (_boardCount != count && count > 0) {
+      _boardCount = count;
+      await _prefs.setInt('boardCount', count);
       _triggerGameReset();
     }
   }
