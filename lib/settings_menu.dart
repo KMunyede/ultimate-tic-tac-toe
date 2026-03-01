@@ -6,8 +6,21 @@ import 'settings_controller.dart';
 import 'sound_manager.dart';
 import 'widgets/gradient_button.dart';
 
-class SettingsMenu extends StatelessWidget {
+class SettingsMenu extends StatefulWidget {
   const SettingsMenu({super.key});
+
+  @override
+  State<SettingsMenu> createState() => _SettingsMenuState();
+}
+
+class _SettingsMenuState extends State<SettingsMenu> {
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -17,53 +30,62 @@ class SettingsMenu extends StatelessWidget {
 
     return AlertDialog(
       title: const Text('Settings'),
-      content: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _buildThemeSelector(context, settings),
-            const SizedBox(height: 16),
-            _buildGameModeSelector(context, settings),
-            if (settings.gameMode == GameMode.playerVsAi) ...[
-              _buildAiDifficultySelector(context, settings),
-              const SizedBox(height: 8),
+      content: Scrollbar(
+        controller: _scrollController,
+        thumbVisibility: true, // Always show scrollbar thumb in landscape
+        trackVisibility: true,
+        child: SingleChildScrollView(
+          controller: _scrollController,
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildThemeSelector(context, settings),
+              const SizedBox(height: 16),
+              _buildGameModeSelector(context, settings),
+              if (settings.gameMode == GameMode.playerVsAi) ...[
+                _buildAiDifficultySelector(context, settings),
+                const SizedBox(height: 8),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Use Online AI'),
+                  subtitle: const Text('Call Firebase for moves'),
+                  value: settings.useOnlineAi,
+                  onChanged: (value) {
+                    settings.setUseOnlineAi(value);
+                  },
+                ),
+              ],
+              const SizedBox(height: 16),
+              _buildBoardCountSelector(context, settings),
+              const SizedBox(height: 16),
               SwitchListTile(
-                title: const Text('Use Online AI'),
-                subtitle: const Text('Call Firebase for moves'),
-                value: settings.useOnlineAi,
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Sound'),
+                value: settings.isSoundOn,
                 onChanged: (value) {
-                  settings.setUseOnlineAi(value);
+                  settings.toggleSound();
+                  if (value) {
+                    soundManager.playMoveSound();
+                  }
                 },
               ),
-            ],
-            const SizedBox(height: 16),
-            _buildBoardCountSelector(context, settings),
-            const SizedBox(height: 16),
-            SwitchListTile(
-              title: const Text('Sound'),
-              value: settings.isSoundOn,
-              onChanged: (value) {
-                settings.toggleSound();
-                if (value) {
-                  soundManager.playMoveSound();
-                }
-              },
-            ),
-            const SizedBox(height: 20),
-            GradientButton(
-              onPressed: () {
-                settings.resetGameAndScores();
-                Navigator.of(context).pop();
-              },
-              gradient: LinearGradient(
-                colors: [theme.gradientStart, theme.gradientEnd],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
+              const SizedBox(height: 20),
+              GradientButton(
+                onPressed: () {
+                  settings.resetGameAndScores();
+                  Navigator.of(context).pop();
+                },
+                gradient: LinearGradient(
+                  colors: [theme.gradientStart, theme.gradientEnd],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                textColor: theme.textColor,
+                child: const Text('Reset Game & Scores'),
               ),
-              textColor: theme.textColor,
-              child: const Text('Reset Game & Scores'),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
       actions: [

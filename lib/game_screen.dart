@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -11,7 +12,7 @@ import 'package:window_manager/window_manager.dart';
 import 'game_controller.dart';
 import 'settings_menu.dart';
 import 'sound_manager.dart';
-import 'widgets/game_board.dart'; // Import MultiBoardView
+import 'widgets/game_board.dart';
 
 class TicTacToeGame extends StatefulWidget {
   final bool isPrimaryInstance;
@@ -76,22 +77,61 @@ class _TicTacToeGameState extends State<TicTacToeGame> with WindowListener {
   Widget build(BuildContext context) {
     final game = context.watch<GameController>();
     final soundManager = context.read<SoundManager>();
-
+    final mediaQuery = MediaQuery.of(context);
     final theme = Theme.of(context);
+
+    // Calculate physical size in inches
+    final double diagonalInches = _calculateDiagonalInches(mediaQuery);
+    final bool isSmallScreen = diagonalInches < 8.0;
+    final bool isSmallLandscape =
+        mediaQuery.orientation == Orientation.landscape && isSmallScreen;
+
+    final double appBarHeight = isSmallScreen ? 26.0 : 56.0;
+
     final primaryColor = theme.colorScheme.primary;
     final hsl = HSLColor.fromColor(primaryColor);
     final brighterColor =
         hsl.withLightness((hsl.lightness * 1.7).clamp(0.0, 1.0)).toColor();
-
     final buttonTextColor =
         brighterColor.computeLuminance() > 0.5 ? Colors.black : Colors.white;
 
-    final screenWidth = MediaQuery.of(context).size.width;
+    final screenWidth = mediaQuery.size.width;
     const double baseWidthFactor = 0.4;
     const double baseHeight = 48.0;
-
     final double newWidth = screenWidth * baseWidthFactor * 1.20;
     final double newHeight = baseHeight * 1.10;
+
+    Widget statusLabel = Padding(
+      padding: EdgeInsets.symmetric(
+        vertical: isSmallScreen ? 8.0 : 16.0,
+        horizontal: 8.0,
+      ),
+      child: Text(
+        game.statusMessage ?? '',
+        style: isSmallScreen
+            ? theme.textTheme.titleMedium
+            : theme.textTheme.headlineSmall,
+        textAlign: TextAlign.center,
+      ),
+    );
+
+    Widget newGameButton = SizedBox(
+      width: isSmallLandscape ? 150 : newWidth,
+      height: isSmallLandscape ? 36 : newHeight,
+      child: ElevatedButton.icon(
+        icon: Icon(Icons.refresh, size: isSmallLandscape ? 18 : 24),
+        label: Text(
+          'New Game',
+          style: isSmallLandscape ? const TextStyle(fontSize: 13) : null,
+        ),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: brighterColor,
+          foregroundColor: buttonTextColor,
+          padding: isSmallLandscape ? EdgeInsets.zero : null,
+        ),
+        onPressed: () => game.initializeGame(),
+      ),
+    );
 
     return PopScope(
       canPop: false,
@@ -112,62 +152,104 @@ class _TicTacToeGameState extends State<TicTacToeGame> with WindowListener {
         SystemNavigator.pop();
       },
       child: Scaffold(
-        appBar: AppBar(
-          title: const Text('Ultimate TicTacToe'),
-          backgroundColor: theme.colorScheme.primary,
-          foregroundColor: theme.colorScheme.onPrimary,
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.settings),
-              onPressed: () {
-                soundManager.playMoveSound();
-                showDialog(
-                  context: context,
-                  builder: (context) => const SettingsMenu(),
-                );
-              },
+        appBar: PreferredSize(
+          preferredSize: Size.fromHeight(appBarHeight),
+          child: AppBar(
+            titleSpacing: isSmallScreen ? 8 : null,
+            title: Text(
+              'Ultimate TicTacToe',
+              style: isSmallScreen ? const TextStyle(fontSize: 14) : null,
             ),
-          ],
+            backgroundColor: theme.colorScheme.primary,
+            foregroundColor: theme.colorScheme.onPrimary,
+            actions: [
+              IconButton(
+                padding: isSmallScreen ? EdgeInsets.zero : null,
+                constraints: isSmallScreen ? const BoxConstraints() : null,
+                icon: const Icon(Icons.settings),
+                iconSize: isSmallScreen ? 18 : 24,
+                onPressed: () {
+                  soundManager.playMoveSound();
+                  showDialog(
+                    context: context,
+                    builder: (context) => const SettingsMenu(),
+                  );
+                },
+              ),
+              if (isSmallScreen) const SizedBox(width: 8),
+            ],
+          ),
         ),
-        body: Column(
-          children: [
-            const Expanded(
-              child: Center(
-                child: MultiBoardView(), // Use MultiBoardView here
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 16.0),
-              child: Text(
-                game.statusMessage ?? '',
-                style: theme.textTheme.headlineSmall,
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.only(bottom: 32.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  SizedBox(
-                    width: newWidth,
-                    height: newHeight,
-                    child: ElevatedButton.icon(
-                      icon: const Icon(Icons.refresh),
-                      label: const Text('New Game'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: brighterColor,
-                        foregroundColor: buttonTextColor,
+        body: SafeArea(
+          top: false, // AppBar handles the top
+          child: isSmallLandscape
+              ? Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const Expanded(
+                      flex: 3,
+                      child: Padding(
+                        padding: EdgeInsets.only(top: 4.0),
+                        child: MultiBoardView(),
                       ),
-                      onPressed: () => game.initializeGame(),
                     ),
-                  ),
-                ],
-              ),
-            ),
-          ],
+                    Container(
+                      width: 180,
+                      padding: const EdgeInsets.all(8.0),
+                      decoration: BoxDecoration(
+                        border: Border(
+                          left: BorderSide(
+                            color: theme.dividerColor,
+                            width: 1,
+                          ),
+                        ),
+                      ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          statusLabel,
+                          const SizedBox(height: 12),
+                          newGameButton,
+                        ],
+                      ),
+                    ),
+                  ],
+                )
+              : Column(
+                  children: [
+                    Expanded(
+                      child: Align(
+                        alignment: Alignment.topCenter,
+                        child: const MultiBoardView(),
+                      ),
+                    ),
+                    statusLabel,
+                    Padding(
+                      padding: EdgeInsets.only(
+                        bottom: isSmallScreen ? 16.0 : 32.0,
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [newGameButton],
+                      ),
+                    ),
+                  ],
+                ),
         ),
       ),
     );
+  }
+
+  double _calculateDiagonalInches(MediaQueryData data) {
+    final width = data.size.width;
+    final height = data.size.height;
+    final pixelRatio = data.devicePixelRatio;
+
+    const ppi = 160.0;
+    final widthInches = width / ppi * pixelRatio;
+    final heightInches = height / ppi * pixelRatio;
+
+    return sqrt(widthInches * widthInches + heightInches * heightInches) / pixelRatio;
   }
 
   @override
