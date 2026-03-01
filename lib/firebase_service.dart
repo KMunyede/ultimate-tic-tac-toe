@@ -14,7 +14,6 @@ class FirebaseService {
     required AiDifficulty difficulty,
     required int boardCount,
   }) async {
-    // Explicitly using named arguments to satisfy the analyzer
     final request = AiRequest(
       boards: boards,
       boardResults: boardResults,
@@ -24,17 +23,23 @@ class FirebaseService {
     );
 
     try {
-      final callable = _functions.httpsCallable('getAiMove');
+      final callable = _functions.httpsCallable(
+        'getAiMove',
+        options: HttpsCallableOptions(timeout: const Duration(seconds: 10)),
+      );
+      
       final response = await callable.call(request.toJson());
 
       if (response.data == null) return null;
       return AiMoveResponse.fromJson(response.data);
     } on FirebaseFunctionsException catch (e) {
-      if (kDebugMode) print('Firebase Error: ${e.code} ${e.message}');
-      return null;
+      if (kDebugMode) {
+        print('Firebase Functions Error: [${e.code}] ${e.message} Details: ${e.details}');
+      }
+      rethrow; // Allow GameController fallback logic to execute
     } catch (e) {
-      if (kDebugMode) print('AI Service Error: $e');
-      return null;
+      if (kDebugMode) print('Unexpected AI Service Error: $e');
+      rethrow;
     }
   }
 }

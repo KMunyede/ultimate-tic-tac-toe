@@ -19,7 +19,7 @@ class AiRequest {
   Map<String, dynamic> toJson() => {
         'boards': boards,
         'boardResults': boardResults,
-        'player': player.name,
+        'player': player == Player.X ? "X" : "O",
         'difficulty': difficulty.name,
         'boardCount': boardCount,
         // Legacy support

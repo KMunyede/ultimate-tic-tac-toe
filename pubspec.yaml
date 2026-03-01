@@ -22,6 +22,7 @@ dependencies:
   flutter_dotenv: ^6.0.0
   firebase_database: ^12.0.3
   sensors_plus: ^7.0.0 # Upgraded to fix RangeError in internal platform channel
+  google_fonts: ^6.2.1
 
 dev_dependencies:
   flutter_test:
