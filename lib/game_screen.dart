@@ -80,7 +80,6 @@ class _TicTacToeGameState extends State<TicTacToeGame> with WindowListener {
     final mediaQuery = MediaQuery.of(context);
     final theme = Theme.of(context);
 
-    // Calculate physical size in inches
     final double diagonalInches = _calculateDiagonalInches(mediaQuery);
     final bool isSmallScreen = diagonalInches < 8.0;
     final bool isSmallLandscape =
@@ -101,18 +100,12 @@ class _TicTacToeGameState extends State<TicTacToeGame> with WindowListener {
     final double newWidth = screenWidth * baseWidthFactor * 1.20;
     final double newHeight = baseHeight * 1.10;
 
-    Widget statusLabel = Padding(
-      padding: EdgeInsets.symmetric(
-        vertical: isSmallScreen ? 8.0 : 16.0,
-        horizontal: 8.0,
-      ),
-      child: Text(
-        game.statusMessage ?? '',
-        style: isSmallScreen
-            ? theme.textTheme.titleMedium
-            : theme.textTheme.headlineSmall,
-        textAlign: TextAlign.center,
-      ),
+    Widget statusLabel = BreathingStatusLabel(
+      message: game.statusMessage ?? '',
+      isSmallScreen: isSmallScreen,
+      style: isSmallScreen
+          ? theme.textTheme.titleMedium
+          : theme.textTheme.headlineSmall,
     );
 
     Widget newGameButton = SizedBox(
@@ -181,7 +174,7 @@ class _TicTacToeGameState extends State<TicTacToeGame> with WindowListener {
           ),
         ),
         body: SafeArea(
-          top: false, // AppBar handles the top
+          top: false,
           child: isSmallLandscape
               ? Row(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -306,6 +299,88 @@ class _TicTacToeGameState extends State<TicTacToeGame> with WindowListener {
           ],
         );
       },
+    );
+  }
+}
+
+class BreathingStatusLabel extends StatefulWidget {
+  final String message;
+  final bool isSmallScreen;
+  final TextStyle? style;
+
+  const BreathingStatusLabel({
+    super.key,
+    required this.message,
+    required this.isSmallScreen,
+    this.style,
+  });
+
+  @override
+  State<BreathingStatusLabel> createState() => _BreathingStatusLabelState();
+}
+
+class _BreathingStatusLabelState extends State<BreathingStatusLabel>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _scaleAnimation;
+  late Animation<double> _opacityAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 2),
+    )..repeat(reverse: true);
+
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 1.05).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+
+    _opacityAnimation = Tween<double>(begin: 0.7, end: 1.0).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.symmetric(
+        vertical: widget.isSmallScreen ? 8.0 : 16.0,
+        horizontal: 8.0,
+      ),
+      child: AnimatedBuilder(
+        animation: _controller,
+        builder: (context, child) {
+          return Transform.scale(
+            scale: _scaleAnimation.value,
+            child: Opacity(
+              opacity: _opacityAnimation.value,
+              child: Text(
+                widget.message,
+                style: widget.style?.copyWith(
+                  shadows: [
+                    Shadow(
+                      color: Theme.of(context)
+                          .colorScheme
+                          .primary
+                          .withOpacity(0.3 * _opacityAnimation.value),
+                      blurRadius: 8.0 * _controller.value,
+                    ),
+                  ],
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          );
+        },
+      ),
     );
   }
 }

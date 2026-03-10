@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 
@@ -18,7 +19,6 @@ class BoardWidget extends StatefulWidget {
 }
 
 class _BoardWidgetState extends State<BoardWidget> {
-  // We keep the variables to avoid breaking existing logic, but they won't affect the UI anymore
   double xRotation = 0;
   double yRotation = 0;
   StreamSubscription<AccelerometerEvent>? _subscription;
@@ -26,7 +26,6 @@ class _BoardWidgetState extends State<BoardWidget> {
   @override
   void initState() {
     super.initState();
-    // Accelerometer still runs, but we've removed the transform to avoid the 3D slant
     _subscription = accelerometerEventStream().listen((AccelerometerEvent event) {
       if (mounted) {
         setState(() {
@@ -65,7 +64,7 @@ class _BoardWidgetState extends State<BoardWidget> {
 
         return Transform.translate(
           offset: Offset(shakeOffset, 0),
-          child: child, // Removed the 3D Perspective Transform here
+          child: child,
         );
       },
       child: Stack(
@@ -77,7 +76,7 @@ class _BoardWidgetState extends State<BoardWidget> {
               boxShadow: [
                 BoxShadow(
                   color: NeumorphicColors.getDarkShadow(themeBgColor),
-                  offset: const Offset(6, 6), // Static shadows for a cleaner look
+                  offset: const Offset(6, 6),
                   blurRadius: 12,
                 ),
                 BoxShadow(
@@ -107,6 +106,13 @@ class _BoardWidgetState extends State<BoardWidget> {
               },
             ),
           ),
+          if (board.winner != null && board.winningLine != null)
+            Positioned.fill(
+              child: WinningLineWidget(
+                winner: board.winner!,
+                winningLine: board.winningLine!,
+              ),
+            ),
           if (board.winner != null)
             Positioned.fill(
               child: BoardWinnerEffect(winner: board.winner!),
@@ -115,6 +121,102 @@ class _BoardWidgetState extends State<BoardWidget> {
       ),
     );
   }
+}
+
+class WinningLineWidget extends StatefulWidget {
+  final Player winner;
+  final List<int> winningLine;
+
+  const WinningLineWidget({
+    super.key,
+    required this.winner,
+    required this.winningLine,
+  });
+
+  @override
+  State<WinningLineWidget> createState() => _WinningLineWidgetState();
+}
+
+class _WinningLineWidgetState extends State<WinningLineWidget> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    )..forward();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        return CustomPaint(
+          painter: WinningLinePainter(
+            winner: widget.winner,
+            winningLine: widget.winningLine,
+            progress: _controller.value,
+          ),
+        );
+      },
+    );
+  }
+}
+
+class WinningLinePainter extends CustomPainter {
+  final Player winner;
+  final List<int> winningLine;
+  final double progress;
+
+  WinningLinePainter({
+    required this.winner,
+    required this.winningLine,
+    required this.progress,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..strokeWidth = 8.0
+      ..strokeCap = StrokeCap.round
+      ..style = PaintingStyle.stroke
+      ..maskFilter = const MaskFilter.blur(BlurStyle.solid, 3);
+
+    paint.color = winner == Player.X 
+        ? Colors.redAccent.withOpacity(0.9) 
+        : Colors.cyanAccent.withOpacity(0.9);
+
+    final cellSize = size.width / 3;
+    
+    Offset getCenter(int index) {
+      final x = (index % 3) * cellSize + cellSize / 2;
+      final y = (index ~/ 3) * cellSize + cellSize / 2;
+      return Offset(x, y);
+    }
+
+    final start = getCenter(winningLine.first);
+    final end = getCenter(winningLine.last);
+    
+    final currentEnd = Offset(
+      start.dx + (end.dx - start.dx) * progress,
+      start.dy + (end.dy - start.dy) * progress,
+    );
+
+    canvas.drawLine(start, currentEnd, paint);
+  }
+
+  @override
+  bool shouldRepaint(WinningLinePainter oldDelegate) => 
+      oldDelegate.progress != progress;
 }
 
 class BoardWinnerEffect extends StatefulWidget {
@@ -143,7 +245,7 @@ class _BoardWinnerEffectState extends State<BoardWinnerEffect> with SingleTicker
   }
 
   void _createParticles() {
-    final color = widget.winner == Player.X ? Colors.redAccent : const Color(0xFF1A237E);
+    final color = widget.winner == Player.X ? Colors.redAccent : Colors.cyanAccent;
     for (int i = 0; i < 40; i++) {
       _particles.add(Particle(
         color: color.withOpacity(_random.nextDouble() * 0.8 + 0.2),
@@ -209,7 +311,7 @@ class ParticlePainter extends CustomPainter {
   bool shouldRepaint(ParticlePainter oldDelegate) => true;
 }
 
-class NeumorphicCell extends StatelessWidget {
+class NeumorphicCell extends StatefulWidget {
   final VoidCallback onTap;
   final Player player;
   final Color baseColor;
@@ -222,28 +324,64 @@ class NeumorphicCell extends StatelessWidget {
   });
 
   @override
+  State<NeumorphicCell> createState() => _NeumorphicCellState();
+}
+
+class _NeumorphicCellState extends State<NeumorphicCell> with SingleTickerProviderStateMixin {
+  late AnimationController _pressController;
+
+  @override
+  void initState() {
+    super.initState();
+    _pressController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 100),
+      lowerBound: 0.92,
+      upperBound: 1.0,
+      value: 1.0,
+    );
+  }
+
+  @override
+  void dispose() {
+    _pressController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        decoration: BoxDecoration(
-          color: baseColor,
-          borderRadius: BorderRadius.circular(10),
-          boxShadow: [
-            BoxShadow(
-              color: NeumorphicColors.getDarkShadow(baseColor),
-              offset: const Offset(3, 3),
-              blurRadius: 5,
-            ),
-            BoxShadow(
-              color: NeumorphicColors.getLightShadow(baseColor),
-              offset: const Offset(-3, -3),
-              blurRadius: 5,
-            ),
-          ],
-        ),
-        child: Center(
-          child: AnimatedMarker(player: player),
+      onTapDown: (_) {
+        _pressController.reverse();
+        HapticFeedback.lightImpact();
+      },
+      onTapUp: (_) => _pressController.forward(),
+      onTapCancel: () => _pressController.forward(),
+      onTap: widget.onTap,
+      child: ScaleTransition(
+        scale: _pressController,
+        child: Container(
+          decoration: BoxDecoration(
+            color: widget.baseColor,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: NeumorphicColors.getDarkShadow(widget.baseColor),
+                offset: const Offset(4, 4),
+                blurRadius: 8,
+                spreadRadius: 1,
+              ),
+              BoxShadow(
+                color: NeumorphicColors.getLightShadow(widget.baseColor),
+                offset: const Offset(-4, -4),
+                blurRadius: 8,
+                spreadRadius: 1,
+              ),
+            ],
+          ),
+          child: Center(
+            child: AnimatedMarker(player: widget.player),
+          ),
         ),
       ),
     );
@@ -324,14 +462,15 @@ class MarkerPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..strokeWidth = 4.0
+      ..strokeWidth = 5.0
       ..strokeCap = StrokeCap.round
-      ..style = PaintingStyle.stroke;
+      ..style = PaintingStyle.stroke
+      ..maskFilter = const MaskFilter.blur(BlurStyle.solid, 2);
 
     final double padding = size.width * 0.25;
 
     if (player == Player.X) {
-      paint.color = Colors.redAccent;
+      paint.color = Colors.redAccent.withOpacity(0.9);
       if (progress > 0) {
         double p1 = (progress * 2).clamp(0.0, 1.0);
         canvas.drawLine(
@@ -355,7 +494,7 @@ class MarkerPainter extends CustomPainter {
         );
       }
     } else if (player == Player.O) {
-      paint.color = const Color(0xFF1A237E);
+      paint.color = Colors.cyanAccent.withOpacity(0.9);
       final rect = Rect.fromLTRB(
         padding,
         padding,

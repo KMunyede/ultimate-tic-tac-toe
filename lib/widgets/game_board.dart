@@ -37,73 +37,52 @@ class MultiBoardView extends StatelessWidget {
                   const double spacing = 16.0;
                   const double padding = 12.0;
                   const double labelAreaHeight = 0.0;
+                  const double minBoardSize = 100.0;
+
+                  // Dynamic calculation of items per row based on width constraints
+                  int maxPossibleItems = ((constraints.maxWidth - (padding * 2) + spacing) / (minBoardSize + spacing)).floor();
+                  maxPossibleItems = max(1, maxPossibleItems);
 
                   final int itemsPerRow;
                   if (count == 1) {
                     itemsPerRow = 1;
                   } else if (count == 2) {
                     if (constraints.maxWidth > constraints.maxHeight) {
-                      itemsPerRow = 2;
+                      itemsPerRow = min(2, maxPossibleItems);
                     } else {
                       itemsPerRow = 1;
                     }
                   } else if (count > 6) {
-                    itemsPerRow = 3;
+                    itemsPerRow = min(3, maxPossibleItems);
                   } else {
-                    itemsPerRow = 2;
+                    itemsPerRow = min(2, maxPossibleItems);
                   }
 
                   final int rowCount = (count / itemsPerRow).ceil();
+                  
+                  // Calculate available space per board
                   final double maxBoardWidth =
                       (constraints.maxWidth - (padding * 2) - (spacing * (itemsPerRow - 1))) / itemsPerRow;
                   final double maxBoardHeight =
                       (constraints.maxHeight - (padding * 2) - (spacing * (rowCount - 1)) - (labelAreaHeight * rowCount)) / rowCount;
 
-                  final double boardSize = min(maxBoardWidth, maxBoardHeight).clamp(100.0, 600.0);
-
-                  List<Widget> rows = [];
-                  for (int i = 0; i < count; i += itemsPerRow) {
-                    List<Widget> rowChildren = [];
-                    for (int j = 0; j < itemsPerRow; j++) {
-                      final int boardIndex = i + j;
-                      if (boardIndex < count) {
-                        rowChildren.add(
-                          FlyInWrapper(
-                            key: ValueKey('flyin_${boards[boardIndex].hashCode}_$boardIndex'),
-                            index: boardIndex,
-                            child: _buildBoard(context, boardIndex, boardSize),
-                          ),
-                        );
-                      }
-                    }
-
-                    List<Widget> spacedRowChildren = [];
-                    if (rowChildren.isNotEmpty) {
-                      spacedRowChildren.add(rowChildren.first);
-                      for (int k = 1; k < rowChildren.length; k++) {
-                        spacedRowChildren.add(const SizedBox(width: spacing));
-                        spacedRowChildren.add(rowChildren[k]);
-                      }
-                    }
-
-                    rows.add(
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: spacedRowChildren,
-                      ),
-                    );
-
-                    if (i + itemsPerRow < count) {
-                      rows.add(const SizedBox(height: spacing));
-                    }
-                  }
+                  final double boardSize = min(maxBoardWidth, maxBoardHeight).clamp(minBoardSize, 600.0);
 
                   return Center(
                     child: SingleChildScrollView(
                       padding: const EdgeInsets.all(padding),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: rows,
+                      child: Wrap(
+                        alignment: WrapAlignment.center,
+                        runAlignment: WrapAlignment.center,
+                        spacing: spacing,
+                        runSpacing: spacing,
+                        children: List.generate(count, (index) {
+                          return FlyInWrapper(
+                            key: ValueKey('flyin_${boards[index].hashCode}_$index'),
+                            index: index,
+                            child: _buildBoard(context, index, boardSize),
+                          );
+                        }),
                       ),
                     ),
                   );
@@ -161,7 +140,7 @@ class _FlyInWrapperState extends State<FlyInWrapper> with SingleTickerProviderSt
       end: Offset.zero,
     ).animate(CurvedAnimation(
       parent: _controller,
-      curve: Curves.easeOutBack, // Functionally identical to backOut
+      curve: Curves.easeOutBack,
     ));
 
     _fadeAnimation = Tween<double>(
