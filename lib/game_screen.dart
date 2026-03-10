@@ -173,61 +173,74 @@ class _TicTacToeGameState extends State<TicTacToeGame> with WindowListener {
             ],
           ),
         ),
-        body: SafeArea(
-          top: false,
-          child: isSmallLandscape
-              ? Row(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const Expanded(
-                      flex: 3,
-                      child: Padding(
-                        padding: EdgeInsets.only(top: 4.0),
-                        child: MultiBoardView(),
-                      ),
-                    ),
-                    Container(
-                      width: 180,
-                      padding: const EdgeInsets.all(8.0),
-                      decoration: BoxDecoration(
-                        border: Border(
-                          left: BorderSide(
-                            color: theme.dividerColor,
-                            width: 1,
+        body: Stack(
+          children: [
+            Positioned.fill(
+              child: Opacity(
+                opacity: 0.05,
+                child: Image.asset(
+                  'assets/icon.png',
+                  fit: BoxFit.contain,
+                ),
+              ),
+            ),
+            SafeArea(
+              top: false,
+              child: isSmallLandscape
+                  ? Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const Expanded(
+                          flex: 3,
+                          child: Padding(
+                            padding: EdgeInsets.only(top: 4.0),
+                            child: MultiBoardView(),
                           ),
                         ),
-                      ),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          statusLabel,
-                          const SizedBox(height: 12),
-                          newGameButton,
-                        ],
-                      ),
+                        Container(
+                          width: 180,
+                          padding: const EdgeInsets.all(8.0),
+                          decoration: BoxDecoration(
+                            border: Border(
+                              left: BorderSide(
+                                color: theme.dividerColor,
+                                width: 1,
+                              ),
+                            ),
+                          ),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              statusLabel,
+                              const SizedBox(height: 12),
+                              newGameButton,
+                            ],
+                          ),
+                        ),
+                      ],
+                    )
+                  : Column(
+                      children: [
+                        Expanded(
+                          child: Align(
+                            alignment: Alignment.topCenter,
+                            child: const MultiBoardView(),
+                          ),
+                        ),
+                        statusLabel,
+                        Padding(
+                          padding: EdgeInsets.only(
+                            bottom: isSmallScreen ? 16.0 : 32.0,
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                            children: [newGameButton],
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
-                )
-              : Column(
-                  children: [
-                    Expanded(
-                      child: Align(
-                        alignment: Alignment.topCenter,
-                        child: const MultiBoardView(),
-                      ),
-                    ),
-                    statusLabel,
-                    Padding(
-                      padding: EdgeInsets.only(
-                        bottom: isSmallScreen ? 16.0 : 32.0,
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [newGameButton],
-                      ),
-                    ),
-                  ],
-                ),
+            ),
+          ],
         ),
       ),
     );

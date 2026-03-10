@@ -70,6 +70,7 @@ class _BoardWidgetState extends State<BoardWidget> {
       child: Stack(
         children: [
           Container(
+            clipBehavior: Clip.antiAlias,
             decoration: BoxDecoration(
               color: boardColor,
               borderRadius: BorderRadius.circular(16),
@@ -86,24 +87,26 @@ class _BoardWidgetState extends State<BoardWidget> {
                 ),
               ],
             ),
-            padding: const EdgeInsets.all(12),
-            child: GridView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 3,
-                crossAxisSpacing: 10,
-                mainAxisSpacing: 10,
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 3,
+                  crossAxisSpacing: 10,
+                  mainAxisSpacing: 10,
+                ),
+                itemCount: 9,
+                itemBuilder: (context, cellIndex) {
+                  final cellValue = board.cells[cellIndex];
+                  return NeumorphicCell(
+                    onTap: () => controller.makeMove(widget.boardIndex, cellIndex),
+                    player: cellValue,
+                    baseColor: boardColor.withOpacity(0.7),
+                  );
+                },
               ),
-              itemCount: 9,
-              itemBuilder: (context, cellIndex) {
-                final cellValue = board.cells[cellIndex];
-                return NeumorphicCell(
-                  onTap: () => controller.makeMove(widget.boardIndex, cellIndex),
-                  player: cellValue,
-                  baseColor: boardColor,
-                );
-              },
             ),
           ),
           if (board.winner != null && board.winningLine != null)
@@ -186,20 +189,24 @@ class WinningLinePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..strokeWidth = 8.0
+      ..strokeWidth = 6.0
       ..strokeCap = StrokeCap.round
-      ..style = PaintingStyle.stroke
-      ..maskFilter = const MaskFilter.blur(BlurStyle.solid, 3);
+      ..style = PaintingStyle.stroke;
 
     paint.color = winner == Player.X 
-        ? Colors.redAccent.withOpacity(0.9) 
-        : Colors.cyanAccent.withOpacity(0.9);
+        ? Colors.red.withOpacity(0.9) 
+        : const Color(0xFF0D47A1).withOpacity(0.9);
 
-    final cellSize = size.width / 3;
+    const double padding = 12.0;
+    const double spacing = 10.0;
+    final double availableSize = size.width - (padding * 2);
+    final double cellSize = (availableSize - (spacing * 2)) / 3;
     
     Offset getCenter(int index) {
-      final x = (index % 3) * cellSize + cellSize / 2;
-      final y = (index ~/ 3) * cellSize + cellSize / 2;
+      final int row = index ~/ 3;
+      final int col = index % 3;
+      final double x = padding + col * (cellSize + spacing) + cellSize / 2;
+      final double y = padding + row * (cellSize + spacing) + cellSize / 2;
       return Offset(x, y);
     }
 
@@ -245,7 +252,7 @@ class _BoardWinnerEffectState extends State<BoardWinnerEffect> with SingleTicker
   }
 
   void _createParticles() {
-    final color = widget.winner == Player.X ? Colors.redAccent : Colors.cyanAccent;
+    final color = widget.winner == Player.X ? Colors.red : const Color(0xFF0D47A1);
     for (int i = 0; i < 40; i++) {
       _particles.add(Particle(
         color: color.withOpacity(_random.nextDouble() * 0.8 + 0.2),
@@ -336,7 +343,7 @@ class _NeumorphicCellState extends State<NeumorphicCell> with SingleTickerProvid
     _pressController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 100),
-      lowerBound: 0.92,
+      lowerBound: 0.88,
       upperBound: 1.0,
       value: 1.0,
     );
@@ -353,7 +360,7 @@ class _NeumorphicCellState extends State<NeumorphicCell> with SingleTickerProvid
     return GestureDetector(
       onTapDown: (_) {
         _pressController.reverse();
-        HapticFeedback.lightImpact();
+        HapticFeedback.mediumImpact();
       },
       onTapUp: (_) => _pressController.forward(),
       onTapCancel: () => _pressController.forward(),
@@ -367,15 +374,15 @@ class _NeumorphicCellState extends State<NeumorphicCell> with SingleTickerProvid
             boxShadow: [
               BoxShadow(
                 color: NeumorphicColors.getDarkShadow(widget.baseColor),
-                offset: const Offset(4, 4),
-                blurRadius: 8,
-                spreadRadius: 1,
+                offset: const Offset(4.4, 4.4),
+                blurRadius: 8.8,
+                spreadRadius: 1.1,
               ),
               BoxShadow(
                 color: NeumorphicColors.getLightShadow(widget.baseColor),
-                offset: const Offset(-4, -4),
-                blurRadius: 8,
-                spreadRadius: 1,
+                offset: const Offset(-4.4, -4.4),
+                blurRadius: 8.8,
+                spreadRadius: 1.1,
               ),
             ],
           ),
@@ -464,13 +471,12 @@ class MarkerPainter extends CustomPainter {
     final paint = Paint()
       ..strokeWidth = 5.0
       ..strokeCap = StrokeCap.round
-      ..style = PaintingStyle.stroke
-      ..maskFilter = const MaskFilter.blur(BlurStyle.solid, 2);
+      ..style = PaintingStyle.stroke;
 
     final double padding = size.width * 0.25;
 
     if (player == Player.X) {
-      paint.color = Colors.redAccent.withOpacity(0.9);
+      paint.color = Colors.red.withOpacity(0.9);
       if (progress > 0) {
         double p1 = (progress * 2).clamp(0.0, 1.0);
         canvas.drawLine(
@@ -494,7 +500,7 @@ class MarkerPainter extends CustomPainter {
         );
       }
     } else if (player == Player.O) {
-      paint.color = Colors.cyanAccent.withOpacity(0.9);
+      paint.color = const Color(0xFF0D47A1).withOpacity(0.9);
       final rect = Rect.fromLTRB(
         padding,
         padding,
