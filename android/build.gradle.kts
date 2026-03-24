@@ -24,6 +24,8 @@ tasks.register<Delete>("clean") {
 }
 
 plugins {
-    // Add the dependency for the Google services Gradle plugin
+    // Aligned with settings.gradle.kts to avoid version conflicts
+    id("com.android.application") version "8.7.3" apply false
+    id("org.jetbrains.kotlin.android") version "2.1.0" apply false
     id("com.google.gms.google-services") version "4.4.2" apply false
 }

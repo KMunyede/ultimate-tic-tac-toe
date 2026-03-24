@@ -12,43 +12,43 @@ class SoundManager {
   final SettingsController _settingsController;
 
   // A single player instance is memory-efficient for sequential sound effects.
+  // Using one instance ensures we don't leak resources on mobile/desktop.
   final AudioPlayer _audioPlayer = AudioPlayer();
 
   // Define asset paths as constants for easy management and to avoid typos.
-  // Paths should align with the 'assets/' prefix defined in pubspec.yaml
+  // Paths align with the 'assets/' prefix defined in pubspec.yaml
   static const String _moveSoundPath = 'sounds/move.mp3';
   static const String _winSoundPath = 'sounds/win.mp3';
   static const String _drawSoundPath = 'sounds/draw.mp3';
 
   SoundManager(this._settingsController);
 
-  /// Initializes the sound manager. Pre-loading is now handled implicitly by
-  /// the modern audioplayers API when using AssetSource.
+  /// Initializes the sound manager.
   Future<void> init() async {
     if (kDebugMode) {
       print("SoundManager initialized. Sounds will be loaded on first play.");
     }
-    // No explicit pre-loading necessary with AssetSource.
   }
 
   /// A private helper to play a sound from assets, respecting sound settings.
   Future<void> _playSound(String soundPath) async {
     if (_settingsController.isSoundOn) {
       try {
-        await _audioPlayer.stop(); // Stop any currently playing sound
-        // We use AssetSource as recommended by the latest audioplayers API
+        // We stop any currently playing sound to ensure the new one plays immediately
+        // (especially important for rapid moves).
+        await _audioPlayer.stop();
         await _audioPlayer.play(AssetSource(soundPath));
       } catch (e) {
         if (kDebugMode) {
-          print("Error playing sound: $e");
+          print("Error playing sound ($soundPath): $e");
         }
       }
     }
   }
 
   /// Plays the standard move sound.
-  void playMoveSound() {
-    _playSound(_moveSoundPath);
+  Future<void> playMoveSound() async {
+    await _playSound(_moveSoundPath);
   }
 
   /// Plays the win sound.
@@ -57,8 +57,8 @@ class SoundManager {
   }
 
   /// Plays the draw sound.
-  void playDrawSound() {
-    _playSound(_drawSoundPath);
+  Future<void> playDrawSound() async {
+    await _playSound(_drawSoundPath);
   }
 
   /// Stops any currently playing sound.

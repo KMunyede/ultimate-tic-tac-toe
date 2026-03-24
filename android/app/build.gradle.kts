@@ -37,7 +37,9 @@ android {
 		applicationId = "net.hilmost.ultimatetictactoe"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
+        
+        // [FIX] Explicitly set minSdk to 21 for modern plugin compatibility (shared_preferences, etc.)
+        minSdk = flutter.minSdkVersion 
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName

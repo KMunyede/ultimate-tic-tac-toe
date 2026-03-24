@@ -47,7 +47,8 @@ final List<AppTheme> appThemes = [
   ),
   const AppTheme(
     name: 'Charcoal',
-    mainColor: Color(0xFF424242), // True Neutral Grey
+    mainColor: Color(0xFF424242),
+    // True Neutral Grey
     gradientStart: Color(0xFF424242),
     gradientEnd: Color(0xFF616161),
     textColor: Colors.white,
@@ -70,14 +71,19 @@ final List<AppTheme> appThemes = [
 
 ThemeData generateTheme(Color seedColor) {
   final hsl = HSLColor.fromColor(seedColor);
-  
+
   // Logic to determine background saturation:
   // If the seed is a neutral color (low saturation), keep the background desaturated.
   // This prevents Charcoal (grey) from looking like a faint blue theme.
-  final double targetSaturation = hsl.saturation < 0.15 ? hsl.saturation.clamp(0.0, 0.1) : 0.35;
-  
-  final Color bgColor = hsl.withLightness(0.85).withSaturation(targetSaturation).toColor();
-  
+  final double targetSaturation = hsl.saturation < 0.15
+      ? hsl.saturation.clamp(0.0, 0.1)
+      : 0.35;
+
+  final Color bgColor = hsl
+      .withLightness(0.85)
+      .withSaturation(targetSaturation)
+      .toColor();
+
   return ThemeData(
     useMaterial3: true,
     primaryColor: seedColor,
@@ -96,7 +102,10 @@ ThemeData generateTheme(Color seedColor) {
       bodyLarge: TextStyle(color: Colors.black87, fontWeight: FontWeight.w500),
       bodyMedium: TextStyle(color: Colors.black87),
       displayLarge: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
-      headlineSmall: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold),
+      headlineSmall: TextStyle(
+        color: Colors.black87,
+        fontWeight: FontWeight.bold,
+      ),
     ),
     scaffoldBackgroundColor: bgColor,
     appBarTheme: AppBarTheme(
@@ -115,7 +124,10 @@ ThemeData generateTheme(Color seedColor) {
 class NeumorphicColors {
   static Color getLightShadow(Color baseColor) {
     final hsl = HSLColor.fromColor(baseColor);
-    return hsl.withLightness((hsl.lightness + 0.12).clamp(0.0, 1.0)).toColor().withValues(alpha: 1.0);
+    return hsl
+        .withLightness((hsl.lightness + 0.12).clamp(0.0, 1.0))
+        .toColor()
+        .withValues(alpha: 1.0);
   }
 
   static Color getDarkShadow(Color baseColor) {

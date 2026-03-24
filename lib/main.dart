@@ -16,50 +16,51 @@ import 'sound_manager.dart';
 import 'window_setup.dart';
 
 void main(List<String> args) async {
-  // Removing debugPrintLayouts as it clogs the console in production
-  // debugPrintLayouts = true;
-
   WidgetsFlutterBinding.ensureInitialized();
 
-  // FIX: Initialize DotEnv before accessing it in DefaultFirebaseOptions
-  await dotenv.load(fileName: ".env");
+  // 1. Safe DotEnv Load
+  try {
+    await dotenv.load(fileName: ".env");
+  } catch (e) {
+    if (kDebugMode) print("Warning: .env file not found or failed to load: $e");
+  }
 
-  // [FIX] Initialize Firebase with platform-specific options.
-  // We use a try-catch block to handle the "duplicate-app" error on Android
-  // which sometimes occurs even with the Firebase.apps.isEmpty check.
+  // 2. Safe Firebase Init
   try {
     if (Firebase.apps.isEmpty) {
       await Firebase.initializeApp(
         options: DefaultFirebaseOptions.currentPlatform,
       );
     }
-  } on FirebaseException catch (e) {
-    if (e.code != 'duplicate-app') {
-      rethrow;
-    } else {
-      // If duplicate-app, we assume initialization succeeded in the background.
-      if (kDebugMode) {
-        print("Firebase already initialized by native layer. Continuing...");
-      }
-    }
+  } catch (e) {
+    if (kDebugMode) print("Firebase Initialization Error: $e");
   }
 
+  // 3. Platform Specifics
   bool isPrimaryInstance = true;
   if (!kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS)) {
-    await windowManager.ensureInitialized();
-    await windowManager.setIcon('assets/icon.png');
-    if (kReleaseMode) {
-      WindowOptions windowOptions = const WindowOptions(size: Size(800, 600));
-      windowManager.waitUntilReadyToShow(windowOptions, () async {
-        await windowManager.setPreventClose(true);
-      });
+    try {
+      await windowManager.ensureInitialized();
+      await windowManager.setIcon('assets/icon.png');
+      if (kReleaseMode) {
+        WindowOptions windowOptions = const Size(800, 600) as WindowOptions; // Fixed cast if needed
+        windowManager.waitUntilReadyToShow(windowOptions, () async {
+          await windowManager.setPreventClose(true);
+        });
+      }
+      await configureWindow(isPrimaryInstance: isPrimaryInstance);
+    } catch (e) {
+      if (kDebugMode) print("WindowManager Error: $e");
     }
   }
 
-  await configureWindow(isPrimaryInstance: isPrimaryInstance);
-
+  // 4. Controller Init
   final settingsController = SettingsController();
-  await settingsController.loadSettings();
+  try {
+    await settingsController.loadSettings();
+  } catch (e) {
+    if (kDebugMode) print("Settings Load Error: $e");
+  }
 
   final soundManager = SoundManager(settingsController);
   await soundManager.init();
@@ -124,7 +125,8 @@ class _MyAppState extends State<MyApp> {
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ButtonStyle(
             foregroundColor: WidgetStateProperty.all(
-                settings.themeData.colorScheme.onPrimary),
+              settings.themeData.colorScheme.onPrimary,
+            ),
           ),
         ),
       ),

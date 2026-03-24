@@ -46,9 +46,7 @@ ThemeData generateTheme(Color mainColor) {
     primaryColor: mainColor,
     colorScheme: ColorScheme.fromSeed(seedColor: mainColor),
     elevatedButtonTheme: ElevatedButtonThemeData(
-      style: ButtonStyle(
-        backgroundColor: WidgetStateProperty.all(mainColor),
-      ),
+      style: ButtonStyle(backgroundColor: WidgetStateProperty.all(mainColor)),
     ),
   );
 }

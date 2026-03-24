@@ -17,24 +17,21 @@ class AiRequest {
   });
 
   Map<String, dynamic> toJson() => {
-        'boards': boards,
-        'boardResults': boardResults,
-        'player': player == Player.X ? "X" : "O",
-        'difficulty': difficulty.name,
-        'boardCount': boardCount,
-        // Legacy support
-        'board': boards.isNotEmpty ? boards[0] : [],
-      };
+    'boards': boards,
+    'boardResults': boardResults,
+    'player': player == Player.X ? "X" : "O",
+    'difficulty': difficulty.name,
+    'boardCount': boardCount,
+    // Legacy support
+    'board': boards.isNotEmpty ? boards[0] : [],
+  };
 }
 
 class AiMoveResponse {
-  final int? boardIndex; 
+  final int? boardIndex;
   final int cellIndex;
 
-  AiMoveResponse({
-    this.boardIndex,
-    required this.cellIndex,
-  });
+  AiMoveResponse({this.boardIndex, required this.cellIndex});
 
   factory AiMoveResponse.fromJson(dynamic json) {
     if (json is Map) {
@@ -44,7 +41,7 @@ class AiMoveResponse {
           cellIndex: (json['cellIndex'] as num).toInt(),
         );
       }
-      
+
       if (json.containsKey('move')) {
         final move = json['move'];
         if (move is Map) {

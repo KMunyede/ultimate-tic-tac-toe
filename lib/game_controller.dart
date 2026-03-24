@@ -29,13 +29,29 @@ class GameController with ChangeNotifier {
 
   // Getters delegated to MatchSession
   List<GameBoard> get boards => _session?.boards ?? [];
+
   Player get currentPlayer => _session?.currentPlayer ?? Player.X;
+
   Player? get matchWinner => _session?.matchWinner;
+
   bool get isMatchDraw => _session?.isMatchDraw ?? false;
+
   bool get isOverallGameOver => _session?.isGameOver ?? false;
 
+  // [NEW] Level 1: Board Wins within current match
+  int get boardsWonX => _session?.boardsWonX ?? 0;
+
+  int get boardsWonO => _session?.boardsWonO ?? 0;
+
+  // [NEW] Level 2: Game Wins across session (from Settings)
+  int get sessionWinsX => _settings.scoreX;
+
+  int get sessionWinsO => _settings.scoreO;
+
   bool get isAiThinking => _isAiThinking;
+
   int get shakeCounter => _shakeCounter;
+
   Stream<String> get aiErrorStream => _aiErrorController.stream;
 
   String? get statusMessage {
@@ -66,9 +82,10 @@ class GameController with ChangeNotifier {
 
     if (count > 1) {
       int lastIndex = _settings.lastStartingBoardIndex;
-      List<int> availableIndices = List.generate(count, (i) => i)
-          .where((index) => index != lastIndex)
-          .toList();
+      List<int> availableIndices = List.generate(
+        count,
+        (i) => i,
+      ).where((index) => index != lastIndex).toList();
 
       if (availableIndices.isEmpty) {
         availableIndices = List.generate(count, (i) => i);
@@ -86,8 +103,11 @@ class GameController with ChangeNotifier {
     }
   }
 
-  Future<void> makeMove(int boardIndex, int cellIndex,
-      {bool isAiMove = false}) async {
+  Future<void> makeMove(
+    int boardIndex,
+    int cellIndex, {
+    bool isAiMove = false,
+  }) async {
     if (_session == null || isOverallGameOver) return;
 
     if (!isAiMove) {
@@ -100,7 +120,6 @@ class GameController with ChangeNotifier {
       }
     }
 
-    // Capture state before move
     final bool wasMatchOverBefore = isOverallGameOver;
 
     final success = _session!.applyMove(boardIndex, cellIndex);
@@ -108,9 +127,13 @@ class GameController with ChangeNotifier {
     if (success) {
       _soundManager.playMoveSound();
 
-      // Only trigger global shake on overall match win
-      if (!wasMatchOverBefore && isOverallGameOver && matchWinner != null) {
-        _shakeCounter++;
+      if (!wasMatchOverBefore && isOverallGameOver) {
+        if (matchWinner != null) {
+          _soundManager.playWinSound();
+          _shakeCounter++;
+        } else if (isMatchDraw) {
+          _soundManager.playDrawSound();
+        }
       }
 
       notifyListeners();
@@ -136,8 +159,12 @@ class GameController with ChangeNotifier {
       if (_settings.useOnlineAi) {
         await _performRemoteAiMove();
       } else {
-        final move = _aiService.getBestMove(boards, currentPlayer,
-            _settings.aiDifficulty, _settings.boardCount);
+        final move = _aiService.getBestMove(
+          boards,
+          currentPlayer,
+          _settings.aiDifficulty,
+          _settings.boardCount,
+        );
         if (move != null) {
           await makeMove(move.boardIndex, move.cellIndex, isAiMove: true);
         }
@@ -182,7 +209,8 @@ class GameController with ChangeNotifier {
           await makeMove(finalBoardIndex, result.cellIndex, isAiMove: true);
         } else {
           throw Exception(
-              "AI suggested cell ${result.cellIndex} is blocked everywhere.");
+            "AI suggested cell ${result.cellIndex} is blocked everywhere.",
+          );
         }
       } else {
         throw Exception("Invalid AI response");
@@ -191,7 +219,11 @@ class GameController with ChangeNotifier {
       if (kDebugMode) print("Remote AI Exception: $e. Falling back.");
       _aiErrorController.add("Remote AI failed. Using local fallback.");
       final move = _aiService.getBestMove(
-          boards, currentPlayer, _settings.aiDifficulty, _settings.boardCount);
+        boards,
+        currentPlayer,
+        _settings.aiDifficulty,
+        _settings.boardCount,
+      );
       if (move != null) {
         await makeMove(move.boardIndex, move.cellIndex, isAiMove: true);
       }

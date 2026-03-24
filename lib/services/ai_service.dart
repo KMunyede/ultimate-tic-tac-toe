@@ -67,9 +67,9 @@ class MediumAiStrategy implements AiStrategy {
 class HardAiStrategy extends MediumAiStrategy {
   @override
   int _calculateScore(List<GameBoard> boards, AiMove move, Player aiPlayer) {
-     // Hard could include multi-board logic, minimax, etc.
-     // Using the existing high-reward logic as baseline.
-     return super._calculateScore(boards, move, aiPlayer);
+    // Hard could include multi-board logic, minimax, etc.
+    // Using the existing high-reward logic as baseline.
+    return super._calculateScore(boards, move, aiPlayer);
   }
 }
 
@@ -120,9 +120,14 @@ bool _simulateWin(GameBoard board, int cellIndex, Player player) {
 
 bool _checkWin(GameBoard board, Player player) {
   const wins = [
-    [0, 1, 2], [3, 4, 5], [6, 7, 8],
-    [0, 3, 6], [1, 4, 7], [2, 5, 8],
-    [0, 4, 8], [2, 4, 6]
+    [0, 1, 2],
+    [3, 4, 5],
+    [6, 7, 8],
+    [0, 3, 6],
+    [1, 4, 7],
+    [2, 5, 8],
+    [0, 4, 8],
+    [2, 4, 6],
   ];
   for (var line in wins) {
     if (board.cells[line[0]] == player &&

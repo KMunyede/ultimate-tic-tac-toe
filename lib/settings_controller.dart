@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tictactoe/app_theme.dart';
+import 'services/persistence_service.dart';
 
 import 'models/game_enums.dart';
 import 'models/player.dart';
@@ -8,7 +8,7 @@ import 'models/player.dart';
 export 'models/game_enums.dart';
 
 class SettingsController with ChangeNotifier {
-  late SharedPreferences _prefs;
+  final PersistenceService _persistence = PersistenceService();
 
   AppTheme _currentTheme = appThemes.first;
   AppTheme get currentTheme => _currentTheme;
@@ -44,38 +44,44 @@ class SettingsController with ChangeNotifier {
   bool get resetGameRequested => _resetGameRequested;
 
   Future<void> loadSettings() async {
-    _prefs = await SharedPreferences.getInstance();
+    final data = await _persistence.loadAll();
 
-    final themeName = _prefs.getString('theme') ?? appThemes.first.name;
-    _currentTheme = appThemes.firstWhere((t) => t.name == themeName,
-        orElse: () => appThemes.first);
+    final themeName = data['theme'] ?? appThemes.first.name;
+    _currentTheme = appThemes.firstWhere(
+      (t) => t.name == themeName,
+      orElse: () => appThemes.first,
+    );
 
-    final gameModeName =
-        _prefs.getString('gameMode') ?? GameMode.playerVsPlayer.name;
-    _gameMode = GameMode.values.firstWhere((m) => m.name == gameModeName,
-        orElse: () => GameMode.playerVsPlayer);
+    final gameModeName = data['gameMode'] ?? GameMode.playerVsPlayer.name;
+    _gameMode = GameMode.values.firstWhere(
+      (m) => m.name == gameModeName,
+      orElse: () => GameMode.playerVsPlayer,
+    );
 
-    final aiDifficultyName =
-        _prefs.getString('aiDifficulty') ?? AiDifficulty.hard.name;
+    final aiDifficultyName = data['aiDifficulty'] ?? AiDifficulty.hard.name;
     _aiDifficulty = AiDifficulty.values.firstWhere(
-        (d) => d.name == aiDifficultyName,
-        orElse: () => AiDifficulty.hard);
+      (d) => d.name == aiDifficultyName,
+      orElse: () => AiDifficulty.hard,
+    );
 
-    _boardCount = _prefs.getInt('boardCount') ?? 1;
-
-    _isSoundOn = _prefs.getBool('isSoundOn') ?? true;
-    _isPremium = _prefs.getBool('isPremium') ?? false;
-    _useOnlineAi = _prefs.getBool('useOnlineAi') ?? false;
-    _scoreX = _prefs.getInt('scoreX') ?? 0;
-    _scoreO = _prefs.getInt('scoreO') ?? 0;
-    _lastStartingBoardIndex = _prefs.getInt('lastStartingBoardIndex') ?? -1;
+    _boardCount = data['boardCount'] ?? 1;
+    _isSoundOn = data['isSoundOn'] ?? true;
+    _isPremium = data['isPremium'] ?? false;
+    _useOnlineAi = data['useOnlineAi'] ?? false;
+    _scoreX = data['scoreX'] ?? 0;
+    _scoreO = data['scoreO'] ?? 0;
+    _lastStartingBoardIndex = data['lastStartingBoardIndex'] ?? -1;
 
     notifyListeners();
   }
 
+  Future<void> _save(String key, dynamic value) async {
+    await _persistence.save({key: value});
+  }
+
   Future<void> changeTheme(AppTheme theme) async {
     _currentTheme = theme;
-    await _prefs.setString('theme', theme.name);
+    await _save('theme', theme.name);
     notifyListeners();
   }
 
@@ -87,7 +93,9 @@ class SettingsController with ChangeNotifier {
   Future<void> setGameMode(GameMode mode) async {
     if (_gameMode != mode) {
       _gameMode = mode;
-      await _prefs.setString('gameMode', mode.name);
+      await _save('gameMode', mode.name);
+      // Reset Games Won scores when switching modes
+      await resetScores();
       _triggerGameReset();
     }
   }
@@ -95,7 +103,7 @@ class SettingsController with ChangeNotifier {
   Future<void> setAiDifficulty(AiDifficulty difficulty) async {
     if (_aiDifficulty != difficulty) {
       _aiDifficulty = difficulty;
-      await _prefs.setString('aiDifficulty', difficulty.name);
+      await _save('aiDifficulty', difficulty.name);
       _triggerGameReset();
     }
   }
@@ -103,28 +111,28 @@ class SettingsController with ChangeNotifier {
   Future<void> setBoardCount(int count) async {
     if (_boardCount != count && count > 0) {
       _boardCount = count;
-      await _prefs.setInt('boardCount', count);
+      await _save('boardCount', count);
       _triggerGameReset();
     }
   }
 
   void toggleSound() {
     _isSoundOn = !_isSoundOn;
-    _prefs.setBool('isSoundOn', _isSoundOn);
+    _save('isSoundOn', _isSoundOn);
     notifyListeners();
   }
 
   void togglePremium() {
     _isPremium = !_isPremium;
-    _prefs.setBool('isPremium', _isPremium);
+    _save('isPremium', _isPremium);
     notifyListeners();
   }
 
   Future<void> setUseOnlineAi(bool value) async {
     if (_useOnlineAi != value) {
       _useOnlineAi = value;
-      await _prefs.setBool('useOnlineAi', value);
-      _triggerGameReset(); // This will now start a new game
+      await _save('useOnlineAi', value);
+      _triggerGameReset();
       notifyListeners();
     }
   }
@@ -132,25 +140,24 @@ class SettingsController with ChangeNotifier {
   Future<void> updateScore(Player winner) async {
     if (winner == Player.X) {
       _scoreX++;
-      await _prefs.setInt('scoreX', _scoreX);
+      await _save('scoreX', _scoreX);
     } else if (winner == Player.O) {
       _scoreO++;
-      await _prefs.setInt('scoreO', _scoreO);
+      await _save('scoreO', _scoreO);
     }
     notifyListeners();
   }
 
   Future<void> setLastStartingBoardIndex(int index) async {
     _lastStartingBoardIndex = index;
-    await _prefs.setInt('lastStartingBoardIndex', index);
+    await _save('lastStartingBoardIndex', index);
     notifyListeners();
   }
 
   Future<void> resetScores() async {
     _scoreX = 0;
     _scoreO = 0;
-    await _prefs.setInt('scoreX', 0);
-    await _prefs.setInt('scoreO', 0);
+    await _persistence.save({'scoreX': 0, 'scoreO': 0});
     notifyListeners();
   }
 

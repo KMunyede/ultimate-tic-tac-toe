@@ -6,13 +6,16 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+
 import 'package:window_manager/window_manager.dart';
 
 import 'game_controller.dart';
+import 'services/persistence_service.dart';
 import 'settings_menu.dart';
 import 'sound_manager.dart';
 import 'widgets/game_board.dart';
+import 'widgets/score_board.dart';
+import 'widgets/game_status_display.dart'; // [NEW] Import
 
 class TicTacToeGame extends StatefulWidget {
   final bool isPrimaryInstance;
@@ -89,10 +92,12 @@ class _TicTacToeGameState extends State<TicTacToeGame> with WindowListener {
 
     final primaryColor = theme.colorScheme.primary;
     final hsl = HSLColor.fromColor(primaryColor);
-    final brighterColor =
-        hsl.withLightness((hsl.lightness * 1.7).clamp(0.0, 1.0)).toColor();
-    final buttonTextColor =
-        brighterColor.computeLuminance() > 0.5 ? Colors.black : Colors.white;
+    final brighterColor = hsl
+        .withLightness((hsl.lightness * 1.7).clamp(0.0, 1.0))
+        .toColor();
+    final buttonTextColor = brighterColor.computeLuminance() > 0.5
+        ? Colors.black
+        : Colors.white;
 
     final screenWidth = mediaQuery.size.width;
     const double baseWidthFactor = 0.4;
@@ -100,13 +105,7 @@ class _TicTacToeGameState extends State<TicTacToeGame> with WindowListener {
     final double newWidth = screenWidth * baseWidthFactor * 1.20;
     final double newHeight = baseHeight * 1.10;
 
-    Widget statusLabel = BreathingStatusLabel(
-      message: game.statusMessage ?? '',
-      isSmallScreen: isSmallScreen,
-      style: isSmallScreen
-          ? theme.textTheme.titleMedium
-          : theme.textTheme.headlineSmall,
-    );
+    Widget statusLabel = const GameStatusDisplay();
 
     Widget newGameButton = SizedBox(
       width: isSmallLandscape ? 150 : newWidth,
@@ -124,6 +123,16 @@ class _TicTacToeGameState extends State<TicTacToeGame> with WindowListener {
         ),
         onPressed: () => game.initializeGame(),
       ),
+    );
+
+    // Constrain ScoreBoard width for better proportions on tablets
+    Widget scoreBoard = Container(
+      constraints: const BoxConstraints(maxWidth: 600),
+      padding: EdgeInsets.symmetric(
+        vertical: isSmallScreen ? 4.0 : 8.0,
+        horizontal: isSmallScreen ? 8.0 : 16.0,
+      ),
+      child: ScoreBoard(isSmallScreen: isSmallScreen),
     );
 
     return PopScope(
@@ -178,10 +187,7 @@ class _TicTacToeGameState extends State<TicTacToeGame> with WindowListener {
             Positioned.fill(
               child: Opacity(
                 opacity: 0.05,
-                child: Image.asset(
-                  'assets/icon.png',
-                  fit: BoxFit.contain,
-                ),
+                child: Image.asset('assets/icon.png', fit: BoxFit.contain),
               ),
             ),
             SafeArea(
@@ -198,7 +204,7 @@ class _TicTacToeGameState extends State<TicTacToeGame> with WindowListener {
                           ),
                         ),
                         Container(
-                          width: 180,
+                          width: 220, // Increased width for scoreboard
                           padding: const EdgeInsets.all(8.0),
                           decoration: BoxDecoration(
                             border: Border(
@@ -208,29 +214,38 @@ class _TicTacToeGameState extends State<TicTacToeGame> with WindowListener {
                               ),
                             ),
                           ),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              statusLabel,
-                              const SizedBox(height: 12),
-                              newGameButton,
-                            ],
+                          child: SingleChildScrollView(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                scoreBoard,
+                                const SizedBox(height: 8),
+                                statusLabel,
+                                const SizedBox(height: 12),
+                                newGameButton,
+                              ],
+                            ),
                           ),
                         ),
                       ],
                     )
                   : Column(
                       children: [
+                        Center(child: scoreBoard),
                         Expanded(
+                          flex: 12, // Give board 12x space
                           child: Align(
-                            alignment: Alignment.topCenter,
+                            alignment: Alignment.center,
                             child: const MultiBoardView(),
                           ),
                         ),
-                        statusLabel,
+                        Flexible(
+                          flex: 3, // Smaller notification area
+                          child: statusLabel,
+                        ),
                         Padding(
                           padding: EdgeInsets.only(
-                            bottom: isSmallScreen ? 16.0 : 32.0,
+                            bottom: isSmallScreen ? 12.0 : 20.0,
                           ),
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -255,7 +270,8 @@ class _TicTacToeGameState extends State<TicTacToeGame> with WindowListener {
     final widthInches = width / ppi * pixelRatio;
     final heightInches = height / ppi * pixelRatio;
 
-    return sqrt(widthInches * widthInches + heightInches * heightInches) / pixelRatio;
+    return sqrt(widthInches * widthInches + heightInches * heightInches) /
+        pixelRatio;
   }
 
   @override
@@ -277,13 +293,15 @@ class _TicTacToeGameState extends State<TicTacToeGame> with WindowListener {
     if (!_isDesktop) return;
     if (_debounce?.isActive ?? false) _debounce!.cancel();
     _debounce = Timer(const Duration(milliseconds: 500), () async {
-      final prefs = await SharedPreferences.getInstance();
+      final persistence = PersistenceService();
       final size = await windowManager.getSize();
       final position = await windowManager.getPosition();
-      await prefs.setDouble('window_width', size.width);
-      await prefs.setDouble('window_height', size.height);
-      await prefs.setDouble('window_offsetX', position.dx);
-      await prefs.setDouble('window_offsetY', position.dy);
+      await persistence.save({
+        'window_width': size.width,
+        'window_height': size.height,
+        'window_offsetX': position.dx,
+        'window_offsetY': position.dy,
+      });
     });
   }
 
@@ -346,13 +364,15 @@ class _BreathingStatusLabelState extends State<BreathingStatusLabel>
       duration: const Duration(seconds: 2),
     )..repeat(reverse: true);
 
-    _scaleAnimation = Tween<double>(begin: 1.0, end: 1.05).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
-    );
+    _scaleAnimation = Tween<double>(
+      begin: 1.0,
+      end: 1.05,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
 
-    _opacityAnimation = Tween<double>(begin: 0.7, end: 1.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
-    );
+    _opacityAnimation = Tween<double>(
+      begin: 0.7,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
   }
 
   @override
@@ -380,10 +400,9 @@ class _BreathingStatusLabelState extends State<BreathingStatusLabel>
                 style: widget.style?.copyWith(
                   shadows: [
                     Shadow(
-                      color: Theme.of(context)
-                          .colorScheme
-                          .primary
-                          .withOpacity(0.3 * _opacityAnimation.value),
+                      color: Theme.of(context).colorScheme.primary.withValues(
+                        alpha: 0.3 * _opacityAnimation.value,
+                      ),
                       blurRadius: 8.0 * _controller.value,
                     ),
                   ],

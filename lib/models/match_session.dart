@@ -17,7 +17,12 @@ class MatchSession {
 
   bool get isGameOver => matchWinner != null || isMatchDraw;
 
-  /// Attempts to apply a move to the session. 
+  /// [NEW] Count of boards won by each player within this match session
+  int get boardsWonX => boards.where((b) => b.winner == Player.X).length;
+
+  int get boardsWonO => boards.where((b) => b.winner == Player.O).length;
+
+  /// Attempts to apply a move to the session.
   /// Returns true if the move was valid and applied.
   bool applyMove(int boardIndex, int cellIndex) {
     if (isGameOver ||
@@ -70,13 +75,23 @@ class MatchSession {
     }
   }
 
-  // Potential for serialization
-  Map<String, dynamic> toJson() {
-    return {
-      'boards': boards.map((b) => b.cells.map((c) => c.name).toList()).toList(),
-      'currentPlayer': currentPlayer.name,
-      'matchWinner': matchWinner?.name,
-      'isMatchDraw': isMatchDraw,
-    };
+  Map<String, dynamic> toJson() => {
+    'boards': boards.map((b) => b.toJson()).toList(),
+    'currentPlayer': currentPlayer.name,
+    'matchWinner': matchWinner?.name,
+    'isMatchDraw': isMatchDraw,
+  };
+
+  factory MatchSession.fromJson(Map<String, dynamic> json) {
+    return MatchSession(
+      boards: (json['boards'] as List)
+          .map((b) => GameBoard.fromJson(Map<String, dynamic>.from(b as Map)))
+          .toList(),
+      currentPlayer: Player.values.byName(json['currentPlayer'] as String),
+      matchWinner: json['matchWinner'] != null
+          ? Player.values.byName(json['matchWinner'] as String)
+          : null,
+      isMatchDraw: json['isMatchDraw'] as bool? ?? false,
+    );
   }
 }

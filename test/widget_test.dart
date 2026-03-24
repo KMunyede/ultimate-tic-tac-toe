@@ -48,7 +48,11 @@ void main() {
 
     await tester.pumpAndSettle();
 
-    expect(find.text("Player X's Turn"), findsOneWidget, reason: "Game should start with Player X's turn");
+    expect(
+      find.text("Player X's Turn"),
+      findsOneWidget,
+      reason: "Game should start with Player X's turn",
+    );
     expect(find.text('X'), findsNothing);
     expect(find.text('O'), findsNothing);
 

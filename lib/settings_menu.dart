@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'app_theme.dart';
+import 'models/game_enums.dart'; // Ensure correct import
 import 'settings_controller.dart';
 import 'sound_manager.dart';
 import 'widgets/gradient_button.dart';
@@ -30,61 +31,65 @@ class _SettingsMenuState extends State<SettingsMenu> {
 
     return AlertDialog(
       title: const Text('Settings'),
-      content: Scrollbar(
-        controller: _scrollController,
-        thumbVisibility: true, // Always show scrollbar thumb in landscape
-        trackVisibility: true,
-        child: SingleChildScrollView(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24), // Tighter padding = wider dialog
+      content: SizedBox(
+        width: (MediaQuery.of(context).size.width * 0.8).clamp(280, 500) + 10, // Wider by 10px
+        child: Scrollbar(
           controller: _scrollController,
-          padding: const EdgeInsets.symmetric(horizontal: 10),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _buildThemeSelector(context, settings),
-              const SizedBox(height: 16),
-              _buildGameModeSelector(context, settings),
-              if (settings.gameMode == GameMode.playerVsAi) ...[
-                _buildAiDifficultySelector(context, settings),
-                const SizedBox(height: 8),
+          thumbVisibility: true,
+          trackVisibility: true,
+          child: SingleChildScrollView(
+            controller: _scrollController,
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildThemeSelector(context, settings),
+                const SizedBox(height: 16),
+                _buildGameModeSelector(context, settings),
+                if (settings.gameMode == GameMode.playerVsAi) ...[
+                  _buildAiDifficultySelector(context, settings),
+                  const SizedBox(height: 8),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Use Online AI'),
+                    subtitle: const Text('Call Firebase for moves'),
+                    value: settings.useOnlineAi,
+                    onChanged: (value) {
+                      settings.setUseOnlineAi(value);
+                    },
+                  ),
+                ],
+                const SizedBox(height: 16),
+                _buildBoardCountSelector(context, settings),
+                const SizedBox(height: 16),
                 SwitchListTile(
                   contentPadding: EdgeInsets.zero,
-                  title: const Text('Use Online AI'),
-                  subtitle: const Text('Call Firebase for moves'),
-                  value: settings.useOnlineAi,
+                  title: const Text('Sound'),
+                  value: settings.isSoundOn,
                   onChanged: (value) {
-                    settings.setUseOnlineAi(value);
+                    settings.toggleSound();
+                    if (value) {
+                      soundManager.playMoveSound();
+                    }
                   },
                 ),
-              ],
-              const SizedBox(height: 16),
-              _buildBoardCountSelector(context, settings),
-              const SizedBox(height: 16),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: const Text('Sound'),
-                value: settings.isSoundOn,
-                onChanged: (value) {
-                  settings.toggleSound();
-                  if (value) {
-                    soundManager.playMoveSound();
-                  }
-                },
-              ),
-              const SizedBox(height: 20),
-              GradientButton(
-                onPressed: () {
-                  settings.resetGameAndScores();
-                  Navigator.of(context).pop();
-                },
-                gradient: LinearGradient(
-                  colors: [theme.gradientStart, theme.gradientEnd],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
+                const SizedBox(height: 20),
+                GradientButton(
+                  onPressed: () {
+                    settings.resetGameAndScores();
+                    Navigator.of(context).pop();
+                  },
+                  gradient: LinearGradient(
+                    colors: [theme.gradientStart, theme.gradientEnd],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  textColor: theme.textColor,
+                  child: const Text('Reset Game & Scores'),
                 ),
-                textColor: theme.textColor,
-                child: const Text('Reset Game & Scores'),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -98,7 +103,9 @@ class _SettingsMenuState extends State<SettingsMenu> {
   }
 
   Widget _buildThemeSelector(
-      BuildContext context, SettingsController settings) {
+    BuildContext context,
+    SettingsController settings,
+  ) {
     return _buildDropdown(
       context: context,
       label: 'Theme',
@@ -119,7 +126,9 @@ class _SettingsMenuState extends State<SettingsMenu> {
   }
 
   Widget _buildGameModeSelector(
-      BuildContext context, SettingsController settings) {
+    BuildContext context,
+    SettingsController settings,
+  ) {
     return _buildDropdown(
       context: context,
       label: 'Game Mode',
@@ -133,14 +142,16 @@ class _SettingsMenuState extends State<SettingsMenu> {
       itemBuilder: (GameMode mode) {
         return DropdownMenuItem<GameMode>(
           value: mode,
-          child: Text(mode.name),
+          child: Text(mode.displayName),
         );
       },
     );
   }
 
   Widget _buildAiDifficultySelector(
-      BuildContext context, SettingsController settings) {
+    BuildContext context,
+    SettingsController settings,
+  ) {
     return _buildDropdown(
       context: context,
       label: 'AI Difficulty',
@@ -161,7 +172,9 @@ class _SettingsMenuState extends State<SettingsMenu> {
   }
 
   Widget _buildBoardCountSelector(
-      BuildContext context, SettingsController settings) {
+    BuildContext context,
+    SettingsController settings,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
