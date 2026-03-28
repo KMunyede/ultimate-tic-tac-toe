@@ -20,7 +20,7 @@ if (keystorePropertiesFile.exists()) {
 
 android {
 	namespace = "net.hilmost.ultimatetictactoe" 
-    compileSdk = flutter.compileSdkVersion
+    compileSdk = 36
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
@@ -40,7 +40,7 @@ android {
         
         // [FIX] Explicitly set minSdk to 21 for modern plugin compatibility (shared_preferences, etc.)
         minSdk = flutter.minSdkVersion 
-        targetSdk = flutter.targetSdkVersion
+        targetSdk = 35
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
