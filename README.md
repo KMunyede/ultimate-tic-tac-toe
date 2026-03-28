@@ -1,60 +1,60 @@
-# Ultimate Tic-Tac-Toe
+# Ultimate TicTacToe - Technical Blueprint (Hilmost Enterprises)
 
-This Flutter project is an advanced version of the classic Tic-Tac-Toe game, featuring multiple boards, AI opponents, and customizable settings.
+## 1. Project Overview
+**Ultimate TicTacToe** is a strategic board game built with Flutter and Firebase. It features a "nested grid" mechanic where winning small 3x3 boards contributes to a larger 3x3 victory.
 
-## Getting Started
+## 2. Core Architecture
+- **State Management:** Provider pattern for game state and settings.
+- **Game Logic:** Strategy Pattern for match rules (supporting "Majority Wins" and "Standard Positional" modes).
+- **Backend:** Firebase Suite (Auth, Firestore, Cloud Functions).
+- **Theme:** Custom `AppTheme` with dark/light mode and modern aesthetic.
 
-To get started with this project, clone the repository and run `flutter pub get` to install the required dependencies. Then, run the app on your desired device or emulator.
+## 3. Game Logic Specification
+### Match Rules (`lib/logic/match_referee.dart`)
+- **MajorityMatchRules:** A unique variation where winning a simple majority (e.g., 5 out of 9) of small boards wins the match.
+- **StandardMatchRules (Planned):** Traditional Ultimate TicTacToe where winning 3 boards in a row/column/diagonal wins.
+- **Forcing Mechanic:** Moves in a small board cell determine the specific small board the opponent must play in next.
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+## 4. Technology Stack & Dependencies
+- **Flutter SDK:** ^3.0.0
+- **Android Target:** API 35 (Compile SDK 36)
+- **Firebase SDKs:**
+  - `firebase_auth`: User session management.
+  - `cloud_firestore`: Real-time game state and multiplayer syncing.
+  - `firebase_analytics`: User attribution (Requires `AD_ID` permission).
+  - `cloud_functions`: Server-side game validation.
+- **Assets:** Custom sounds (`assets/sounds/`), high-res icon (`assets/icon.png`), and `.env` for configuration.
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## 5. Deployment & Compliance Configuration
+- **Android Manifest:** Contains `com.google.android.gms.permission.AD_ID`.
+- **Signing:** Uses `upload-keystore.jks` with 10,000-day validity. 
+- **Privacy Policy:** [Live Link](https://ultimate-tic-tac-toe-359-deaec.web.app/privacy.html)
+- **Data Deletion:** [Request URL](https://ultimate-tic-tac-toe-359-deaec.web.app/delete-account.html)
 
-## Game Logic
+## 6. How to Recreate via AI Prompt
+*To reconstruct this app in a new session, provide this prompt to Gemini:*
 
-The core of the game is managed by the `GameController`, which handles the game state, player moves, and win conditions.
+> "I am building a Flutter app called 'Ultimate TicTacToe'. 
+> 1. Create a `MatchReferee` using a Strategy Pattern that evaluates a list of `BoardResult` enums.
+> 2. Implement `MajorityMatchRules` (win count majority) and prepare for `StandardMatchRules` (3-in-a-row).
+> 3. Set up a `GameController` using Provider to manage a 9x9 nested grid state.
+> 4. Configure Firebase Auth for sign-in and Firestore for syncing a `GameModel` containing `boardStates` and `currentTurn`.
+> 5. The UI should use a custom `AppTheme` and a responsive `GameScreen` with a `NestedGrid` widget.
+> 6. Configure Android for API 35/36 with the `AD_ID` permission."
 
-### Game States
+## 7. Directory Structure
+```text
+lib/
+├── logic/              # MatchReferee, Victory Logic
+├── models/             # GameModel, Player, BoardResult
+├── services/           # FirebaseService, AIService, SoundManager
+├── widgets/            # NestedGrid, GameStatus, MoveHistory
+├── main.dart           # App Entry & Provider Setup
+├── app_theme.dart      # Design System
+└── game_screen.dart    # Primary UI
+```
 
-- **Boards**: The game can be played on one, two, or three boards simultaneously. Each board is represented by a `GameBoard` object, which maintains its own state.
-- **Player Turn**: The `_currentPlayer` variable tracks whose turn it is (Player X or Player O).
-- **Win Conditions**: A player wins a board by getting three of their marks in a row, column, or diagonal. The overall winner is the player who wins all the boards.
-- **Draw**: A board is considered a draw if all its cells are filled and no player has won. The overall game is a draw if all boards are completed and there is no overall winner.
-
-## UI and UX Behaviour
-
-The user interface is designed to be intuitive and visually appealing.
-
-- **Responsive Layout**: The UI adapts to different screen sizes and orientations, ensuring a good user experience on various devices.
-- **Themes**: Players can customize the look and feel of the game by choosing from a selection of themes in the settings menu.
-- **Sound Effects**: The game includes sound effects for key events such as making a move, winning a board, and winning the game.
-
-## Settings Implementation
-
-The `SettingsController` class manages the game's settings, which are persisted to the device using `shared_preferences`.
-
-- **Game Mode**: Players can choose between "Player vs. Player" and "Player vs. AI" modes.
-- **AI Difficulty**: In "Player vs. AI" mode, players can select the AI's difficulty level (Easy, Medium, or Hard).
-- **Board Layout**: Players can choose to play on a single board, two boards, or three boards.
-- **Sound**: The sound effects can be enabled or disabled in the settings.
-- **Score**: The game keeps track of the score for Player X and Player O, which can be reset in the settings.
-
-## Communication with Firebase Functions
-
-The "Player vs. AI" mode leverages a Firebase Cloud Function to determine the AI's moves.
-
-- **`getAiMove` Function**: When it's the AI's turn, the app calls the `getAiMove` Firebase Function, passing the current board state and the current player. The function returns the AI's calculated best move.
-- **AI Difficulty**: The AI's difficulty level (Medium or Hard) is passed to the Firebase Function to adjust the complexity of the move calculation. For the "Easy" difficulty, a random move is generated locally on the device.
-
-## Troubleshooting
-
-### Firebase Initialization Errors
-
-If you encounter initialization errors or `flutterfire configure` fails:
-
-1.  **Missing `google-services.json`**: This file is required for Android if you don't use `firebase_options.dart`. Download it from the [Firebase Console](https://console.firebase.google.com/) (Project Settings > General > Your Apps > Android) and place it in `android/app/`.
-2.  **Missing `firebase_options.dart`**: If the CLI failed, you can manually create `lib/firebase_options.dart`. A template is provided in the code, but you will need your API Key from the Firebase Console.
-3.  **CLI Issues**: If `flutterfire configure` fails with `firebase-tools.json` not found, try reinstalling the Firebase CLI or running `firebase login --reauth`.
+## 8. Development Commands
+- **Build:** `flutter build appbundle --release`
+- **Deploy Docs:** `firebase deploy --only hosting`
+- **Clean:** `flutter clean && flutter pub get`

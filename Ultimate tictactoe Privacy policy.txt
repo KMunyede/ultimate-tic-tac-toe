@@ -1,0 +1,43 @@
+Privacy Policy
+Last Updated: March 25, 2026
+
+1. Introduction and Controller
+Hilmost Enterprises ("we," "our," or "us") provides the Ultimate TicTacToe mobile application. We act as the "Data Controller" for your information. This policy explains how we handle your data to ensure transparency and compliance with global data protection laws.
+
+2. Legal Basis for Processing (GDPR/POPIA)
+We process your data under the following legal grounds:
+- Contractual Necessity: To provide the game services you requested (e.g., multiplayer syncing).
+- Legitimate Interests: To improve game performance and ensure security.
+- Consent: Where you specifically opt-in to certain features or notifications.
+
+3. Information We Collect
+We limit collection to the minimum necessary for gameplay:
+- Account Data: Email address and unique User ID (UID) collected via Firebase Authentication.
+- Gameplay Data: Game states, move history, and user preferences stored in Cloud Firestore and Firebase Realtime Database.
+- Technical Data: IP addresses (briefly logged by Google Fonts/Firebase), device model, OS version, and crash logs.
+
+4. Third-Party Service Providers
+Your data is processed by the following sub-processors under strict Data Processing Addendums (DPAs):
+- Google Firebase: Provides authentication, database, and backend logic (Cloud Functions).
+- Google Fonts: May process IP addresses to deliver visual assets to your device.
+
+5. International Data Transfers
+As we use Google Cloud infrastructure, your data may be transferred to and processed in the United States or other regions. We ensure these transfers are protected by Standard Contractual Clauses (SCCs) or equivalent adequacy mechanisms required by the GDPR and POPIA.
+
+6. Data Retention
+We retain your personal data only as long as your account is active. If you wish to delete your account and all associated data, you can do so through the app settings or by submitting a request via our Data Deletion Request page.
+
+7. Your Privacy Rights
+Depending on your location, you have the following rights: Access & Portability, Correction & Deletion, Objection, and Withdrawal of Consent.
+
+8. Children’s Privacy (COPPA/GDPR-K)
+Our Service is not directed at children under 13. We do not knowingly collect data from minors. If we discover such data has been collected without parental consent, we will delete it immediately.
+
+9. Security Measures
+We utilize Firebase Security Rules and Google’s infrastructure-level encryption (at rest and in transit) to protect your data.
+
+10. Contact and Authorities
+For any privacy-related inquiries, contact us at:
+Email: keeplife.munyede@hilmost.net
+Website: https://ultimate-tic-tac-toe-359-deaec.web.app/privacy.html
+Data Deletion: https://ultimate-tic-tac-toe-359-deaec.web.app/delete-account.html
