@@ -3,58 +3,51 @@
 ## 1. Project Overview
 **Ultimate TicTacToe** is a strategic board game built with Flutter and Firebase. It features a "nested grid" mechanic where winning small 3x3 boards contributes to a larger 3x3 victory.
 
-## 2. Core Architecture
-- **State Management:** Provider pattern for game state and settings.
-- **Game Logic:** Strategy Pattern for match rules (supporting "Majority Wins" and "Standard Positional" modes).
-- **Backend:** Firebase Suite (Auth, Firestore, Cloud Functions).
-- **Theme:** Custom `AppTheme` with dark/light mode and modern aesthetic.
+## 2. Core Features
+- **Nested Grid Mechanics:** A 9x9 grid composed of nine 3x3 sub-boards.
+- **Strategic Forcing:** Your move in a sub-board cell dictates which sub-board your opponent must play in next.
+- **Game Modes:**
+    - **Standard Mode:** Classic Ultimate TicTacToe rules (3-in-a-row sub-boards).
+    - **Majority Mode:** A unique twist where winning the majority of sub-boards (5 out of 9) wins the match.
+- **AI Opponent:** Play against a local AI with adjustable difficulty settings.
+- **Cross-Platform:** Support for Android (API 35/36), Web, and Desktop (Windows/Linux/macOS).
+- **Modern UI:** Dynamic theme support with dark/light modes and responsive layout.
+- **Multiplayer Ready:** Firebase integration for future real-time multiplayer support.
 
-## 3. Game Logic Specification
-### Match Rules (`lib/logic/match_referee.dart`)
-- **MajorityMatchRules:** A unique variation where winning a simple majority (e.g., 5 out of 9) of small boards wins the match.
-- **StandardMatchRules (Planned):** Traditional Ultimate TicTacToe where winning 3 boards in a row/column/diagonal wins.
-- **Forcing Mechanic:** Moves in a small board cell determine the specific small board the opponent must play in next.
+## 3. How the App Works
+### Game Logic Flow
+1. **Turn Start:** The active player selects a valid cell in the "active" sub-board.
+2. **Sub-board Win:** If a player gets 3-in-a-row within a sub-board, they claim that sub-board.
+3. **Global Win Evaluation:** The `MatchReferee` uses a Strategy Pattern to check if the global victory conditions (Standard or Majority) are met.
+4. **Active Board Redirect:** The index of the cell chosen in the sub-board becomes the index of the next sub-board the opponent must play in.
 
-## 4. Technology Stack & Dependencies
-- **Flutter SDK:** ^3.0.0
-- **Android Target:** API 35 (Compile SDK 36)
-- **Firebase SDKs:**
-  - `firebase_auth`: User session management.
-  - `cloud_firestore`: Real-time game state and multiplayer syncing.
-  - `firebase_analytics`: User attribution (Requires `AD_ID` permission).
-  - `cloud_functions`: Server-side game validation.
-- **Assets:** Custom sounds (`assets/sounds/`), high-res icon (`assets/icon.png`), and `.env` for configuration.
+### Technical Stack
+- **State Management:** `Provider` manages the complex 9x9 grid state and UI updates.
+- **Persistence:** `firebase_auth` for users and `cloud_firestore` for game state syncing.
+- **Audio:** `audioplayers` for immersive sound effects managed by a `SoundManager`.
+- **Theming:** Custom `AppTheme` using Material 3 principles.
 
-## 5. Deployment & Compliance Configuration
-- **Android Manifest:** Contains `com.google.android.gms.permission.AD_ID`.
-- **Signing:** Uses `upload-keystore.jks` with 10,000-day validity. 
-- **Privacy Policy:** [Live Link](https://ultimate-tic-tac-toe-359-deaec.web.app/privacy.html)
-- **Data Deletion:** [Request URL](https://ultimate-tic-tac-toe-359-deaec.web.app/delete-account.html)
+## 4. Deployment & Compliance
+- **Web Hosting:** Deployed via Firebase Hosting.
+- **Compliance:** Includes built-in Privacy Policy and Data Deletion request pages.
+- **Links:**
+    - **Live Web App:** [https://ultimate-tic-tac-toe-359-deaec.web.app/](https://ultimate-tic-tac-toe-359-deaec.web.app/)
+    - **Privacy Policy:** [/privacy.html](https://ultimate-tic-tac-toe-359-deaec.web.app/privacy.html)
 
-## 6. How to Recreate via AI Prompt
-*To reconstruct this app in a new session, provide this prompt to Gemini:*
+## 5. Development & Deployment Commands
+- **Android Build:** `flutter build appbundle --release`
+- **Web Build:** `flutter build web --release --base-href "/"`
+- **Firebase Deploy:** `firebase deploy --only hosting`
+- **Project Clean:** `flutter clean && flutter pub get`
 
-> "I am building a Flutter app called 'Ultimate TicTacToe'. 
-> 1. Create a `MatchReferee` using a Strategy Pattern that evaluates a list of `BoardResult` enums.
-> 2. Implement `MajorityMatchRules` (win count majority) and prepare for `StandardMatchRules` (3-in-a-row).
-> 3. Set up a `GameController` using Provider to manage a 9x9 nested grid state.
-> 4. Configure Firebase Auth for sign-in and Firestore for syncing a `GameModel` containing `boardStates` and `currentTurn`.
-> 5. The UI should use a custom `AppTheme` and a responsive `GameScreen` with a `NestedGrid` widget.
-> 6. Configure Android for API 35/36 with the `AD_ID` permission."
-
-## 7. Directory Structure
+## 6. Directory Structure
 ```text
 lib/
-├── logic/              # MatchReferee, Victory Logic
-├── models/             # GameModel, Player, BoardResult
+├── logic/              # MatchReferee, Victory Strategies
+├── models/             # GameModel, Player, BoardResult enums
 ├── services/           # FirebaseService, AIService, SoundManager
-├── widgets/            # NestedGrid, GameStatus, MoveHistory
-├── main.dart           # App Entry & Provider Setup
-├── app_theme.dart      # Design System
-└── game_screen.dart    # Primary UI
+├── widgets/            # NestedGrid, GameStatus, SettingsMenu
+├── main.dart           # App Entry, Firebase & Provider Setup
+├── app_theme.dart      # Material 3 Design System
+└── game_screen.dart    # Primary Responsive UI
 ```
-
-## 8. Development Commands
-- **Build:** `flutter build appbundle --release`
-- **Deploy Docs:** `firebase deploy --only hosting`
-- **Clean:** `flutter clean && flutter pub get`

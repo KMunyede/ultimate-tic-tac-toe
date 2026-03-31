@@ -43,7 +43,7 @@ void main(List<String> args) async {
       await windowManager.ensureInitialized();
       await windowManager.setIcon('assets/icon.png');
       if (kReleaseMode) {
-        WindowOptions windowOptions = const Size(800, 600) as WindowOptions; // Fixed cast if needed
+        WindowOptions windowOptions = const WindowOptions(size: Size(800, 600));
         windowManager.waitUntilReadyToShow(windowOptions, () async {
           await windowManager.setPreventClose(true);
         });
