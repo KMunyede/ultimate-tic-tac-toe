@@ -1,95 +1,193 @@
-import 'package:flutter/material.dart' show ElevatedButton, GestureDetector;
+import 'dart:async';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
-import 'package:tictactoe/main.dart' show MyApp;
-import 'package:tictactoe/game_controller.dart';
-import 'package:tictactoe/settings_controller.dart';
-import 'package:tictactoe/sound_manager.dart' show SoundManager;
-import 'package:tictactoe/firebase_service.dart';
+import 'package:tictactoe/features/game/logic/game_controller.dart';
+import 'package:tictactoe/features/game/screens/game_screen.dart';
+import 'package:tictactoe/features/settings/logic/settings_controller.dart';
+import 'package:tictactoe/core/audio/sound_manager.dart';
+import 'package:tictactoe/features/auth/services/auth_service.dart';
+import 'package:tictactoe/services/firebase_service.dart';
+import 'package:tictactoe/services/stats_service.dart';
+import 'package:tictactoe/models/player.dart';
+import 'package:tictactoe/widgets/game_board.dart';
+import 'package:tictactoe/widgets/board_widget.dart';
+
+// Fakes to avoid platform dependencies and hangs during tests
+class FakeSettingsController extends SettingsController {
+  int _boardCount = 1;
+  @override
+  int get boardCount => _boardCount;
+  
+  void setTestBoardCount(int count) {
+    _boardCount = count;
+    notifyListeners();
+  }
+
+  @override
+  Future<void> loadSettings() async {}
+  
+  @override
+  GameMode get gameMode => GameMode.playerVsPlayer;
+  
+  @override
+  GameRuleSet get ruleSet => GameRuleSet.standard;
+
+  @override
+  Future<void> updateScore(Player winner) async {}
+
+  @override
+  void consumeGameResetRequest() {}
+}
+
+class FakeSoundManager extends Fake implements SoundManager {
+  @override
+  Future<void> init() async {}
+  @override
+  Future<void> playMoveSound() async {}
+  @override
+  Future<void> playWinSound() async {}
+  @override
+  Future<void> playDrawSound() async {}
+  @override
+  void dispose() {}
+}
+
+class FakeFirebaseService extends Fake implements FirebaseService {}
+
+class FakeAuthService extends Fake implements AuthService {
+  @override
+  Stream<User?> get user => Stream.value(null);
+  @override
+  Future<void> signOut() async {}
+}
+
+class FakeStatsService extends Fake implements StatsService {
+  @override
+  Future<void> updateWinCount(Player winner) async {}
+}
 
 void main() {
-  testWidgets('Tic-Tac-Toe game test', (WidgetTester tester) async {
-    final settingsController = SettingsController();
-    await settingsController.loadSettings();
-    final soundManager = SoundManager(settingsController);
-    await soundManager.init();
-    final firebaseService = FirebaseService();
+  group('Tic-Tac-Toe Game Tests', () {
+    late FakeSettingsController settingsController;
+    late FakeSoundManager soundManager;
+    late FakeFirebaseService firebaseService;
+    late FakeAuthService authService;
+    late FakeStatsService statsService;
 
-    await tester.pumpWidget(
-      MultiProvider(
+    setUp(() {
+      settingsController = FakeSettingsController();
+      soundManager = FakeSoundManager();
+      firebaseService = FakeFirebaseService();
+      authService = FakeAuthService();
+      statsService = FakeStatsService();
+    });
+
+    Widget createTestWidget() {
+      return MultiProvider(
         providers: [
-          ChangeNotifierProvider.value(value: settingsController),
-          Provider<SoundManager>(
-            create: (_) => soundManager,
-            dispose: (_, manager) => manager.dispose(),
-          ),
+          ChangeNotifierProvider<SettingsController>.value(value: settingsController),
+          Provider<SoundManager>.value(value: soundManager),
           Provider<FirebaseService>.value(value: firebaseService),
+          Provider<AuthService>.value(value: authService),
+          Provider<StatsService>.value(value: statsService),
           ChangeNotifierProxyProvider<SettingsController, GameController>(
             update: (context, settings, previous) {
               previous?.updateDependencies(settings);
               return previous ??
                   GameController(
-                    context.read<SoundManager>(),
+                    soundManager,
                     settings,
-                    context.read<FirebaseService>(),
+                    firebaseService,
+                    statsService,
                   );
             },
             create: (context) => GameController(
-              context.read<SoundManager>(),
-              context.read<SettingsController>(),
-              context.read<FirebaseService>(),
+              soundManager,
+              settingsController,
+              firebaseService,
+              statsService,
             ),
           ),
         ],
-        child: const MyApp(isPrimaryInstance: true),
-      ),
-    );
+        child: const MaterialApp(
+          home: GameScreen(),
+          debugShowCheckedModeBanner: false,
+        ),
+      );
+    }
 
-    await tester.pumpAndSettle();
+    testWidgets('Basic Gameplay and Win State (Tablet Landscape)', (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(800, 600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() => tester.view.resetPhysicalSize());
 
-    expect(
-      find.text("Player X's Turn"),
-      findsOneWidget,
-      reason: "Game should start with Player X's turn",
-    );
-    expect(find.text('X'), findsNothing);
-    expect(find.text('O'), findsNothing);
+      await tester.pumpWidget(createTestWidget());
+      await tester.pump();
 
-    final cells = find.byType(GestureDetector);
-    // Note: Assuming single board for test, adjust if layout changes
-    expect(cells, findsAtLeastNWidgets(9));
+      expect(find.textContaining("X'S TURN"), findsOneWidget);
+      
+      final cells = find.byType(GestureDetector);
+      expect(cells, findsAtLeastNWidgets(9));
 
-    await tester.tap(cells.at(4));
-    await tester.pump();
+      await tester.tap(cells.at(4)); // X
+      await tester.pump();
+      expect(find.textContaining("O'S TURN"), findsOneWidget);
 
-    expect(find.text('X'), findsOneWidget);
-    expect(find.text("Player O's Turn"), findsOneWidget);
+      await tester.tap(cells.at(0)); // O
+      await tester.pump();
+      expect(find.textContaining("X'S TURN"), findsOneWidget);
 
-    await tester.tap(cells.at(0));
-    await tester.pump();
+      await tester.tap(cells.at(3)); // X
+      await tester.pump();
+      await tester.tap(cells.at(1)); // O
+      await tester.pump();
+      
+      await tester.tap(cells.at(5)); // X wins (row 3,4,5)
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
 
-    expect(find.text('O'), findsOneWidget);
-    expect(find.text("Player X's Turn"), findsOneWidget);
+      // In GameStatusDisplay, "X WINS!" is split into "X" and "WINS!" when Game Over
+      expect(find.text("WINS!"), findsOneWidget);
 
-    expect(find.text('Play Again'), findsNothing);
+      final newGameButton = find.textContaining('New');
+      expect(newGameButton, findsAtLeastNWidgets(1));
 
-    await tester.tap(cells.at(1)); // X
-    await tester.pump();
-    await tester.tap(cells.at(2)); // O
-    await tester.pump();
-    await tester.tap(cells.at(7)); // X
-    await tester.pump();
+      await tester.tap(newGameButton.first);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
 
-    expect(find.text('Player X Wins!'), findsOneWidget);
+      expect(find.textContaining("X'S TURN"), findsOneWidget);
+    });
 
-    final playAgainButton = find.widgetWithText(ElevatedButton, 'New Game');
-    expect(playAgainButton, findsOneWidget);
+    testWidgets('Phone Landscape Grid Enforcement (9 Boards)', (WidgetTester tester) async {
+      // Small phone landscape: 640x360 (Shortest side 360 < 600)
+      tester.view.physicalSize = const Size(640, 360);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() => tester.view.resetPhysicalSize());
 
-    await tester.tap(playAgainButton);
-    await tester.pump();
+      settingsController.setTestBoardCount(9);
 
-    expect(find.text("Player X's Turn"), findsOneWidget);
-    expect(find.text('X'), findsNothing);
+      await tester.pumpWidget(createTestWidget());
+      await tester.pump();
+
+      // Find the MultiBoardView's GridView and verify it has a 3x3 layout
+      final gridViewFinder = find.descendant(
+        of: find.byType(MultiBoardView),
+        matching: find.byType(GridView),
+      ).first;
+      
+      expect(gridViewFinder, findsOneWidget);
+      
+      final gridView = tester.widget<GridView>(gridViewFinder);
+      final delegate = gridView.gridDelegate as SliverGridDelegateWithFixedCrossAxisCount;
+      
+      expect(delegate.crossAxisCount, equals(3), reason: "Should have 3 columns for 9 boards");
+      
+      // Verify all 9 boards are rendered
+      expect(find.byType(BoardWidget), findsNWidgets(9));
+    });
   });
 }

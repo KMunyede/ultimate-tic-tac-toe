@@ -1,7 +1,7 @@
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart';
 
-import 'settings_controller.dart';
+import '../../features/settings/logic/settings_controller.dart';
 
 /// A service for managing and playing sound effects.
 ///

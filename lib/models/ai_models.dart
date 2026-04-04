@@ -6,14 +6,18 @@ class AiRequest {
   final List<String> boardResults; // "playerX", "playerO", "draw", "active"
   final Player player;
   final AiDifficulty difficulty;
+  final GameRuleSet ruleSet;
   final int boardCount;
+  final int? forcedBoardIndex;
 
   AiRequest({
     required this.boards,
     required this.boardResults,
     required this.player,
     required this.difficulty,
+    required this.ruleSet,
     required this.boardCount,
+    this.forcedBoardIndex,
   });
 
   Map<String, dynamic> toJson() => {
@@ -21,7 +25,9 @@ class AiRequest {
     'boardResults': boardResults,
     'player': player == Player.X ? "X" : "O",
     'difficulty': difficulty.name,
+    'ruleSet': ruleSet.name,
     'boardCount': boardCount,
+    'forcedBoardIndex': forcedBoardIndex,
     // Legacy support
     'board': boards.isNotEmpty ? boards[0] : [],
   };

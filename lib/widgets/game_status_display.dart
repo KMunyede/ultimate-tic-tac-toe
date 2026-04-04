@@ -1,7 +1,8 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../game_controller.dart';
+import '../features/game/logic/game_controller.dart';
 import '../models/player.dart';
 
 class GameStatusDisplay extends StatefulWidget {
@@ -93,7 +94,34 @@ class _GameStatusDisplayState extends State<GameStatusDisplay>
       builder: (context, game, child) {
         final statusText = _getStatusText(game);
         final isGameOver = game.isOverallGameOver;
-        final words = statusText.split(' ');
+        final mediaQuery = MediaQuery.of(context);
+        final screenWidth = mediaQuery.size.width;
+        final screenHeight = mediaQuery.size.height;
+        final isLandscape = screenWidth > screenHeight;
+        final shortestSide = screenWidth < screenHeight ? screenWidth : screenHeight;
+        final isMobile = shortestSide < 600;
+        final isTablet = shortestSide >= 600 && shortestSide < 1024;
+        
+        // Calculate diagonal inches for precision scaling
+        final double diagonalInches = sqrt(pow(screenWidth / 160, 2) + pow(screenHeight / 160, 2));
+        final bool isSmallLandscape = isLandscape && diagonalInches < 7.0;
+        
+        // Ergonomic adjustment for landscape
+        double baseFontSize = (screenWidth < 400 ? 24.0 : 32.0) * 1.2;
+        String displayStatusText = statusText;
+
+        if (isLandscape) {
+          if (isMobile) {
+            // Further reduction for phones in landscape to maximize vertical board space
+            baseFontSize = isSmallLandscape ? 14.0 : 18.0;
+          } else if (isTablet) {
+            baseFontSize = 24.0; // Moderate reduction for 7-10 inch tablets
+          } else {
+            baseFontSize = 30.0; // Large screens / Desktop
+          }
+        }
+
+        final words = displayStatusText.split(' ');
         final color = _getStatusColor(context, game);
 
         if (isGameOver && !_isGameOverState) {
@@ -106,9 +134,6 @@ class _GameStatusDisplayState extends State<GameStatusDisplay>
           _isGameOverState = false;
           _resetAnimations();
         }
-
-        final screenWidth = MediaQuery.of(context).size.width;
-        final baseFontSize = (screenWidth < 400 ? 24.0 : 32.0) * 1.2;
 
         if (isGameOver) {
           return SlideTransition(
@@ -162,17 +187,26 @@ class _GameStatusDisplayState extends State<GameStatusDisplay>
         }
 
         // Standard Turn Display
-        return Padding(
-          padding: const EdgeInsets.symmetric(vertical: 20),
+        return Container(
+          width: double.infinity,
+          // Ignore horizontal padding boundaries in small landscape mode
+          padding: EdgeInsets.symmetric(
+            vertical: isLandscape ? 2 : 20,
+            horizontal: isSmallLandscape ? 0 : 4,
+          ),
           child: AnimatedSwitcher(
             duration: const Duration(milliseconds: 300),
-            child: Text(
-              statusText,
-              key: ValueKey(statusText),
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                color: color,
-                fontWeight: FontWeight.bold,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                displayStatusText,
+                key: ValueKey(displayStatusText),
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: baseFontSize * 0.7, // Derived from baseFontSize for consistency
+                  color: color,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
           ),

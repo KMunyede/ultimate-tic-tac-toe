@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../settings_controller.dart';
+import '../features/settings/logic/settings_controller.dart';
 
 class ScoreDisplay extends StatelessWidget {
   const ScoreDisplay({super.key});

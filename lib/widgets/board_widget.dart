@@ -7,8 +7,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 
-import '../app_theme.dart';
-import '../game_controller.dart';
+import '../core/theme/app_theme.dart';
+import '../features/game/logic/game_controller.dart';
 import '../models/player.dart';
 
 class BoardWidget extends StatefulWidget {
@@ -58,6 +58,7 @@ class _BoardWidgetState extends State<BoardWidget> {
     final board = controller.boards[widget.boardIndex];
     final theme = Theme.of(context);
     final themeBgColor = theme.scaffoldBackgroundColor;
+    final isForced = controller.forcedBoardIndex == widget.boardIndex;
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -71,7 +72,9 @@ class _BoardWidgetState extends State<BoardWidget> {
         final double shadowBlur = shadowOffset * 2;
 
         final hsl = HSLColor.fromColor(themeBgColor);
-        final boardColor = hsl.withLightness((hsl.lightness - 0.05).clamp(0.0, 1.0)).toColor();
+        final boardColor = isForced 
+            ? Color.lerp(hsl.withLightness((hsl.lightness - 0.25).clamp(0.0, 1.0)).toColor(), Colors.yellow.withValues(alpha: 0.3), 0.3)!
+            : hsl.withLightness((hsl.lightness - 0.25).clamp(0.0, 1.0)).toColor();
 
         return TweenAnimationBuilder<double>(
           key: ValueKey(board.winner),
@@ -91,13 +94,17 @@ class _BoardWidgetState extends State<BoardWidget> {
           },
           child: Stack(
             children: [
-              Container(
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 300),
                 decoration: BoxDecoration(
                   color: boardColor,
                   borderRadius: BorderRadius.circular(borderRadius),
+                  border: isForced ? Border.all(color: Colors.yellowAccent, width: 3) : null,
                   boxShadow: [
                     BoxShadow(color: NeumorphicColors.getDarkShadow(themeBgColor), offset: Offset(shadowOffset, shadowOffset), blurRadius: shadowBlur),
                     BoxShadow(color: NeumorphicColors.getLightShadow(themeBgColor), offset: Offset(-shadowOffset, -shadowOffset), blurRadius: shadowBlur),
+                    if (isForced)
+                      BoxShadow(color: Colors.yellowAccent.withValues(alpha: 0.5), blurRadius: shadowBlur * 1.5, spreadRadius: 2),
                   ],
                 ),
                 child: Padding(
@@ -113,10 +120,12 @@ class _BoardWidgetState extends State<BoardWidget> {
                     itemCount: 9,
                     itemBuilder: (context, cellIndex) {
                       return NeumorphicCell(
-                        onTap: board.isGameOver ? null : () => controller.makeMove(widget.boardIndex, cellIndex),
+                        onTap: (board.isGameOver || (controller.forcedBoardIndex != null && controller.forcedBoardIndex != widget.boardIndex)) 
+                            ? null 
+                            : () => controller.makeMove(widget.boardIndex, cellIndex),
                         player: board.cells[cellIndex],
                         baseColor: boardColor,
-                        isBlocked: board.isGameOver,
+                        isBlocked: board.isGameOver || (controller.forcedBoardIndex != null && controller.forcedBoardIndex != widget.boardIndex),
                         boardSize: boardSize,
                       );
                     },
@@ -417,8 +426,11 @@ class _AnimatedMarkerState extends State<AnimatedMarker> with SingleTickerProvid
   void didUpdateWidget(AnimatedMarker oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.player != _lastPlayer) {
-      if (widget.player == Player.none) _controller.reset();
-      else _controller.forward(from: 0.0);
+      if (widget.player == Player.none) {
+        _controller.reset();
+      } else {
+        _controller.forward(from: 0.0);
+      }
       _lastPlayer = widget.player;
     }
   }

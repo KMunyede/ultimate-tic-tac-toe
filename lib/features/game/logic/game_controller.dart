@@ -3,17 +3,19 @@ import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 
-import 'firebase_service.dart';
-import 'models/game_board.dart';
-import 'models/match_session.dart';
-import 'models/player.dart';
-import 'services/ai_service.dart';
-import 'settings_controller.dart';
-import 'sound_manager.dart';
+import '../../../services/firebase_service.dart';
+import '../../../models/game_board.dart';
+import '../../../models/match_session.dart';
+import '../../../models/player.dart';
+import '../../../services/ai_service.dart';
+import '../../../services/stats_service.dart';
+import '../../settings/logic/settings_controller.dart';
+import '../../../core/audio/sound_manager.dart';
 
 class GameController with ChangeNotifier {
   final SoundManager _soundManager;
   final FirebaseService _firebaseService;
+  final StatsService _statsService;
   late SettingsController _settings;
   final AiService _aiService = AiService();
   final Random _random = Random();
@@ -23,8 +25,23 @@ class GameController with ChangeNotifier {
   int _shakeCounter = 0;
   final _aiErrorController = StreamController<String>.broadcast();
 
-  GameController(this._soundManager, this._settings, this._firebaseService) {
-    initializeGame();
+  GameController(
+    this._soundManager,
+    this._settings,
+    this._firebaseService,
+    this._statsService,
+  ) {
+    _initGameFromCloud();
+  }
+
+  Future<void> _initGameFromCloud() async {
+    final cloudSession = await _firebaseService.loadGameState();
+    if (cloudSession != null && !cloudSession.isGameOver) {
+      _session = cloudSession;
+      notifyListeners();
+    } else {
+      initializeGame();
+    }
   }
 
   // Getters delegated to MatchSession
@@ -54,6 +71,8 @@ class GameController with ChangeNotifier {
 
   Stream<String> get aiErrorStream => _aiErrorController.stream;
 
+  int? get forcedBoardIndex => _session?.forcedBoardIndex;
+
   String? get statusMessage {
     if (isMatchDraw) return "It's a Draw!";
     if (matchWinner != null) {
@@ -67,6 +86,17 @@ class GameController with ChangeNotifier {
 
   void updateDependencies(SettingsController settings) {
     _settings = settings;
+    // Auto-trigger AI if it's AI's turn after settings update or dependency sync
+    if (_settings.gameMode == GameMode.playerVsAi &&
+        currentPlayer == Player.O &&
+        !isOverallGameOver &&
+        !_isAiThinking) {
+      _triggerAiMove();
+    }
+  }
+
+  void resetGame() {
+    initializeGame();
   }
 
   void initializeGame({bool useMicrotask = false}) {
@@ -74,6 +104,7 @@ class GameController with ChangeNotifier {
 
     _session = MatchSession(
       boards: List.generate(count, (_) => GameBoard()),
+      ruleSet: _settings.ruleSet,
       currentPlayer: Player.X,
     );
 
@@ -126,6 +157,9 @@ class GameController with ChangeNotifier {
 
     if (success) {
       _soundManager.playMoveSound();
+      
+      // Sync state to Cloud
+      await _firebaseService.saveGameState(_session!);
 
       if (!wasMatchOverBefore && isOverallGameOver) {
         if (matchWinner != null) {
@@ -141,7 +175,10 @@ class GameController with ChangeNotifier {
       if (isOverallGameOver) {
         if (matchWinner != null) {
           _settings.updateScore(matchWinner!);
+          _statsService.updateWinCount(matchWinner!);
         }
+        // Wipe cloud session on game over to prevent resuming finished games
+        await _firebaseService.saveGameState(_session!);
       } else if (_settings.gameMode == GameMode.playerVsAi &&
           currentPlayer == Player.O) {
         await _triggerAiMove();
@@ -150,31 +187,58 @@ class GameController with ChangeNotifier {
   }
 
   Future<void> _triggerAiMove() async {
+    if (isOverallGameOver || _isAiThinking || _session == null) return;
+
     _isAiThinking = true;
     notifyListeners();
 
     try {
+      // Add a timeout to catch cases where AI (Remote or Local Isolate) hangs
       await Future.delayed(const Duration(milliseconds: 800));
 
-      if (_settings.useOnlineAi) {
-        await _performRemoteAiMove();
-      } else {
-        final move = _aiService.getBestMove(
-          boards,
-          currentPlayer,
-          _settings.aiDifficulty,
-          _settings.boardCount,
-        );
-        if (move != null) {
-          await makeMove(move.boardIndex, move.cellIndex, isAiMove: true);
-        }
-      }
+      final aiTask = _settings.useOnlineAi
+          ? _performRemoteAiMove()
+          : _getAndApplyLocalMove();
+
+      await aiTask.timeout(
+        const Duration(seconds: 15),
+        onTimeout: () {
+          _handleAiFailure("AI timed out after 15 seconds.");
+          throw TimeoutException("AI took too long to respond.");
+        },
+      );
     } catch (e) {
-      if (kDebugMode) print('AI Move Error: $e');
+      if (e is! TimeoutException) {
+  
+        _handleAiFailure("Critical error during AI calculation: $e");
+      }
     } finally {
       _isAiThinking = false;
       notifyListeners();
     }
+  }
+
+  Future<void> _getAndApplyLocalMove() async {
+    final move = await _aiService.getBestMove(
+      boards,
+      currentPlayer,
+      _settings.aiDifficulty,
+      _settings.boardCount,
+      _settings.ruleSet,
+      forcedBoardIndex,
+    );
+    if (move != null) {
+      await makeMove(move.boardIndex, move.cellIndex, isAiMove: true);
+    } else {
+      _handleAiFailure("Local AI returned null move.");
+    }
+  }
+
+  void _handleAiFailure(String reason) {
+    if (kDebugMode) {
+
+    }
+    _aiErrorController.add("AI failed: $reason");
   }
 
   Future<void> _performRemoteAiMove() async {
@@ -195,37 +259,65 @@ class GameController with ChangeNotifier {
         boardResults: boardResults,
         player: currentPlayer,
         difficulty: _settings.aiDifficulty,
+        ruleSet: _settings.ruleSet,
         boardCount: _settings.boardCount,
+        forcedBoardIndex: forcedBoardIndex,
       );
 
       if (result != null) {
-        int? finalBoardIndex = result.boardIndex;
+        int boardIdx = result.boardIndex ?? (forcedBoardIndex ?? -1);
+        int cellIdx = result.cellIndex;
 
-        if (finalBoardIndex == null || boards[finalBoardIndex].isGameOver) {
-          finalBoardIndex = _findBestAvailableBoardForCell(result.cellIndex);
+        // Ultimate Mode Enforcement: If there's a forced board, AI must play there.
+        if (_settings.ruleSet == GameRuleSet.ultimate &&
+            forcedBoardIndex != null) {
+          boardIdx = forcedBoardIndex!;
         }
 
-        if (finalBoardIndex != null) {
-          await makeMove(finalBoardIndex, result.cellIndex, isAiMove: true);
-        } else {
-          throw Exception(
-            "AI suggested cell ${result.cellIndex} is blocked everywhere.",
+        // Final sanity check: if the chosen board is full/won, find any valid board for this cell
+        if (boardIdx == -1 || boards[boardIdx].isGameOver) {
+          boardIdx = _findBestAvailableBoardForCell(cellIdx) ?? -1;
+        }
+
+        // If still invalid, find ANY valid move as a last resort before failing
+        if (boardIdx == -1 || boards[boardIdx].cells[cellIdx] != Player.none) {
+          final fallbackMove = await _aiService.getBestMove(
+            boards,
+            currentPlayer,
+            _settings.aiDifficulty,
+            _settings.boardCount,
+            _settings.ruleSet,
+            forcedBoardIndex,
           );
+          if (fallbackMove != null) {
+            await makeMove(fallbackMove.boardIndex, fallbackMove.cellIndex,
+                isAiMove: true);
+            return;
+          }
+          throw Exception("AI returned illegal move and fallback failed.");
         }
+
+        await makeMove(boardIdx, cellIdx, isAiMove: true);
       } else {
-        throw Exception("Invalid AI response");
+        throw Exception("No response from Remote AI.");
       }
     } catch (e) {
-      if (kDebugMode) print("Remote AI Exception: $e. Falling back.");
-      _aiErrorController.add("Remote AI failed. Using local fallback.");
-      final move = _aiService.getBestMove(
+      // We do NOT change the GameMode here. We stay in PlayerVsAi.
+      _aiErrorController.add("No Response from Online AI. Falling back to Local AI");
+      
+      final move = await _aiService.getBestMove(
         boards,
         currentPlayer,
         _settings.aiDifficulty,
         _settings.boardCount,
+        _settings.ruleSet,
+        forcedBoardIndex,
       );
+      
       if (move != null) {
         await makeMove(move.boardIndex, move.cellIndex, isAiMove: true);
+      } else {
+        _handleAiFailure("Critical: Both Remote and Local AI failed to compute a move.");
       }
     }
   }

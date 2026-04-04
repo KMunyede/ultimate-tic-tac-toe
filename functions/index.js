@@ -1,7 +1,10 @@
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const logger = require("firebase-functions/logger");
 
-exports.getAiMove = onCall((request) => {
+exports.getAiMove = onCall({
+  invoker: "allUsers", // This allows Guests and Windows users to call the AI
+  region: "us-central1",
+}, (request) => {
   // --- Destructure the NEW, richer payload from the app ---
   const {
     boards,
@@ -9,6 +12,7 @@ exports.getAiMove = onCall((request) => {
     player,
     difficulty,
     boardCount,
+    forcedBoardIndex, // [NEW] Added for Ultimate mode support
   } = request.data;
 
   // --- Input Validation ---
@@ -21,15 +25,20 @@ exports.getAiMove = onCall((request) => {
 
   logger.info(
     `AI Turn: ${player} vs ${opponent}, Diff: ${difficulty}, ` +
-    `Boards: ${boardCount}, WinsNeeded: ${requiredWins}`,
+    `Boards: ${boardCount}, Forced: ${forcedBoardIndex}, WinsNeeded: ${requiredWins}`,
   );
 
   // --- Move Scoring Logic ---
   const scoredMoves = [];
 
   for (let b = 0; b < boards.length; b++) {
-    // Only consider moves on boards that are still active
+    // 1. Only consider moves on boards that are still active
     if (boardResults[b] !== "active") continue;
+
+    // 2. Ultimate Mode: Enforce the forcing mechanic
+    if (forcedBoardIndex !== null && forcedBoardIndex !== undefined && b !== forcedBoardIndex) {
+      continue;
+    }
 
     for (let c = 0; c < 9; c++) {
       if (boards[b][c] === "" || boards[b][c] === "none") {

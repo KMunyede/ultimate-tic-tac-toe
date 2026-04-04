@@ -2,7 +2,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:window_manager/window_manager.dart';
-import 'services/persistence_service.dart';
+import '../../services/persistence_service.dart';
 
 Future<void> configureWindow({required bool isPrimaryInstance}) async {
   if (kIsWeb || !(Platform.isWindows || Platform.isLinux || Platform.isMacOS)) {
@@ -34,5 +34,10 @@ Future<void> configureWindow({required bool isPrimaryInstance}) async {
   windowManager.waitUntilReadyToShow(windowOptions, () async {
     await windowManager.show();
     await windowManager.focus();
+    
+    // Launch primary Windows instance to match screen size (Maximized)
+    if (isPrimaryInstance && Platform.isWindows) {
+      await windowManager.maximize();
+    }
   });
 }
