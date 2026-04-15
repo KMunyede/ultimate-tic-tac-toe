@@ -4,9 +4,14 @@ import 'package:google_sign_in/google_sign_in.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  final GoogleSignIn _googleSignIn = GoogleSignIn(
-    scopes: ['email'],
-  );
+  final GoogleSignIn _googleSignIn = GoogleSignIn.instance;
+
+  AuthService() {
+    // Standard configuration for TicTacToe
+    _googleSignIn.initialize(
+      scopes: <String>['email', 'profile', 'openid'],
+    );
+  }
 
   Stream<User?> get user => _auth.authStateChanges();
 
@@ -25,12 +30,16 @@ class AuthService {
   /// Google Sign-In with industry-standard guest-linking support
   Future<UserCredential?> signInWithGoogle() async {
     try {
-      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+      final GoogleSignInAccount? googleUser = await _googleSignIn.authenticate();
       if (googleUser == null) return null;
 
-      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      final GoogleSignInAuthentication googleAuth = googleUser.authentication;
+      
+      // Request access token for additional scopes if needed
+      final GoogleSignInClientAuthorization? auth = await googleUser.authorizationClient.authorizeScopes(<String>['email', 'profile', 'openid']);
+
       final AuthCredential credential = GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
+        accessToken: auth?.accessToken,
         idToken: googleAuth.idToken,
       );
 
