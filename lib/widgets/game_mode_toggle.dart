@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../features/settings/logic/settings_controller.dart';
-import '../models/game_enums.dart';
 import '../utils/responsive_layout.dart';
 
 class GameModeToggle extends StatelessWidget {
