@@ -132,6 +132,18 @@ class _BoardWidgetState extends State<BoardWidget> {
                   ),
                 ),
               ),
+              if (board.winner != null)
+                Positioned.fill(
+                  child: IgnorePointer(
+                    child: Center(
+                      child: AnimatedMarker(
+                        player: board.winner!,
+                        boardSize: boardSize,
+                        isLarge: true,
+                      ),
+                    ),
+                  ),
+                ),
               if (board.winner != null && board.winningLine != null)
                 Positioned.fill(
                   child: WinningLineWidget(
@@ -392,7 +404,14 @@ class _NeumorphicCellState extends State<NeumorphicCell> with TickerProviderStat
               BoxShadow(color: NeumorphicColors.getLightShadow(widget.baseColor), offset: Offset(-shadowOffset, -shadowOffset), blurRadius: shadowBlur),
             ],
           ),
-          child: Center(child: AnimatedMarker(player: widget.player, boardSize: widget.boardSize)),
+          child: Padding(
+            padding: EdgeInsets.all(widget.boardSize * 0.01),
+            child: AnimatedMarker(
+              player: widget.player, 
+              boardSize: widget.boardSize,
+              isLarge: false,
+            ),
+          ),
         ),
       ),
     );
@@ -402,7 +421,14 @@ class _NeumorphicCellState extends State<NeumorphicCell> with TickerProviderStat
 class AnimatedMarker extends StatefulWidget {
   final Player player;
   final double boardSize;
-  const AnimatedMarker({super.key, required this.player, required this.boardSize});
+  final bool isLarge;
+
+  const AnimatedMarker({
+    super.key,
+    required this.player,
+    required this.boardSize,
+    this.isLarge = false,
+  });
 
   @override
   State<AnimatedMarker> createState() => _AnimatedMarkerState();
@@ -436,7 +462,10 @@ class _AnimatedMarkerState extends State<AnimatedMarker> with SingleTickerProvid
   }
 
   @override
-  void dispose() { _controller.dispose(); super.dispose(); }
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -445,9 +474,16 @@ class _AnimatedMarkerState extends State<AnimatedMarker> with SingleTickerProvid
     }
     return AnimatedBuilder(
       animation: _controller,
-      builder: (context, child) => CustomPaint(
-        size: Size.infinite,
-        painter: MarkerPainter(player: widget.player, progress: _controller.value, boardSize: widget.boardSize),
+      builder: (context, child) => SizedBox.expand(
+        child: CustomPaint(
+          size: Size.infinite,
+          painter: MarkerPainter(
+            player: widget.player,
+            progress: _controller.value,
+            boardSize: widget.boardSize,
+            isLarge: widget.isLarge,
+          ),
+        ),
       ),
     );
   }
@@ -456,28 +492,57 @@ class _AnimatedMarkerState extends State<AnimatedMarker> with SingleTickerProvid
 class MarkerPainter extends CustomPainter {
   final Player player;
   final double progress, boardSize;
-  MarkerPainter({required this.player, required this.progress, required this.boardSize});
+  final bool isLarge;
+
+  MarkerPainter({
+    required this.player,
+    required this.progress,
+    required this.boardSize,
+    required this.isLarge,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()..strokeWidth = (boardSize * 0.04).clamp(2.0, 10.0)..strokeCap = StrokeCap.round..style = PaintingStyle.stroke;
-    final double padding = size.width * 0.25;
+    final double baseStrokeWidth = isLarge ? boardSize * 0.12 : boardSize * 0.04;
+    final paint = Paint()
+      ..strokeWidth = baseStrokeWidth.clamp(isLarge ? 4.0 : 1.5, isLarge ? 40.0 : 10.0)
+      ..strokeCap = StrokeCap.round
+      ..style = PaintingStyle.stroke;
+
+    final double padding = isLarge ? size.width * 0.15 : size.width * 0.22;
+    final double alpha = isLarge ? 0.35 : 0.95;
+
     if (player == Player.X) {
-      paint.color = Colors.red.withValues(alpha: 0.9);
+      paint.color = Colors.red.withValues(alpha: alpha);
       if (progress > 0) {
         double p1 = (progress * 2).clamp(0.0, 1.0);
-        canvas.drawLine(Offset(padding, padding), Offset(padding + (size.width - 2 * padding) * p1, padding + (size.height - 2 * padding) * p1), paint);
+        canvas.drawLine(
+          Offset(padding, padding),
+          Offset(padding + (size.width - 2 * padding) * p1, padding + (size.height - 2 * padding) * p1),
+          paint,
+        );
       }
       if (progress > 0.5) {
         double p2 = ((progress - 0.5) * 2).clamp(0.0, 1.0);
-        canvas.drawLine(Offset(size.width - padding, padding), Offset((size.width - padding) - (size.width - 2 * padding) * p2, padding + (size.height - 2 * padding) * p2), paint);
+        canvas.drawLine(
+          Offset(size.width - padding, padding),
+          Offset((size.width - padding) - (size.width - 2 * padding) * p2, padding + (size.height - 2 * padding) * p2),
+          paint,
+        );
       }
     } else if (player == Player.O) {
-      paint.color = const Color(0xFF0D47A1).withValues(alpha: 0.9);
-      canvas.drawArc(Rect.fromLTRB(padding, padding, size.width - padding, size.height - padding), -1.5, 6.28 * progress, false, paint);
+      paint.color = const Color(0xFF0D47A1).withValues(alpha: alpha);
+      canvas.drawArc(
+        Rect.fromLTRB(padding, padding, size.width - padding, size.height - padding),
+        -1.5,
+        6.28 * progress,
+        false,
+        paint,
+      );
     }
   }
 
   @override
-  bool shouldRepaint(MarkerPainter oldDelegate) => oldDelegate.progress != progress;
+  bool shouldRepaint(MarkerPainter oldDelegate) => 
+      oldDelegate.progress != progress || oldDelegate.isLarge != isLarge;
 }

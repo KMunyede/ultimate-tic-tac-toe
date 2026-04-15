@@ -17,11 +17,12 @@ class GameController with ChangeNotifier {
   final FirebaseService _firebaseService;
   final StatsService _statsService;
   late SettingsController _settings;
-  final AiService _aiService = AiService();
+  late final AiService _aiService;
   final Random _random = Random();
 
   MatchSession? _session;
   bool _isAiThinking = false;
+  bool _isCompletingMove = false; // Guard for state transitions
   int _shakeCounter = 0;
   final _aiErrorController = StreamController<String>.broadcast();
 
@@ -30,7 +31,7 @@ class GameController with ChangeNotifier {
     this._settings,
     this._firebaseService,
     this._statsService,
-  ) {
+  ) : _aiService = AiService(_firebaseService) {
     _initGameFromCloud();
   }
 
@@ -38,9 +39,9 @@ class GameController with ChangeNotifier {
     final cloudSession = await _firebaseService.loadGameState();
     if (cloudSession != null && !cloudSession.isGameOver) {
       _session = cloudSession;
-      notifyListeners();
+      Future.microtask(() => notifyListeners());
     } else {
-      initializeGame();
+      initializeGame(useMicrotask: true);
     }
   }
 
@@ -74,7 +75,16 @@ class GameController with ChangeNotifier {
   int? get forcedBoardIndex => _session?.forcedBoardIndex;
 
   String? get statusMessage {
-    if (isMatchDraw) return "It's a Draw!";
+    if (isMatchDraw) {
+      if (_settings.ruleSet == GameRuleSet.majorityWins && boards.length == 3) {
+        if (boardsWonX > 0 || boardsWonO > 0) {
+          return "Nice Effort. No overall wins";
+        } else {
+          return "No wins. Try again";
+        }
+      }
+      return "Almost Equally matched!!";
+    }
     if (matchWinner != null) {
       return 'Player ${matchWinner == Player.X ? "X" : "O"} Wins!';
     }
@@ -90,8 +100,10 @@ class GameController with ChangeNotifier {
     if (_settings.gameMode == GameMode.playerVsAi &&
         currentPlayer == Player.O &&
         !isOverallGameOver &&
-        !_isAiThinking) {
-      _triggerAiMove();
+        !_isAiThinking &&
+        !_isCompletingMove) {
+      // Use microtask to avoid notifying during the build phase of a ProxyProvider
+      Future.microtask(() => _triggerAiMove());
     }
   }
 
@@ -101,15 +113,7 @@ class GameController with ChangeNotifier {
 
   void initializeGame({bool useMicrotask = false}) {
     int count = _settings.boardCount;
-
-    _session = MatchSession(
-      boards: List.generate(count, (_) => GameBoard()),
-      ruleSet: _settings.ruleSet,
-      currentPlayer: Player.X,
-    );
-
-    _isAiThinking = false;
-    _shakeCounter = 0;
+    int? initialForcedBoardIndex;
 
     if (count > 1) {
       int lastIndex = _settings.lastStartingBoardIndex;
@@ -125,7 +129,21 @@ class GameController with ChangeNotifier {
       int newStartIndex =
           availableIndices[_random.nextInt(availableIndices.length)];
       _settings.setLastStartingBoardIndex(newStartIndex);
+
+      if (_settings.ruleSet == GameRuleSet.ultimate) {
+        initialForcedBoardIndex = newStartIndex;
+      }
     }
+
+    _session = MatchSession(
+      boards: List.generate(count, (_) => GameBoard()),
+      ruleSet: _settings.ruleSet,
+      currentPlayer: Player.X,
+      forcedBoardIndex: initialForcedBoardIndex,
+    );
+
+    _isAiThinking = false;
+    _shakeCounter = 0;
 
     if (useMicrotask) {
       Future.microtask(() => notifyListeners());
@@ -146,20 +164,18 @@ class GameController with ChangeNotifier {
           currentPlayer == Player.O) {
         return;
       }
-      if (_isAiThinking) {
+      if (_isAiThinking || _isCompletingMove) {
         return;
       }
     }
 
+    _isCompletingMove = true;
     final bool wasMatchOverBefore = isOverallGameOver;
 
     final success = _session!.applyMove(boardIndex, cellIndex);
 
     if (success) {
       _soundManager.playMoveSound();
-      
-      // Sync state to Cloud
-      await _firebaseService.saveGameState(_session!);
 
       if (!wasMatchOverBefore && isOverallGameOver) {
         if (matchWinner != null) {
@@ -170,19 +186,26 @@ class GameController with ChangeNotifier {
         }
       }
 
-      notifyListeners();
-
       if (isOverallGameOver) {
         if (matchWinner != null) {
           _settings.updateScore(matchWinner!);
           _statsService.updateWinCount(matchWinner!);
         }
-        // Wipe cloud session on game over to prevent resuming finished games
-        await _firebaseService.saveGameState(_session!);
-      } else if (_settings.gameMode == GameMode.playerVsAi &&
+      }
+
+      // Sync state to Cloud (one call handles both mid-game and final state)
+      await _firebaseService.saveGameState(_session!);
+
+      _isCompletingMove = false;
+      notifyListeners();
+
+      if (!isOverallGameOver &&
+          _settings.gameMode == GameMode.playerVsAi &&
           currentPlayer == Player.O) {
         await _triggerAiMove();
       }
+    } else {
+      _isCompletingMove = false;
     }
   }
 
@@ -193,145 +216,31 @@ class GameController with ChangeNotifier {
     notifyListeners();
 
     try {
-      // Add a timeout to catch cases where AI (Remote or Local Isolate) hangs
-      await Future.delayed(const Duration(milliseconds: 800));
+      final aiMove = await _aiService.getBestMove(
+        boards: boards,
+        aiPlayer: currentPlayer,
+        difficulty: _settings.aiDifficulty,
+        boardCount: _settings.boardCount,
+        ruleSet: _settings.ruleSet,
+        useOnlineAi: _settings.useOnlineAi,
+        forcedBoardIndex: forcedBoardIndex,
+      ).timeout(const Duration(seconds: 20));
 
-      final aiTask = _settings.useOnlineAi
-          ? _performRemoteAiMove()
-          : _getAndApplyLocalMove();
-
-      await aiTask.timeout(
-        const Duration(seconds: 15),
-        onTimeout: () {
-          _handleAiFailure("AI timed out after 15 seconds.");
-          throw TimeoutException("AI took too long to respond.");
-        },
-      );
-    } catch (e) {
-      if (e is! TimeoutException) {
-  
-        _handleAiFailure("Critical error during AI calculation: $e");
+      if (aiMove != null) {
+        await makeMove(aiMove.boardIndex, aiMove.cellIndex, isAiMove: true);
+      } else {
+        _handleAiFailure("AI could not determine a valid move.");
       }
+    } catch (e) {
+      _handleAiFailure("AI calculation error: $e");
     } finally {
       _isAiThinking = false;
       notifyListeners();
     }
   }
 
-  Future<void> _getAndApplyLocalMove() async {
-    final move = await _aiService.getBestMove(
-      boards,
-      currentPlayer,
-      _settings.aiDifficulty,
-      _settings.boardCount,
-      _settings.ruleSet,
-      forcedBoardIndex,
-    );
-    if (move != null) {
-      await makeMove(move.boardIndex, move.cellIndex, isAiMove: true);
-    } else {
-      _handleAiFailure("Local AI returned null move.");
-    }
-  }
-
   void _handleAiFailure(String reason) {
-    if (kDebugMode) {
-
-    }
-    _aiErrorController.add("AI failed: $reason");
-  }
-
-  Future<void> _performRemoteAiMove() async {
-    final boardsData = boards
-        .map((b) => b.cells.map((c) => c == Player.none ? "" : c.name).toList())
-        .toList();
-
-    final boardResults = boards.map((b) {
-      if (b.winner == Player.X) return "playerX";
-      if (b.winner == Player.O) return "playerO";
-      if (b.isDraw) return "draw";
-      return "active";
-    }).toList();
-
-    try {
-      final result = await _firebaseService.getAiMove(
-        boards: boardsData,
-        boardResults: boardResults,
-        player: currentPlayer,
-        difficulty: _settings.aiDifficulty,
-        ruleSet: _settings.ruleSet,
-        boardCount: _settings.boardCount,
-        forcedBoardIndex: forcedBoardIndex,
-      );
-
-      if (result != null) {
-        int boardIdx = result.boardIndex ?? (forcedBoardIndex ?? -1);
-        int cellIdx = result.cellIndex;
-
-        // Ultimate Mode Enforcement: If there's a forced board, AI must play there.
-        if (_settings.ruleSet == GameRuleSet.ultimate &&
-            forcedBoardIndex != null) {
-          boardIdx = forcedBoardIndex!;
-        }
-
-        // Final sanity check: if the chosen board is full/won, find any valid board for this cell
-        if (boardIdx == -1 || boards[boardIdx].isGameOver) {
-          boardIdx = _findBestAvailableBoardForCell(cellIdx) ?? -1;
-        }
-
-        // If still invalid, find ANY valid move as a last resort before failing
-        if (boardIdx == -1 || boards[boardIdx].cells[cellIdx] != Player.none) {
-          final fallbackMove = await _aiService.getBestMove(
-            boards,
-            currentPlayer,
-            _settings.aiDifficulty,
-            _settings.boardCount,
-            _settings.ruleSet,
-            forcedBoardIndex,
-          );
-          if (fallbackMove != null) {
-            await makeMove(fallbackMove.boardIndex, fallbackMove.cellIndex,
-                isAiMove: true);
-            return;
-          }
-          throw Exception("AI returned illegal move and fallback failed.");
-        }
-
-        await makeMove(boardIdx, cellIdx, isAiMove: true);
-      } else {
-        throw Exception("No response from Remote AI.");
-      }
-    } catch (e) {
-      // We do NOT change the GameMode here. We stay in PlayerVsAi.
-      _aiErrorController.add("No Response from Online AI. Falling back to Local AI");
-      
-      final move = await _aiService.getBestMove(
-        boards,
-        currentPlayer,
-        _settings.aiDifficulty,
-        _settings.boardCount,
-        _settings.ruleSet,
-        forcedBoardIndex,
-      );
-      
-      if (move != null) {
-        await makeMove(move.boardIndex, move.cellIndex, isAiMove: true);
-      } else {
-        _handleAiFailure("Critical: Both Remote and Local AI failed to compute a move.");
-      }
-    }
-  }
-
-  int? _findBestAvailableBoardForCell(int cellIndex) {
-    List<int> candidates = [];
-    for (int i = 0; i < boards.length; i++) {
-      if (!boards[i].isGameOver && boards[i].cells[cellIndex] == Player.none) {
-        candidates.add(i);
-      }
-    }
-    if (candidates.isEmpty) return null;
-
-    return candidates[_random.nextInt(candidates.length)];
+    _aiErrorController.add(reason);
   }
 
   @override

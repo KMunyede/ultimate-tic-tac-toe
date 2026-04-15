@@ -96,6 +96,9 @@ class UltimateEngine {
     final List<int> moves = getValidMoves();
     if (moves.isEmpty) return [0, -1];
 
+    // Move ordering for alpha-beta efficiency
+    _sortMoves(moves, player);
+
     int bestMove = -1;
 
     if (player == aiPlayer) {
@@ -137,6 +140,22 @@ class UltimateEngine {
       }
       return [minEval, bestMove];
     }
+  }
+
+  void _sortMoves(List<int> moves, int player) {
+    moves.sort((a, b) {
+      int scoreA = _quickEvaluateMove(a, player);
+      int scoreB = _quickEvaluateMove(b, player);
+      return scoreB.compareTo(scoreA);
+    });
+  }
+
+  int _quickEvaluateMove(int moveIndex, int player) {
+    int score = 0;
+    int localSquare = moveIndex % 9;
+    if (localSquare == 4) score += 10;
+    if (const [0, 2, 6, 8].contains(localSquare)) score += 5;
+    return score;
   }
 
   int _checkLocalWin(int boardIdx) {

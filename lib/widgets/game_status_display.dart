@@ -106,18 +106,18 @@ class _GameStatusDisplayState extends State<GameStatusDisplay>
         final double diagonalInches = sqrt(pow(screenWidth / 160, 2) + pow(screenHeight / 160, 2));
         final bool isSmallLandscape = isLandscape && diagonalInches < 7.0;
         
-        // Ergonomic adjustment for landscape
-        double baseFontSize = (screenWidth < 400 ? 24.0 : 32.0) * 1.2;
+        // Conservative font sizing for better overall UI fit
+        double baseFontSize = (screenWidth < 400 ? 18.0 : 22.0) * 1.2;
         String displayStatusText = statusText;
 
         if (isLandscape) {
           if (isMobile) {
             // Further reduction for phones in landscape to maximize vertical board space
-            baseFontSize = isSmallLandscape ? 14.0 : 18.0;
+            baseFontSize = isSmallLandscape ? 13.0 : 16.0;
           } else if (isTablet) {
-            baseFontSize = 24.0; // Moderate reduction for 7-10 inch tablets
+            baseFontSize = 20.0; // Moderate reduction for 7-10 inch tablets
           } else {
-            baseFontSize = 30.0; // Large screens / Desktop
+            baseFontSize = 26.0; // Large screens / Desktop
           }
         }
 
@@ -190,9 +190,11 @@ class _GameStatusDisplayState extends State<GameStatusDisplay>
         return Container(
           width: double.infinity,
           // Ignore horizontal padding boundaries in small landscape mode
-          padding: EdgeInsets.symmetric(
-            vertical: isLandscape ? 2 : 20,
-            horizontal: isSmallLandscape ? 0 : 4,
+          padding: EdgeInsets.only(
+            top: isLandscape ? 7 : 25, // Shifted down by 5px (was 2 and 20)
+            bottom: isLandscape ? 2 : 20,
+            left: isSmallLandscape ? 0 : 4,
+            right: isSmallLandscape ? 0 : 4,
           ),
           child: AnimatedSwitcher(
             duration: const Duration(milliseconds: 300),

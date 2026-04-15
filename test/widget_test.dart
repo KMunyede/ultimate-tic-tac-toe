@@ -27,7 +27,7 @@ class FakeSettingsController extends SettingsController {
   }
 
   @override
-  Future<void> loadSettings() async {}
+  Future<void> loadSettings({bool isGuest = false}) async {}
   
   @override
   GameMode get gameMode => GameMode.playerVsPlayer;

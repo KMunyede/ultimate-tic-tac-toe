@@ -1,176 +1,234 @@
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const logger = require("firebase-functions/logger");
 
+/**
+ * Minimalist Ultimate Tic-Tac-Toe Engine for Node.js
+ */
+class UltimateEngineJS {
+  constructor(boards, boardResults, forcedIdx) {
+    this.board = new Int8Array(81);
+    this.macroBoard = new Int8Array(9); // 0: active, 1: X, -1: O, 2: Draw
+    this.activeBoardIndex = (forcedIdx !== undefined && forcedIdx !== null) ? forcedIdx : -1;
+
+    for (let b = 0; b < 9; b++) {
+      for (let c = 0; c < 9; c++) {
+        const val = boards[b][c];
+        this.board[b * 9 + c] = (val === "X" || val === "playerX") ? 1 : ((val === "O" || val === "playerO") ? -1 : 0);
+      }
+      const res = boardResults[b];
+      this.macroBoard[b] = res === "playerX" ? 1 : (res === "playerO" ? -1 : (res === "draw" ? 2 : 0));
+    }
+  }
+
+  minimax(depth, alpha, beta, player, aiPlayer) {
+    const winner = this.checkGlobalWin();
+    if (winner !== 0) {
+      if (winner === aiPlayer) return { score: 1000000 + depth, move: -1 };
+      if (winner === 2) return { score: 0, move: -1 };
+      return { score: -1000000 - depth, move: -1 };
+    }
+    if (depth === 0) return { score: this.evaluate(aiPlayer), move: -1 };
+
+    const moves = this.getValidMoves();
+    if (moves.length === 0) return { score: 0, move: -1 };
+
+    // Basic move ordering: Center > Corners > Sides
+    moves.sort((a, b) => {
+      const scoreA = (a % 9 === 4) ? 2 : ([0, 2, 6, 8].includes(a % 9) ? 1 : 0);
+      const scoreB = (b % 9 === 4) ? 2 : ([0, 2, 6, 8].includes(b % 9) ? 1 : 0);
+      return scoreB - scoreA;
+    });
+
+    let bestMove = -1;
+    if (player === aiPlayer) {
+      let maxEval = -Infinity;
+      for (const move of moves) {
+        const prevState = this.applyMove(move, player);
+        const eval = this.minimax(depth - 1, alpha, beta, -player, aiPlayer).score;
+        this.undoMove(move, prevState);
+        if (eval > maxEval) {
+          maxEval = eval;
+          bestMove = move;
+        }
+        alpha = Math.max(alpha, eval);
+        if (beta <= alpha) break;
+      }
+      return { score: maxEval, move: bestMove };
+    } else {
+      let minEval = Infinity;
+      for (const move of moves) {
+        const prevState = this.applyMove(move, player);
+        const eval = this.minimax(depth - 1, alpha, beta, -player, aiPlayer).score;
+        this.undoMove(move, prevState);
+        if (eval < minEval) {
+          minEval = eval;
+          bestMove = move;
+        }
+        beta = Math.min(beta, eval);
+        if (beta <= alpha) break;
+      }
+      return { score: minEval, move: bestMove };
+    }
+  }
+
+  applyMove(index, player) {
+    const prevState = {
+      activeIdx: this.activeBoardIndex,
+      macroVal: this.macroBoard[Math.floor(index / 9)],
+    };
+    this.board[index] = player;
+    const bIdx = Math.floor(index / 9);
+
+    if (this.checkLocalWin(bIdx)) {
+      this.macroBoard[bIdx] = player;
+    } else if (this.isLocalFull(bIdx)) {
+      this.macroBoard[bIdx] = 2;
+    }
+
+    const nextB = index % 9;
+    this.activeBoardIndex = (this.macroBoard[nextB] !== 0) ? -1 : nextB;
+    return prevState;
+  }
+
+  undoMove(index, state) {
+    this.board[index] = 0;
+    this.macroBoard[Math.floor(index / 9)] = state.macroVal;
+    this.activeBoardIndex = state.activeIdx;
+  }
+
+  getValidMoves() {
+    const moves = [];
+    if (this.activeBoardIndex !== -1) {
+      const start = this.activeBoardIndex * 9;
+      for (let i = 0; i < 9; i++) {
+        if (this.board[start + i] === 0) moves.push(start + i);
+      }
+    }
+    if (moves.length > 0) return moves;
+
+    for (let b = 0; b < 9; b++) {
+      if (this.macroBoard[b] === 0) {
+        const start = b * 9;
+        for (let i = 0; i < 9; i++) {
+          if (this.board[start + i] === 0) moves.push(start + i);
+        }
+      }
+    }
+    return moves;
+  }
+
+  checkLocalWin(bIdx) {
+    const s = bIdx * 9;
+    const wins = [[0, 1, 2], [3, 4, 5], [6, 7, 8], [0, 3, 6], [1, 4, 7], [2, 5, 8], [0, 4, 8], [2, 4, 6]];
+    for (const w of wins) {
+      if (this.board[s + w[0]] !== 0 &&
+          this.board[s + w[0]] === this.board[s + w[1]] &&
+          this.board[s + w[0]] === this.board[s + w[2]]) return true;
+    }
+    return false;
+  }
+
+  isLocalFull(bIdx) {
+    const s = bIdx * 9;
+    for (let i = 0; i < 9; i++) if (this.board[s + i] === 0) return false;
+    return true;
+  }
+
+  checkGlobalWin() {
+    const wins = [[0, 1, 2], [3, 4, 5], [6, 7, 8], [0, 3, 6], [1, 4, 7], [2, 5, 8], [0, 4, 8], [2, 4, 6]];
+    for (const w of wins) {
+      const a = this.macroBoard[w[0]];
+      if (a !== 0 && a !== 2 && a === this.macroBoard[w[1]] && a === this.macroBoard[w[2]]) return a;
+    }
+    for (let i = 0; i < 9; i++) if (this.macroBoard[i] === 0) return 0;
+    return 2;
+  }
+
+  evaluate(aiPlayer) {
+    let score = 0;
+    const weights = [30, 20, 30, 20, 50, 20, 30, 20, 30];
+    for (let i = 0; i < 9; i++) {
+      if (this.macroBoard[i] === aiPlayer) score += weights[i] * 100;
+      else if (this.macroBoard[i] === -aiPlayer) score -= weights[i] * 100;
+    }
+    return score;
+  }
+}
+
 exports.getAiMove = onCall({
-  invoker: "allUsers", // This allows Guests and Windows users to call the AI
+  invoker: "allUsers",
   region: "us-central1",
 }, (request) => {
-  // --- Destructure the NEW, richer payload from the app ---
   const {
     boards,
-    boardResults, // ["active", "playerX", "active"]
+    boardResults,
     player,
     difficulty,
     boardCount,
-    forcedBoardIndex, // [NEW] Added for Ultimate mode support
+    forcedBoardIndex,
+    ruleSet,
   } = request.data;
 
-  // --- Input Validation ---
-  if (!boards || !Array.isArray(boards) || !boardResults) {
+  if (!boards || !Array.isArray(boards)) {
     throw new HttpsError("invalid-argument", "Missing required game data.");
   }
 
+  const aiVal = player === "X" ? 1 : -1;
+  const isUltimate = ruleSet === "ultimate" || boardCount === 9;
+
+  logger.info(`AI Request: Diff=${difficulty}, Player=${player}, Ultimate=${isUltimate}`);
+
+  // Use Minimax for Hard difficulty in Ultimate mode
+  if (difficulty === "hard" && isUltimate && boards.length === 9) {
+    try {
+      const engine = new UltimateEngineJS(boards, boardResults, forcedBoardIndex);
+      const result = engine.minimax(4, -Infinity, Infinity, aiVal, aiVal);
+      if (result.move !== -1) {
+        return {
+          boardIndex: Math.floor(result.move / 9),
+          cellIndex: result.move % 9,
+        };
+      }
+    } catch (e) {
+      logger.error("Minimax failed, falling back to heuristic", e);
+    }
+  }
+
+  // Heuristic Fallback for Medium/Easy or failures
+  return computeHeuristicMove(boards, boardResults, player, difficulty, forcedBoardIndex);
+});
+
+function computeHeuristicMove(boards, boardResults, player, difficulty, forcedBoardIndex) {
   const opponent = player === "X" ? "O" : "X";
-  const requiredWins = getRequiredWins(boardCount);
-
-  logger.info(
-    `AI Turn: ${player} vs ${opponent}, Diff: ${difficulty}, ` +
-    `Boards: ${boardCount}, Forced: ${forcedBoardIndex}, WinsNeeded: ${requiredWins}`,
-  );
-
-  // --- Move Scoring Logic ---
   const scoredMoves = [];
 
   for (let b = 0; b < boards.length; b++) {
-    // 1. Only consider moves on boards that are still active
     if (boardResults[b] !== "active") continue;
-
-    // 2. Ultimate Mode: Enforce the forcing mechanic
-    if (forcedBoardIndex !== null && forcedBoardIndex !== undefined && b !== forcedBoardIndex) {
-      continue;
-    }
+    if (forcedBoardIndex !== null && forcedBoardIndex !== undefined && b !== forcedBoardIndex) continue;
 
     for (let c = 0; c < 9; c++) {
       if (boards[b][c] === "" || boards[b][c] === "none") {
         let score = 0;
-        const move = { boardIndex: b, cellIndex: c };
-
-        // --- Hard & Medium Difficulty Logic ---
-        if (difficulty === "hard" || difficulty === "medium") {
-          // Priority 1: Does this move win me the entire match? (+1,000,000)
-          if (
-            isWinningMoveForBoard(boards[b], c, player) &&
-            doesBoardWinCompleteMatch(b, player, boardResults, requiredWins)
-          ) {
-            score += 1000000;
-          }
-
-          // Priority 2: Do I need to block the opponent from winning the match? (+500,000)
-          if (
-            isWinningMoveForBoard(boards[b], c, opponent) &&
-            doesBoardWinCompleteMatch(b, opponent, boardResults, requiredWins)
-          ) {
-            score += 500000;
-          }
-
-          // Priority 3: Does this move win me just THIS board? (+15,000)
-          if (isWinningMoveForBoard(boards[b], c, player)) {
-            score += 15000;
-          }
-
-          // Priority 4: Do I need to block the opponent on THIS board? (+10,000)
-          if (isWinningMoveForBoard(boards[b], c, opponent)) {
-            score += 10000;
-          }
-
-          // Positional bonuses (Center, Corners)
+        if (difficulty !== "easy") {
+          if (isWinningMove(boards[b], c, player)) score += 10000;
+          if (isWinningMove(boards[b], c, opponent)) score += 5000;
           if (c === 4) score += 500;
           if ([0, 2, 6, 8].includes(c)) score += 200;
-        }
-
-        // Easy just gets a random score to shuffle moves
-        if (difficulty === "easy") {
+        } else {
           score = Math.random() * 100;
         }
-
-        scoredMoves.push({ ...move, score });
+        scoredMoves.push({ boardIndex: b, cellIndex: c, score });
       }
     }
   }
 
-  // --- Decision Making ---
-  if (scoredMoves.length === 0) {
-    logger.warn("No valid moves found. Game should have ended.");
-    return { boardIndex: 0, cellIndex: 0 }; // Should be unreachable
-  }
-
-  // Sort by highest score first
   scoredMoves.sort((a, b) => b.score - a.score);
-
-  const bestScore = scoredMoves[0].score;
-  const bestMoves = scoredMoves.filter((m) => m.score === bestScore);
-
-  // If multiple moves have the same top score, pick one randomly
-  const chosenMove = bestMoves[Math.floor(Math.random() * bestMoves.length)];
-
-  logger.info(
-    `Best Score: ${bestScore}. Chose move: Board ${chosenMove.boardIndex}, ` +
-    `Cell ${chosenMove.cellIndex} from ${bestMoves.length} top-tier options.`,
-  );
-
-  return { boardIndex: chosenMove.boardIndex, cellIndex: chosenMove.cellIndex };
-});
-
-// --- Helper Functions ---
-
-/**
- * Checks if placing a piece at a cell index wins the board.
- * @param {Array} board The 9-cell board state.
- * @param {number} cellIndex The cell index to test.
- * @param {string} player The player ("X" or "O").
- * @return {boolean} True if the move wins the board.
- */
-function isWinningMoveForBoard(board, cellIndex, player) {
-  const tempBoard = [...board];
-  tempBoard[cellIndex] = player;
-  return checkWin(tempBoard, player);
+  return scoredMoves.length > 0 ? scoredMoves[0] : { boardIndex: 0, cellIndex: 0 };
 }
 
-/**
- * Checks if winning a specific board results in winning the whole match.
- * @param {number} winningBoardIndex The index of the board being won.
- * @param {string} player The player ("X" or "O").
- * @param {Array} boardResults Current results of all boards.
- * @param {number} requiredWins Wins needed for match victory.
- * @return {boolean} True if the match is won.
- */
-function doesBoardWinCompleteMatch(
-  winningBoardIndex,
-  player,
-  boardResults,
-  requiredWins,
-) {
-  let currentWins = 1; // The board we are hypothetically winning
-  for (let i = 0; i < boardResults.length; i++) {
-    if (i === winningBoardIndex) continue;
-    if (boardResults[i] === (player === "X" ? "playerX" : "playerO")) {
-      currentWins++;
-    }
-  }
-  return currentWins >= requiredWins;
-}
-
-/**
- * Determines how many board wins are needed for a match victory.
- * @param {number} boardCount Total number of boards.
- * @return {number} Wins needed.
- */
-function getRequiredWins(boardCount) {
-  if (boardCount <= 1) return 1;
-  return Math.floor(boardCount / 2) + 1;
-}
-
-/**
- * Checks for a win on a single 9-cell board.
- * @param {Array} board The board cells.
- * @param {string} p The player mark.
- * @return {boolean} True if player has won.
- */
-function checkWin(board, p) {
-  const wins = [
-    [0, 1, 2], [3, 4, 5], [6, 7, 8], // Rows
-    [0, 3, 6], [1, 4, 7], [2, 5, 8], // Columns
-    [0, 4, 8], [2, 4, 6], // Diagonals
-  ];
-  return wins.some((line) => line.every((idx) => board[idx] === p));
+function isWinningMove(board, cellIndex, p) {
+  const temp = [...board];
+  temp[cellIndex] = p;
+  const wins = [[0, 1, 2], [3, 4, 5], [6, 7, 8], [0, 3, 6], [1, 4, 7], [2, 5, 8], [0, 4, 8], [2, 4, 6]];
+  return wins.some((line) => line.every((idx) => temp[idx] === p));
 }

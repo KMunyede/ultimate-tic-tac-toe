@@ -1,3 +1,7 @@
+import 'dart:io';
+import 'dart:math';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 enum DeviceType { mobile, tablet, desktop }
@@ -25,6 +29,14 @@ class ResponsiveLayout {
       deviceType = DeviceType.mobile;
     }
   }
+
+  double get diagonalInches {
+    if (kIsWeb) return 13.0; // Assume laptop for web (fallback)
+    final double ppi = (Platform.isAndroid || Platform.isIOS) ? 160 : 96;
+    return sqrt(pow(width / ppi, 2) + pow(height / ppi, 2));
+  }
+
+  bool get isSmallLandscape => isLandscape && diagonalInches < 7.0;
 
   // Spacing based on device
   double get spacing {

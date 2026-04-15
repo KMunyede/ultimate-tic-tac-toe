@@ -3,16 +3,18 @@
 ## 1. Project Overview
 **Ultimate TicTacToe** is a strategic board game built with Flutter and Firebase. It features a "nested grid" mechanic where winning small 3x3 boards contributes to a larger 3x3 victory.
 
-## 2. Recent Updates (v1.2.0)
-- **Feature-First Architecture:** Deep modularization of the codebase into `core/`, `features/`, and `services/` for better scalability and maintenance.
-- **Refined Authentication:** 
-    - Full support for Google Sign-In and Email/Password authentication.
-    - **Guest Flow (Auto-Pivot):** Anonymous accounts can be seamlessly linked to permanent accounts (`linkWithCredential`) to preserve guest stats.
-    - **Account Recovery:** Implemented a robust "Need Help?" password reset and recovery flow.
-- **App Check Implementation:** Initial integration of Firebase App Check for enhanced API security.
-- **Legal Compliance:** Static legal pages (`privacy.html`, `terms.html`) hosted via Firebase Hosting and linked within the app settings.
-- **Enhanced AI Strategy:** Synchronized AI logic across Local (Isolate-based) and Remote (Cloud Functions) providers.
-- **UI/UX Polish:** Added responsive layout support for tablets/desktop, custom animations for game transitions, and confetti effects for victories.
+## 2. Recent Updates (v1.3.0)
+- **Specialized Match Logic:** 
+    - **Standard Mode:** Support for 1 or 2 boards. Winning 2 boards requires total dominance (winning both).
+    - **Majority Wins:** Support for 1 to 9 boards. For 3 boards, winning 2 is required for victory, with specialized "Nice Effort" and "No Winner" outcomes.
+- **Ultimate Strategy Refinement:** Fixed the "Force Move" logic to ensure Player O (AI) always respects the sub-board redirection rules.
+- **Smart Guest Onboarding:** New players start as guests in Standard Mode with 1 board and a 2-board limit to simplify the initial learning curve.
+- **Direct AI Controls:** Added a "Play vs Online AI" toggle directly to the main screen for quick switching between local and cloud processing.
+- **UI Performance & Stability:** 
+    - Removed background assets to eliminate "Image Decoder" errors and improve startup speed.
+    - Fixed "double-flicker" and white flashes during board transitions and game initialization.
+    - Improved marker visibility and added large winner indicators over won sub-boards.
+- **Robust Cloud Connectivity:** Enhanced Firestore error handling with automatic recovery and clearer console instructions for database setup.
 
 ## 3. Core Features
 - **Nested Grid Mechanics:** A 9x9 grid composed of nine 3x3 sub-boards.

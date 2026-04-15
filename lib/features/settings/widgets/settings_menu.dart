@@ -247,39 +247,70 @@ class _SettingsMenuState extends State<SettingsMenu> {
     BuildContext context,
     SettingsController settings,
   ) {
-    final bool canChangeCount = settings.ruleSet == GameRuleSet.majorityWins;
-    
+    final ruleSet = settings.ruleSet;
+    final bool isUltimate = ruleSet == GameRuleSet.ultimate;
+    final bool isStandard = ruleSet == GameRuleSet.standard;
+    final bool isMajority = ruleSet == GameRuleSet.majorityWins;
+
+    double min = 1;
+    double max = 9;
+    int? divisions = 8;
+    String helpText = '';
+
+    if (isStandard) {
+      min = 1;
+      max = 2;
+      divisions = 1;
+      helpText = 'Standard mode: 1 or 2 boards';
+    } else if (isUltimate) {
+      min = 9;
+      max = 9;
+      divisions = null;
+      helpText = 'Ultimate mode: Fixed at 9 boards';
+    } else if (isMajority) {
+      min = 1;
+      max = 9;
+      divisions = 8;
+      helpText = 'Majority Wins: 1 to 9 boards';
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Boards: ${settings.boardCount}',
-          style: TextStyle(
-            color: canChangeCount ? null : Theme.of(context).disabledColor,
-          ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Boards: ${settings.boardCount}',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: isUltimate ? Theme.of(context).disabledColor : null,
+              ),
+            ),
+            if (isUltimate)
+              const Icon(Icons.lock_outline, size: 16, color: Colors.grey),
+          ],
         ),
         Slider(
-          value: settings.boardCount.toDouble(),
-          min: 1,
-          max: 9,
-          divisions: 8,
+          value: settings.boardCount.toDouble().clamp(min, max),
+          min: min,
+          max: max,
+          divisions: divisions,
           label: settings.boardCount.toString(),
-          onChanged: canChangeCount
-              ? (double value) {
+          onChanged: isUltimate
+              ? null
+              : (double value) {
                   settings.setBoardCount(value.toInt());
-                }
-              : null,
+                },
         ),
-        if (!canChangeCount)
-          Text(
-            settings.ruleSet == GameRuleSet.standard
-                ? 'Standard mode is 1 board only'
-                : 'Ultimate mode is 9 boards only',
-            style: TextStyle(
-              fontSize: 10,
-              color: Theme.of(context).disabledColor,
-            ),
+        Text(
+          helpText,
+          style: TextStyle(
+            fontSize: 11,
+            color: Theme.of(context).disabledColor,
+            fontStyle: FontStyle.italic,
           ),
+        ),
       ],
     );
   }

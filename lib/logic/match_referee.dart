@@ -9,8 +9,39 @@ abstract class MatchRules {
 class StandardMatchRules implements MatchRules {
   @override
   BoardResult checkWinner(List<BoardResult> results) {
-    // Only 1 board, so just return its result
     if (results.isEmpty) return BoardResult.active;
+
+    // 1 Board: Original logic (return the only result)
+    if (results.length == 1) return results.first;
+
+    // 2 Boards: Win condition = player wins BOTH boards
+    if (results.length == 2) {
+      final winsX = results.where((r) => r == BoardResult.playerX).length;
+      final winsO = results.where((r) => r == BoardResult.playerO).length;
+      final activeBoards = results.where((b) => b == BoardResult.active).length;
+
+      if (winsX == 2) return BoardResult.playerX;
+      if (winsO == 2) return BoardResult.playerO;
+
+      // If no one can win both anymore (due to draws or opponent wins)
+      // and no active boards remain, it's a draw.
+      if (activeBoards == 0) {
+        return BoardResult.draw;
+      }
+      
+      // If one board is won by X and the other by O, it's a draw immediately
+      if (winsX == 1 && winsO == 1) {
+        return BoardResult.draw;
+      }
+      
+      // If one board is a draw, then NO ONE can win both.
+      if (results.any((r) => r == BoardResult.draw)) {
+         return BoardResult.draw;
+      }
+
+      return BoardResult.active;
+    }
+
     return results.first;
   }
 }
@@ -19,21 +50,47 @@ class MajorityMatchRules implements MatchRules {
   @override
   BoardResult checkWinner(List<BoardResult> results) {
     final boardCount = results.length;
+
+    // Special Case: 2 Boards (Follows Standard Rule Set: Win BOTH to win match)
+    if (boardCount == 2) {
+      final winsX = results.where((r) => r == BoardResult.playerX).length;
+      final winsO = results.where((r) => r == BoardResult.playerO).length;
+      final activeBoards = results.where((b) => b == BoardResult.active).length;
+
+      if (winsX == 2) return BoardResult.playerX;
+      if (winsO == 2) return BoardResult.playerO;
+
+      if (activeBoards == 0) return BoardResult.draw;
+      if (winsX == 1 && winsO == 1) return BoardResult.draw;
+      if (results.any((r) => r == BoardResult.draw)) return BoardResult.draw;
+      
+      return BoardResult.active;
+    }
+
+    // Standard Majority Logic (for 1, 3-9 boards)
     final requiredWins = (boardCount / 2).floor() + 1;
     
     final winsX = results.where((r) => r == BoardResult.playerX).length;
     final winsO = results.where((r) => r == BoardResult.playerO).length;
     final activeBoards = results.where((b) => b == BoardResult.active).length;
 
+    // 1. Majority Win (reached the threshold)
     if (winsX >= requiredWins) return BoardResult.playerX;
     if (winsO >= requiredWins) return BoardResult.playerO;
 
-    bool xCanStillWin = (winsX + activeBoards) >= requiredWins;
-    bool oCanStillWin = (winsO + activeBoards) >= requiredWins;
+    // 2. Mathematical Elimination
+    bool xCanReachThreshold = (winsX + activeBoards) >= requiredWins;
+    bool oCanReachThreshold = (winsO + activeBoards) >= requiredWins;
 
-    if (!xCanStillWin && !oCanStillWin) return BoardResult.draw;
-    if (activeBoards > 0) return BoardResult.active;
+    if (activeBoards > 0) {
+      if (!xCanReachThreshold && !oCanReachThreshold) {
+        // No one can reach majority anymore
+        return BoardResult.draw;
+      }
+      return BoardResult.active;
+    }
 
+    // 3. Final Result (All boards finished, no one hit majority threshold)
     return BoardResult.draw;
   }
 }

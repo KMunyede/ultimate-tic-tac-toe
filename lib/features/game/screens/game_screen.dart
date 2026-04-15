@@ -10,6 +10,7 @@ import '../../../widgets/game_board.dart';
 import '../../../widgets/game_status_display.dart';
 import '../../../widgets/score_board.dart';
 import '../../../widgets/help_dialog.dart';
+import '../../../widgets/game_mode_toggle.dart';
 import '../../auth/services/auth_service.dart';
 import '../../../utils/responsive_layout.dart';
 
@@ -131,25 +132,15 @@ class _GameScreenState extends State<GameScreen> {
             ],
           ),
         ),
-        body: Stack(
-          children: [
-            Positioned.fill(
-              child: Opacity(
-                opacity: 0.05,
-                child: Image.asset('assets/icon.png', fit: BoxFit.contain),
-              ),
-            ),
-            SafeArea(
-              child: Padding(
-                padding: isLandscape && isMobile 
-                    ? const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0)
-                    : res.screenPadding,
-                child: isLandscape
-                    ? _buildLandscapeLayout(game, scoreBoard, isMobile, res)
-                    : _buildPortraitLayout(game, scoreBoard, isMobile, res),
-              ),
-            ),
-          ],
+        body: SafeArea(
+          child: Padding(
+            padding: isLandscape && isMobile 
+                ? const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0)
+                : res.screenPadding,
+            child: isLandscape
+                ? _buildLandscapeLayout(game, scoreBoard, isMobile, res)
+                : _buildPortraitLayout(game, scoreBoard, isMobile, res),
+          ),
         ),
         floatingActionButton: isLandscape
             ? null
@@ -186,6 +177,7 @@ class _GameScreenState extends State<GameScreen> {
     return Column(
       children: [
         scoreBoard,
+        const GameModeToggle(),
         const GameStatusDisplay(),
         Expanded(
           child: Center(
@@ -229,6 +221,8 @@ class _GameScreenState extends State<GameScreen> {
               child: Column(
                 children: [
                   ScoreBoard(isSmallScreen: false, isVertical: true),
+                  const SizedBox(height: 16),
+                  const GameModeToggle(),
                   const SizedBox(height: 16),
                   const GameStatusDisplay(),
                 ],
@@ -275,6 +269,8 @@ class _GameScreenState extends State<GameScreen> {
                 children: [
                   const SizedBox(height: 10),
                   ScoreBoard(isSmallScreen: true, isVertical: true),
+                  const SizedBox(height: 8),
+                  const GameModeToggle(),
                   const SizedBox(height: 8),
                   const GameStatusDisplay(),
                 ],
@@ -363,6 +359,7 @@ class _GameScreenState extends State<GameScreen> {
                 ),
                 SizedBox(height: res.spacing),
                 scoreBoard,
+                const GameModeToggle(),
                 const GameStatusDisplay(),
                 if (!isLargeScreen) ...[
                   SizedBox(height: res.spacing),

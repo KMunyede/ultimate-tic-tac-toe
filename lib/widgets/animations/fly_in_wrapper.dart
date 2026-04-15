@@ -36,7 +36,8 @@ class _FlyInWrapperState extends State<FlyInWrapper>
       CurvedAnimation(parent: _controller, curve: Curves.easeOutBack),
     );
 
-    Future.delayed(Duration(milliseconds: widget.index * 40), () {
+    // Shortened initial delay to reduce flicker gap
+    Future.delayed(Duration(milliseconds: widget.index * 25), () {
       if (mounted) _controller.forward();
     });
   }

@@ -49,25 +49,40 @@ class SettingsController with ChangeNotifier {
   bool _isFirstRun = true;
   bool get isFirstRun => _isFirstRun;
 
-  Future<void> loadSettings() async {
+  bool _isGuest = false;
+  bool get isGuest => _isGuest;
+
+  Future<void> loadSettings({bool isGuest = false}) async {
+    _isGuest = isGuest;
     final data = await _persistence.loadAll();
+
+    _isFirstRun = data['isFirstRun'] ?? true;
+
+    // Apply Guest First-Run defaults: Standard Mode, 1 Board
+    if (_isFirstRun && _isGuest) {
+      _ruleSet = GameRuleSet.standard;
+      _boardCount = 1;
+      _gameMode = GameMode.playerVsAi;
+    } else {
+      final gameModeName = data['gameMode'] ?? GameMode.playerVsAi.name;
+      _gameMode = GameMode.values.firstWhere(
+        (m) => m.name == gameModeName,
+        orElse: () => GameMode.playerVsAi,
+      );
+
+      final ruleSetName = data['ruleSet'] ?? GameRuleSet.ultimate.name;
+      _ruleSet = GameRuleSet.values.firstWhere(
+        (r) => r.name == ruleSetName,
+        orElse: () => GameRuleSet.ultimate,
+      );
+
+      _boardCount = data['boardCount'] ?? 9;
+    }
 
     final themeName = data['theme'] ?? appThemes.first.name;
     _currentTheme = appThemes.firstWhere(
       (t) => t.name == themeName,
       orElse: () => appThemes.first,
-    );
-
-    final gameModeName = data['gameMode'] ?? GameMode.playerVsAi.name;
-    _gameMode = GameMode.values.firstWhere(
-      (m) => m.name == gameModeName,
-      orElse: () => GameMode.playerVsAi,
-    );
-
-    final ruleSetName = data['ruleSet'] ?? GameRuleSet.ultimate.name;
-    _ruleSet = GameRuleSet.values.firstWhere(
-      (r) => r.name == ruleSetName,
-      orElse: () => GameRuleSet.ultimate,
     );
 
     final aiDifficultyName = data['aiDifficulty'] ?? AiDifficulty.hard.name;
@@ -76,14 +91,15 @@ class SettingsController with ChangeNotifier {
       orElse: () => AiDifficulty.hard,
     );
 
-    _boardCount = data['boardCount'] ?? 9;
     _isSoundOn = data['isSoundOn'] ?? true;
     _isPremium = data['isPremium'] ?? false;
     _useOnlineAi = data['useOnlineAi'] ?? true;
     _scoreX = data['scoreX'] ?? 0;
     _scoreO = data['scoreO'] ?? 0;
     _lastStartingBoardIndex = data['lastStartingBoardIndex'] ?? -1;
-    _isFirstRun = data['isFirstRun'] ?? true;
+
+    // Reset game-specific logic state when settings are loaded to prevent stale resets
+    _resetGameRequested = false;
 
     notifyListeners();
   }
@@ -122,21 +138,47 @@ class SettingsController with ChangeNotifier {
   Future<void> setRuleSet(GameRuleSet ruleSet) async {
     if (_ruleSet != ruleSet) {
       _ruleSet = ruleSet;
-      await _save('ruleSet', ruleSet.name);
-
-      // Enforce board count constraints
+      
+      // Enforce board count constraints on rule change
       if (ruleSet == GameRuleSet.standard) {
         _boardCount = 1;
       } else if (ruleSet == GameRuleSet.ultimate) {
         _boardCount = 9;
       } else if (ruleSet == GameRuleSet.majorityWins) {
-        if (_boardCount < 1 || _boardCount > 9) {
-          _boardCount = 9;
+        _boardCount = _boardCount.clamp(1, 9);
+      }
+      
+      await _save('ruleSet', ruleSet.name);
+      await _save('boardCount', _boardCount);
+      await resetScores();
+      _triggerGameReset();
+    }
+  }
+
+  Future<void> setBoardCount(int count) async {
+    int newCount = _boardCount;
+
+    if (_ruleSet == GameRuleSet.standard) {
+      // Standard: 1 or 2 boards allowed. 
+      // If Guest, explicitly cap at 2.
+      if (_isGuest) {
+        newCount = count.clamp(1, 2);
+      } else {
+        if (count == 1 || count == 2) {
+          newCount = count;
         }
       }
-      await _save('boardCount', _boardCount);
+    } else if (_ruleSet == GameRuleSet.majorityWins) {
+      // Majority Wins: 1 to 9 boards allowed
+      newCount = count.clamp(1, 9);
+    } else if (_ruleSet == GameRuleSet.ultimate) {
+      // Ultimate: Locked at 9, ignore all changes
+      return;
+    }
 
-      await resetScores();
+    if (_boardCount != newCount) {
+      _boardCount = newCount;
+      await _save('boardCount', newCount);
       _triggerGameReset();
     }
   }
@@ -145,17 +187,6 @@ class SettingsController with ChangeNotifier {
     if (_aiDifficulty != difficulty) {
       _aiDifficulty = difficulty;
       await _save('aiDifficulty', difficulty.name);
-      _triggerGameReset();
-    }
-  }
-
-  Future<void> setBoardCount(int count) async {
-    // Only allow board count changes in Majority Wins mode
-    if (_ruleSet != GameRuleSet.majorityWins) return;
-
-    if (_boardCount != count && count > 0 && count <= 9) {
-      _boardCount = count;
-      await _save('boardCount', count);
       _triggerGameReset();
     }
   }
