@@ -7,10 +7,10 @@ class AuthService {
   final GoogleSignIn _googleSignIn = GoogleSignIn.instance;
 
   AuthService() {
-    // Standard configuration for TicTacToe
-    _googleSignIn.initialize(
-      scopes: <String>['email', 'profile', 'openid'],
-    );
+    // Required initialization for version 7.2.0+
+    // Note: Scopes are no longer passed here in 7.2.0;
+    // they are passed to authenticate() or authorizeScopes() instead.
+    _googleSignIn.initialize();
   }
 
   Stream<User?> get user => _auth.authStateChanges();

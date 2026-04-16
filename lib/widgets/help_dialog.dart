@@ -121,15 +121,20 @@ class HelpDialog extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           _buildSectionTitle('Visual Guide', textTheme),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: Image.network(
-              'https://upload.wikimedia.org/wikipedia/commons/3/30/Ultimate_Tic_Tac_Toe_Rules.gif',
-              loadingBuilder: (context, child, loadingProgress) {
-                if (loadingProgress == null) return child;
-                return const Center(child: CircularProgressIndicator());
-              },
-              errorBuilder: (context, error, stackTrace) => const Text('Could not load animation.'),
+          const Center(
+            child: Padding(
+              padding: EdgeInsets.symmetric(vertical: 8.0),
+              child: Column(
+                children: [
+                  Icon(Icons.video_library_outlined, size: 48, color: Colors.blueAccent),
+                  SizedBox(height: 8),
+                  Text(
+                    'Strategic Forcing: Your move dictates where the opponent goes next.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontStyle: FontStyle.italic, fontSize: 12),
+                  ),
+                ],
+              ),
             ),
           ),
           const SizedBox(height: 16),

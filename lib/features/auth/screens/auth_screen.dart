@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../services/auth_service.dart';
 import '../../settings/logic/settings_controller.dart';
 
@@ -64,7 +63,7 @@ class _AuthScreenState extends State<AuthScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Reset Password', style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
+        title: const Text('Reset Password', style: TextStyle(fontWeight: FontWeight.bold)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -139,14 +138,17 @@ class _AuthScreenState extends State<AuthScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // App Logo using assets/icon.png
+                    // App Logo Placeholder (Grid Icon)
                     Center(
-                      child: Image.asset(
-                        'assets/icon.png',
-                        height: 120,
-                        errorBuilder: (context, error, stackTrace) => const Icon(
+                      child: Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: Colors.blueAccent.withValues(alpha: 0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
                           Icons.grid_3x3_rounded, 
-                          size: 100, 
+                          size: 80,
                           color: Colors.blueAccent
                         ),
                       ),
@@ -155,7 +157,7 @@ class _AuthScreenState extends State<AuthScreen> {
                     Text(
                       'Ultimate TicTacToe',
                       textAlign: TextAlign.center,
-                      style: GoogleFonts.poppins(
+                      style: const TextStyle(
                         fontSize: 28,
                         fontWeight: FontWeight.bold,
                         color: Colors.black87,
@@ -165,7 +167,7 @@ class _AuthScreenState extends State<AuthScreen> {
                     Text(
                       greeting,
                       textAlign: TextAlign.center,
-                      style: GoogleFonts.poppins(
+                      style: const TextStyle(
                         fontSize: 16,
                         color: Colors.black54,
                         fontWeight: FontWeight.w500,
@@ -288,11 +290,7 @@ class _AuthScreenState extends State<AuthScreen> {
                           await settings.markFirstRunComplete();
                         }
                       },
-                      icon: Image.network(
-                        'https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg',
-                        height: 24,
-                        errorBuilder: (context, error, stackTrace) => const Icon(Icons.login),
-                      ),
+                      icon: const Icon(Icons.login),
                       label: const Text('Sign in with Google'),
                       style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 12),

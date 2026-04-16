@@ -47,7 +47,6 @@ void main(List<String> args) async {
   if (!kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS)) {
     try {
       await windowManager.ensureInitialized();
-      await windowManager.setIcon('assets/icon.png');
       if (kReleaseMode) {
         WindowOptions windowOptions = const WindowOptions(size: Size(800, 600));
         windowManager.waitUntilReadyToShow(windowOptions, () async {
