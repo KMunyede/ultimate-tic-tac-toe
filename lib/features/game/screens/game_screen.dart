@@ -276,6 +276,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
   }
 
   void _showResumeDialog(BuildContext context, GameController game) {
+    final theme = Theme.of(context);
     showDialog(
       context: context,
       barrierDismissible: false,
