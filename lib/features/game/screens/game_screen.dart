@@ -51,7 +51,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
     _inactivityTimer?.cancel();
     if (_isAutoPaused) return; 
     
-    // Feature only available for Signed Up & Signed In users
+    // Feature Gate: Pause/Resume only available for Registered users
     final settings = context.read<SettingsController>();
     if (settings.isGuest) return;
     
@@ -97,6 +97,14 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
   Widget build(BuildContext context) {
     final game = context.watch<GameController>();
     final soundManager = context.read<SoundManager>();
+    
+    // Check for pending cloud session and show dialog
+    if (game.hasPendingCloudSession) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _showResumeDialog(context, game);
+      });
+    }
+
     final theme = Theme.of(context);
     final res = ResponsiveLayout(context);
 
@@ -263,6 +271,35 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  void _showResumeDialog(BuildContext context, GameController game) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Text('Resume Game?'),
+        content: const Text(
+          'We found an unfinished game in the cloud. Would you like to continue or start a fresh match?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              game.resolvePendingSession(resume: false);
+            },
+            child: const Text('START NEW'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              game.resolvePendingSession(resume: true);
+            },
+            child: const Text('RESUME PREVIOUS'),
+          ),
+        ],
       ),
     );
   }

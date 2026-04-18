@@ -52,18 +52,36 @@ class SettingsController with ChangeNotifier {
   bool _isGuest = false;
   bool get isGuest => _isGuest;
 
+  static const String currentAppVersion = "2.0.0";
+
   Future<void> loadSettings({bool isGuest = false}) async {
     _isGuest = isGuest;
     final data = await _persistence.loadAll();
 
     _isFirstRun = data['isFirstRun'] ?? true;
+    final lastVersion = data['lastVersion'] as String? ?? "0.0.0";
 
-    // Apply Guest First-Run defaults: Standard Mode, 1 Board
-    if (_isFirstRun && _isGuest) {
+    // 1. Mandatory Reset for v2.0.0 Upgrade or First Run
+    if (_isFirstRun || lastVersion != currentAppVersion) {
+      // Force requested defaults
       _ruleSet = GameRuleSet.standard;
-      _boardCount = 1;
+      _boardCount = 2; // Default to 2 boards as requested
       _gameMode = GameMode.playerVsAi;
+      _isSoundOn = true;
+      _useOnlineAi = false; // Online AI = Off by default
+      
+      // Preserve WIN scores if they exist
+      _scoreX = data['scoreX'] ?? 0;
+      _scoreO = data['scoreO'] ?? 0;
+
+      // Update version tracking and mark first run handled
+      await _save('lastVersion', currentAppVersion);
+      if (_isFirstRun) {
+        await _save('isFirstRun', false);
+        _isFirstRun = false;
+      }
     } else {
+      // 2. Normal Loading for subsequent opens
       final gameModeName = data['gameMode'] ?? GameMode.playerVsAi.name;
       _gameMode = GameMode.values.firstWhere(
         (m) => m.name == gameModeName,
@@ -76,11 +94,12 @@ class SettingsController with ChangeNotifier {
         orElse: () => GameRuleSet.standard,
       );
 
-      _boardCount = data['boardCount'] ?? 1;
+      _boardCount = data['boardCount'] ?? 2;
+      _isSoundOn = data['isSoundOn'] ?? true;
+      _useOnlineAi = data['useOnlineAi'] ?? false;
+      _scoreX = data['scoreX'] ?? 0;
+      _scoreO = data['scoreO'] ?? 0;
     }
-
-    _scoreX = data['scoreX'] ?? 0;
-    _scoreO = data['scoreO'] ?? 0;
 
     final themeName = data['theme'] ?? appThemes.first.name;
     _currentTheme = appThemes.firstWhere(
@@ -94,9 +113,7 @@ class SettingsController with ChangeNotifier {
       orElse: () => AiDifficulty.hard,
     );
 
-    _isSoundOn = data['isSoundOn'] ?? true;
     _isPremium = data['isPremium'] ?? false;
-    _useOnlineAi = data['useOnlineAi'] ?? true;
     _lastStartingBoardIndex = data['lastStartingBoardIndex'] ?? -1;
 
     // Reset game-specific logic state when settings are loaded to prevent stale resets
@@ -106,6 +123,10 @@ class SettingsController with ChangeNotifier {
   }
 
   Future<void> _save(String key, dynamic value) async {
+    // Feature Gate: Only save Settings Online/Locally for Registered users
+    // Guests do not persist settings across app restarts
+    if (_isGuest && key != 'isFirstRun' && key != 'lastVersion') return;
+    
     await _persistence.save({key: value});
   }
 
@@ -216,11 +237,17 @@ class SettingsController with ChangeNotifier {
   Future<void> updateScore(Player winner) async {
     if (winner == Player.X) {
       _scoreX++;
-      await _save('scoreX', _scoreX);
     } else if (winner == Player.O) {
       _scoreO++;
+    }
+    
+    // Feature Gate: Only save Scores Online for Registered users
+    // For Guests, we only keep it in memory (across current session)
+    if (!_isGuest) {
+      await _save('scoreX', _scoreX);
       await _save('scoreO', _scoreO);
     }
+
     notifyListeners();
   }
 

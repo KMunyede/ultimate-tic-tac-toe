@@ -22,6 +22,7 @@ class GameController with ChangeNotifier {
   final Random _random = Random();
 
   MatchSession? _session;
+  MatchSession? _pendingCloudSession; // Store for user prompt
   bool _isAiThinking = false;
   bool _isCompletingMove = false; // Guard for state transitions
   int _shakeCounter = 0;
@@ -37,11 +38,11 @@ class GameController with ChangeNotifier {
   }
 
   Future<void> _initGameFromCloud() async {
-    // Registered users load from cloud; Guests always start fresh
+    // Registered users check for cloud state; Guests always start fresh
     if (!_settings.isGuest) {
       final cloudSession = await _firebaseService.loadGameState();
       if (cloudSession != null && !cloudSession.isGameOver) {
-        _session = cloudSession;
+        _pendingCloudSession = cloudSession;
         Future.microtask(() => notifyListeners());
         return;
       }
@@ -50,14 +51,28 @@ class GameController with ChangeNotifier {
     initializeGame(useMicrotask: true);
   }
 
+  /// Called by the UI when the user decides whether to resume or start new.
+  void resolvePendingSession({required bool resume}) {
+    if (_pendingCloudSession == null) return;
+
+    if (resume) {
+      _session = _pendingCloudSession;
+      _pendingCloudSession = null;
+      notifyListeners();
+    } else {
+      _pendingCloudSession = null;
+      initializeGame();
+    }
+  }
+
   // Getters delegated to MatchSession
   List<GameBoard> get boards => _session?.boards ?? [];
 
   Player get currentPlayer => _session?.currentPlayer ?? Player.X;
 
-  Player? get matchWinner => _session?.matchWinner;
-
   MatchOutcome get matchOutcome => _session?.outcome ?? MatchOutcome.active;
+
+  bool get hasPendingCloudSession => _pendingCloudSession != null;
 
   bool get isMatchDraw => _session?.isMatchDraw ?? false;
 
