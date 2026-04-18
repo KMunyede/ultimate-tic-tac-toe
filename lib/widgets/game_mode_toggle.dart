@@ -27,7 +27,8 @@ class GameModeToggle extends StatelessWidget {
       ),
     );
 
-    if (res.isSmallLandscape) {
+    // Use Stacked layout for all Landscape sidebars (Phone and Tablet) to match layout
+    if (res.isLandscape && res.deviceType != DeviceType.desktop) {
       return Container(
         // Match the sidebar width exactly by using double.infinity within the sidebar's constraints
         width: double.infinity,
@@ -139,17 +140,18 @@ class _OnlineAiToggle extends StatelessWidget {
               : theme.colorScheme.outline.withValues(alpha: 0.2),
         ),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            settings.useOnlineAi ? Icons.cloud_done : Icons.cloud_off,
-            size: isCompact ? 14 : 18,
-            color: settings.useOnlineAi ? theme.colorScheme.primary : theme.colorScheme.onSurfaceVariant,
-          ),
-          SizedBox(width: isCompact ? 6 : 8),
-          Flexible(
-            child: Text(
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              settings.useOnlineAi ? Icons.cloud_done : Icons.cloud_off,
+              size: isCompact ? 14 : 18,
+              color: settings.useOnlineAi ? theme.colorScheme.primary : theme.colorScheme.onSurfaceVariant,
+            ),
+            SizedBox(width: isCompact ? 6 : 8),
+            Text(
               'PLAY VS ONLINE AI',
               style: TextStyle(
                 fontSize: isCompact ? 8 : 10,
@@ -158,17 +160,17 @@ class _OnlineAiToggle extends StatelessWidget {
                 letterSpacing: 0.5,
               ),
             ),
-          ),
-          SizedBox(width: isCompact ? 4 : 8),
-          Transform.scale(
-            scale: isCompact ? 0.7 : 0.85,
-            child: Switch(
-              value: settings.useOnlineAi,
-              onChanged: (val) => settings.setUseOnlineAi(val),
-              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            SizedBox(width: isCompact ? 4 : 8),
+            Transform.scale(
+              scale: isCompact ? 0.7 : 0.85,
+              child: Switch(
+                value: settings.useOnlineAi,
+                onChanged: (val) => settings.setUseOnlineAi(val),
+                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

@@ -8,6 +8,7 @@ class MatchSession {
   final GameRuleSet ruleSet;
   Player currentPlayer;
   Player? matchWinner;
+  MatchOutcome outcome = MatchOutcome.active;
   bool isMatchDraw;
   int? forcedBoardIndex; // [NEW] For Ultimate mode
 
@@ -18,9 +19,10 @@ class MatchSession {
     this.matchWinner,
     this.isMatchDraw = false,
     this.forcedBoardIndex,
+    this.outcome = MatchOutcome.active,
   });
 
-  bool get isGameOver => matchWinner != null || isMatchDraw;
+  bool get isGameOver => outcome != MatchOutcome.active;
 
   /// [NEW] Count of boards won by each player within this match session
   int get boardsWonX => boards.where((b) => b.winner == Player.X).length;
@@ -79,7 +81,7 @@ class MatchSession {
     currentPlayer = (currentPlayer == Player.X) ? Player.O : Player.X;
   }
 
-  void _updateMatchStatus() {
+    void _updateMatchStatus() {
     List<BoardResult> results = boards.map((b) {
       if (b.winner == Player.X) return BoardResult.playerX;
       if (b.winner == Player.O) return BoardResult.playerO;
@@ -87,13 +89,18 @@ class MatchSession {
       return BoardResult.active;
     }).toList();
 
-    BoardResult matchResult = MatchReferee.checkMatchWinner(results, ruleSet);
+    outcome = MatchReferee.checkMatchOutcome(results, ruleSet);
 
-    if (matchResult == BoardResult.playerX) {
+    if (outcome == MatchOutcome.winX) {
       matchWinner = Player.X;
-    } else if (matchResult == BoardResult.playerO) {
+    } else if (outcome == MatchOutcome.winO) {
       matchWinner = Player.O;
-    } else if (matchResult == BoardResult.draw) {
+    } else if (outcome == MatchOutcome.draw) {
+      isMatchDraw = true;
+    } else if (outcome == MatchOutcome.noWinner) {
+      // In a "No Winner" scenario, we set isMatchDraw to true 
+      // so the GameController knows the match is technically over 
+      // but without a winner.
       isMatchDraw = true;
     }
   }
@@ -105,6 +112,7 @@ class MatchSession {
     'matchWinner': matchWinner?.name,
     'isMatchDraw': isMatchDraw,
     'forcedBoardIndex': forcedBoardIndex,
+    'outcome': outcome.name,
   };
 
   factory MatchSession.fromJson(Map<String, dynamic> json) {
@@ -119,6 +127,7 @@ class MatchSession {
           : null,
       isMatchDraw: json['isMatchDraw'] as bool? ?? false,
       forcedBoardIndex: json['forcedBoardIndex'] as int?,
+      outcome: MatchOutcome.values.byName(json['outcome'] as String? ?? 'active'),
     );
   }
 }

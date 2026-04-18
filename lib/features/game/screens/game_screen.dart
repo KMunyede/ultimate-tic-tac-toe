@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../logic/game_controller.dart';
+import '../../settings/logic/settings_controller.dart';
 import '../../settings/widgets/settings_menu.dart';
 import '../../../core/audio/sound_manager.dart';
 import '../../../widgets/game_board.dart';
@@ -21,14 +22,18 @@ class GameScreen extends StatefulWidget {
   State<GameScreen> createState() => _GameScreenState();
 }
 
-class _GameScreenState extends State<GameScreen> {
+class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
   StreamSubscription? _aiErrorSubscription;
   DateTime? _lastPressed;
+  Timer? _inactivityTimer;
+  bool _isAutoPaused = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     final game = context.read<GameController>();
+    _startInactivityTimer();
     _aiErrorSubscription = game.aiErrorStream.listen((message) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -42,10 +47,50 @@ class _GameScreenState extends State<GameScreen> {
     });
   }
 
+  void _startInactivityTimer() {
+    _inactivityTimer?.cancel();
+    if (_isAutoPaused) return; 
+    
+    // Feature only available for Signed Up & Signed In users
+    final settings = context.read<SettingsController>();
+    if (settings.isGuest) return;
+    
+    _inactivityTimer = Timer(const Duration(minutes: 1), () {
+      if (mounted && !context.read<GameController>().isOverallGameOver) {
+        setState(() {
+          _isAutoPaused = true;
+        });
+      }
+    });
+  }
+
+  void _resetInactivityTimer() {
+    if (_isAutoPaused) return;
+    _startInactivityTimer();
+  }
+
+  void _resumeFromInactivity() {
+    setState(() {
+      _isAutoPaused = false;
+    });
+    _startInactivityTimer();
+  }
+
   @override
   void dispose() {
+    _inactivityTimer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
     _aiErrorSubscription?.cancel();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    final game = context.read<GameController>();
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
+      // Save state when switching apps or locking screen
+      game.saveCurrentState();
+    }
   }
 
   @override
@@ -86,84 +131,138 @@ class _GameScreenState extends State<GameScreen> {
         }
         SystemNavigator.pop();
       },
-      child: Scaffold(
-        appBar: PreferredSize(
-          preferredSize: Size.fromHeight(isLandscape ? 40 : 56),
-          child: AppBar(
-            title: Text(
-              'Ultimate TicTacToe',
-              style: isMobile 
-                  ? TextStyle(fontSize: isLandscape ? 14 : 16) 
-                  : TextStyle(fontSize: res.titleSize * (isLandscape ? 0.6 : 0.8)),
-            ),
-            backgroundColor: theme.colorScheme.primary,
-            foregroundColor: theme.colorScheme.onPrimary,
-            centerTitle: true,
-            elevation: 0,
-            actions: [
-              IconButton(
-                icon: Icon(Icons.logout, size: isLandscape ? 18 : 24),
-                onPressed: () => context.read<AuthService>().signOut(),
-                tooltip: 'Logout',
+      child: Listener(
+        onPointerDown: (_) => _resetInactivityTimer(),
+        child: Scaffold(
+          appBar: PreferredSize(
+            preferredSize: Size.fromHeight(isLandscape ? 40 : 56),
+            child: AppBar(
+              title: Text(
+                'Ultimate TicTacToe',
+                style: isMobile 
+                    ? TextStyle(fontSize: isLandscape ? 14 : 16) 
+                    : TextStyle(fontSize: res.titleSize * (isLandscape ? 0.6 : 0.8)),
               ),
-              IconButton(
-                icon: Icon(Icons.help_outline, size: isLandscape ? 18 : 24),
-                onPressed: () {
-                  soundManager.playMoveSound();
-                  showDialog(
-                    context: context,
-                    builder: (context) => const HelpDialog(),
-                  );
-                },
-                tooltip: 'Help & About',
-              ),
-              IconButton(
-                icon: Icon(Icons.settings, size: isLandscape ? 18 : 24),
-                onPressed: () {
-                  soundManager.playMoveSound();
-                  showDialog(
-                    context: context,
-                    builder: (context) => const SettingsMenu(),
-                  );
-                },
-                tooltip: 'Settings',
-              ),
-              if (isMobile) const SizedBox(width: 4),
-            ],
-          ),
-        ),
-        body: SafeArea(
-          child: Padding(
-            padding: isLandscape && isMobile 
-                ? const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0)
-                : res.screenPadding,
-            child: isLandscape
-                ? _buildLandscapeLayout(game, scoreBoard, isMobile, res)
-                : _buildPortraitLayout(game, scoreBoard, isMobile, res),
-          ),
-        ),
-        floatingActionButton: isLandscape
-            ? null
-            : SizedBox(
-                height: isMobile ? 40 : 50,
-                child: FloatingActionButton.extended(
+              backgroundColor: theme.colorScheme.primary,
+              foregroundColor: theme.colorScheme.onPrimary,
+              centerTitle: true,
+              elevation: 0,
+              actions: [
+                IconButton(
+                  icon: Icon(Icons.logout, size: isLandscape ? 18 : 24),
+                  onPressed: () => context.read<AuthService>().signOut(),
+                  tooltip: 'Logout',
+                ),
+                IconButton(
+                  icon: Icon(Icons.help_outline, size: isLandscape ? 18 : 24),
                   onPressed: () {
                     soundManager.playMoveSound();
-                    game.resetGame();
+                    showDialog(
+                      context: context,
+                      builder: (context) => const HelpDialog(),
+                    );
                   },
-                  icon: Icon(Icons.refresh, size: isMobile ? 20 : 24),
-                  label: Text(
-                    'New Game',
-                    style: TextStyle(fontSize: isMobile ? 14 : 16),
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  backgroundColor: theme.colorScheme.secondary,
-                  foregroundColor: theme.colorScheme.onSecondary,
-                  elevation: 2,
+                  tooltip: 'Help & About',
+                ),
+                IconButton(
+                  icon: Icon(Icons.settings, size: isLandscape ? 18 : 24),
+                  onPressed: () {
+                    soundManager.playMoveSound();
+                    showDialog(
+                      context: context,
+                      builder: (context) => const SettingsMenu(),
+                    );
+                  },
+                  tooltip: 'Settings',
+                ),
+                if (isMobile) const SizedBox(width: 4),
+              ],
+            ),
+          ),
+          body: Stack(
+            children: [
+              SafeArea(
+                child: Padding(
+                  padding: isLandscape && isMobile 
+                      ? const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0)
+                      : res.screenPadding,
+                  child: isLandscape
+                      ? _buildLandscapeLayout(game, scoreBoard, isMobile, res)
+                      : _buildPortraitLayout(game, scoreBoard, isMobile, res),
                 ),
               ),
+              if (_isAutoPaused)
+                _buildPauseOverlay(theme),
+            ],
+          ),
+          floatingActionButton: isLandscape
+              ? null
+              : SizedBox(
+                  height: isMobile ? 40 : 50,
+                  child: FloatingActionButton.extended(
+                    onPressed: () {
+                      soundManager.playMoveSound();
+                      _resumeFromInactivity(); // Clear pause state and reset timer
+                      game.resetGame();
+                    },
+                    icon: Icon(Icons.refresh, size: isMobile ? 20 : 24),
+                    label: Text(
+                      'New Game',
+                      style: TextStyle(fontSize: isMobile ? 14 : 16),
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    backgroundColor: theme.colorScheme.secondary,
+                    foregroundColor: theme.colorScheme.onSecondary,
+                    elevation: 2,
+                  ),
+                ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPauseOverlay(ThemeData theme) {
+    return Positioned.fill(
+      child: GestureDetector(
+        onTap: _resumeFromInactivity,
+        child: Container(
+          color: Colors.black.withValues(alpha: 0.7),
+          child: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(
+                  Icons.pause_rounded,
+                  size: 100,
+                  color: Colors.white,
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  'GAME PAUSED',
+                  style: theme.textTheme.headlineMedium?.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 2.0,
+                  ),
+                ),
+                const SizedBox(height: 40),
+                ElevatedButton.icon(
+                  onPressed: _resumeFromInactivity,
+                  icon: const Icon(Icons.play_arrow_rounded),
+                  label: const Text('RESUME GAME'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: Colors.black,
+                    padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                    textStyle: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -208,195 +307,176 @@ class _GameScreenState extends State<GameScreen> {
     final isLargeScreen = res.deviceType == DeviceType.desktop;
     final isTablet = res.deviceType == DeviceType.tablet;
 
-    if (isTablet) {
-      // Tablet Landscape: Narrower sidebars, wider middle
-      return Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+    // Combine Tablet and Mobile Landscape for a consistent three-column proportional layout
+    if (isTablet || isMobile) {
+      return Stack(
         children: [
-          // Left: Scores (Reduced width by 20% from 180)
-          SizedBox(
-            width: 144,
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              child: Column(
-                children: [
-                  ScoreBoard(isSmallScreen: false, isVertical: true),
-                  const SizedBox(height: 16),
-                  const GameModeToggle(),
-                  const SizedBox(height: 16),
-                  const GameStatusDisplay(),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(width: 16),
-          // Center: Maximized Board (Takes most space)
-          Expanded(
-            child: Center(
-              child: ConstrainedBox(
-                constraints: BoxConstraints(maxWidth: res.maxBoardSize * 1.3),
-                child: const AspectRatio(
-                  aspectRatio: 1,
-                  child: MultiBoardView(),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Left: Proportional Width (Scores and Toggles)
+              Expanded(
+                flex: 12,
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      ScoreBoard(isSmallScreen: isMobile, isVertical: true),
+                      const SizedBox(height: 12),
+                      const GameModeToggle(),
+                    ],
+                  ),
                 ),
               ),
-            ),
+              // Center: Proportional Width (The Board)
+              Expanded(
+                flex: 30,
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxWidth: isTablet ? res.maxBoardSize * 1.2 : res.maxBoardSize,
+                    ),
+                    child: const AspectRatio(
+                      aspectRatio: 1,
+                      child: MultiBoardView(),
+                    ),
+                  ),
+                ),
+              ),
+              // Right: Proportional Width (Action Buttons)
+              Expanded(
+                flex: 12,
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      ElevatedButton(
+                        onPressed: () {
+                          soundManager.playMoveSound();
+                          _resumeFromInactivity();
+                          game.resetGame();
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: theme.colorScheme.secondary,
+                          foregroundColor: theme.colorScheme.onSecondary,
+                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 12),
+                          minimumSize: const Size(double.infinity, 44),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                        child: const FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            'New Game',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      OutlinedButton(
+                        onPressed: () {
+                          soundManager.playMoveSound();
+                          showDialog(
+                            context: context,
+                            builder: (context) => const HelpDialog(),
+                          );
+                        },
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 12),
+                          minimumSize: const Size(double.infinity, 44),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                        child: const FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            'Help & About',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: 16),
-          // Right: Action Buttons (Reduced width by 20% from 160)
-          SizedBox(
-            width: 128,
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              child: _buildActionButtons(game, theme, soundManager, false, res),
-            ),
+          const Align(
+            alignment: Alignment.bottomCenter,
+            child: GameStatusDisplay(),
           ),
         ],
       );
     }
 
-    if (isMobile) {
-      return Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Left: 1/5 Width
-          Expanded(
-            flex: 1,
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 2),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const SizedBox(height: 10),
-                  ScoreBoard(isSmallScreen: true, isVertical: true),
-                  const SizedBox(height: 8),
-                  const GameModeToggle(),
-                  const SizedBox(height: 8),
-                  const GameStatusDisplay(),
-                ],
-              ),
-            ),
-          ),
-          // Center: 3/5 Width
-          const Expanded(
-            flex: 3,
-            child: Center(
-              child: MultiBoardView(),
-            ),
-          ),
-          // Right: 1/5 Width
-          Expanded(
-            flex: 1,
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 2),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  ElevatedButton(
-                    onPressed: () {
-                      soundManager.playMoveSound();
-                      game.resetGame();
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: theme.colorScheme.secondary,
-                      foregroundColor: theme.colorScheme.onSecondary,
-                      padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 8),
-                      minimumSize: const Size(double.infinity, 40),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-                    ),
-                    child: const Text(
-                      'New Game',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  OutlinedButton(
-                    onPressed: () {
-                      soundManager.playMoveSound();
-                      showDialog(
-                        context: context,
-                        builder: (context) => const HelpDialog(),
-                      );
-                    },
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 8),
-                      minimumSize: const Size(double.infinity, 40),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-                    ),
-                    child: const Text(
-                      'Help & About',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      );
-    }
-
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return Stack(
       children: [
-        // Left side: Title and Scores
-        Expanded(
-          flex: isMobile ? 2 : 3,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Ultimate TicTacToe',
-                  style: TextStyle(
-                    fontSize: res.titleSize,
-                    fontWeight: FontWeight.bold,
-                    color: theme.colorScheme.primary,
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Left side: Title and Scores
+            Expanded(
+              flex: isMobile ? 2 : 3,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Ultimate TicTacToe',
+                      style: TextStyle(
+                        fontSize: res.titleSize,
+                        fontWeight: FontWeight.bold,
+                        color: theme.colorScheme.primary,
+                      ),
+                    ),
+                    SizedBox(height: res.spacing),
+                    scoreBoard,
+                    const GameModeToggle(),
+                    if (!isLargeScreen) ...[
+                      SizedBox(height: res.spacing),
+                      _buildActionButtons(game, theme, soundManager, isMobile, res),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+            SizedBox(width: res.spacing),
+            // Center: The Board
+            Expanded(
+              flex: isMobile ? 4 : 6,
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(maxWidth: res.maxBoardSize),
+                  child: const AspectRatio(
+                    aspectRatio: 1,
+                    child: MultiBoardView(),
                   ),
                 ),
-                SizedBox(height: res.spacing),
-                scoreBoard,
-                const GameModeToggle(),
-                const GameStatusDisplay(),
-                if (!isLargeScreen) ...[
-                  SizedBox(height: res.spacing),
-                  _buildActionButtons(game, theme, soundManager, isMobile, res),
-                ],
-              ],
-            ),
-          ),
-        ),
-        SizedBox(width: res.spacing),
-        // Center: The Board
-        Expanded(
-          flex: isMobile ? 4 : 6,
-          child: Center(
-            child: ConstrainedBox(
-              constraints: BoxConstraints(maxWidth: res.maxBoardSize),
-              child: const AspectRatio(
-                aspectRatio: 1,
-                child: MultiBoardView(),
               ),
             ),
-          ),
-        ),
-        if (isLargeScreen) ...[
-          SizedBox(width: res.spacing),
-          // Right side: Persistent Settings for Tablets/Desktop
-          Expanded(
-            flex: 3,
-            child: Container(
-              decoration: BoxDecoration(
-                color: theme.colorScheme.surfaceContainerLow,
-                borderRadius: BorderRadius.circular(16),
+            if (isLargeScreen) ...[
+              SizedBox(width: res.spacing),
+              // Right side: Persistent Settings for Tablets/Desktop
+              Expanded(
+                flex: 3,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.surfaceContainerLow,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: const SettingsPanel(),
+                ),
               ),
-              child: const SettingsPanel(),
-            ),
-          ),
-        ],
+            ],
+          ],
+        ),
+        const Align(
+          alignment: Alignment.bottomCenter,
+          child: GameStatusDisplay(),
+        ),
       ],
     );
   }
@@ -413,6 +493,7 @@ class _GameScreenState extends State<GameScreen> {
         ElevatedButton.icon(
           onPressed: () {
             soundManager.playMoveSound();
+            _resumeFromInactivity(); // Clear pause state and reset timer
             game.resetGame();
           },
           icon: const Icon(Icons.refresh, size: 20),

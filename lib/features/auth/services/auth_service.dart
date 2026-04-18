@@ -36,10 +36,10 @@ class AuthService {
       final GoogleSignInAuthentication googleAuth = googleUser.authentication;
       
       // Request access token for additional scopes if needed
-      final GoogleSignInClientAuthorization? auth = await googleUser.authorizationClient.authorizeScopes(<String>['email', 'profile', 'openid']);
+      final auth = await googleUser.authorizationClient.authorizeScopes(<String>['email', 'profile', 'openid']);
 
       final AuthCredential credential = GoogleAuthProvider.credential(
-        accessToken: auth?.accessToken,
+        accessToken: auth.accessToken,
         idToken: googleAuth.idToken,
       );
 

@@ -20,13 +20,13 @@ class SettingsController with ChangeNotifier {
   GameMode _gameMode = GameMode.playerVsAi;
   GameMode get gameMode => _gameMode;
 
-  GameRuleSet _ruleSet = GameRuleSet.ultimate;
+  GameRuleSet _ruleSet = GameRuleSet.standard;
   GameRuleSet get ruleSet => _ruleSet;
 
   AiDifficulty _aiDifficulty = AiDifficulty.hard;
   AiDifficulty get aiDifficulty => _aiDifficulty;
 
-  int _boardCount = 9;
+  int _boardCount = 1;
   int get boardCount => _boardCount;
 
   bool _isPremium = false;
@@ -70,14 +70,17 @@ class SettingsController with ChangeNotifier {
         orElse: () => GameMode.playerVsAi,
       );
 
-      final ruleSetName = data['ruleSet'] ?? GameRuleSet.ultimate.name;
+      final ruleSetName = data['ruleSet'] ?? GameRuleSet.standard.name;
       _ruleSet = GameRuleSet.values.firstWhere(
         (r) => r.name == ruleSetName,
-        orElse: () => GameRuleSet.ultimate,
+        orElse: () => GameRuleSet.standard,
       );
 
-      _boardCount = data['boardCount'] ?? 9;
+      _boardCount = data['boardCount'] ?? 1;
     }
+
+    _scoreX = data['scoreX'] ?? 0;
+    _scoreO = data['scoreO'] ?? 0;
 
     final themeName = data['theme'] ?? appThemes.first.name;
     _currentTheme = appThemes.firstWhere(
@@ -94,8 +97,6 @@ class SettingsController with ChangeNotifier {
     _isSoundOn = data['isSoundOn'] ?? true;
     _isPremium = data['isPremium'] ?? false;
     _useOnlineAi = data['useOnlineAi'] ?? true;
-    _scoreX = data['scoreX'] ?? 0;
-    _scoreO = data['scoreO'] ?? 0;
     _lastStartingBoardIndex = data['lastStartingBoardIndex'] ?? -1;
 
     // Reset game-specific logic state when settings are loaded to prevent stale resets

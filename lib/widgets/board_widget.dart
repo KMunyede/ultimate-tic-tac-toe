@@ -4,6 +4,7 @@ import 'dart:math';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 
@@ -72,92 +73,103 @@ class _BoardWidgetState extends State<BoardWidget> {
         final double shadowBlur = shadowOffset * 2;
 
         final hsl = HSLColor.fromColor(themeBgColor);
-        final boardColor = isForced 
-            ? Color.lerp(hsl.withLightness((hsl.lightness - 0.25).clamp(0.0, 1.0)).toColor(), Colors.yellow.withValues(alpha: 0.3), 0.3)!
-            : hsl.withLightness((hsl.lightness - 0.25).clamp(0.0, 1.0)).toColor();
-
-        return TweenAnimationBuilder<double>(
-          key: ValueKey(board.winner),
-          tween: Tween(begin: 0.0, end: 1.0),
-          duration: const Duration(milliseconds: 400),
-          curve: Curves.elasticOut,
-          builder: (context, value, child) {
-            final double shake = (board.winner != null && value < 1.0) ? sin(value * pi * 4) * (boardSize * 0.05) : 0.0;
-            return Transform.translate(
-              offset: Offset(shake, 0),
-              child: Transform(
-                transform: Matrix4.identity()..setEntry(3, 2, 0.001)..rotateX(xRotation)..rotateY(yRotation),
-                alignment: Alignment.center,
-                child: child,
+        
+        // Pulse effect for Forced Board in Ultimate Mode
+        return StatefulBuilder(
+          builder: (context, setInternalState) {
+            final boardContainer = AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              decoration: BoxDecoration(
+                color: isForced 
+                    ? Color.lerp(hsl.withLightness((hsl.lightness - 0.25).clamp(0.0, 1.0)).toColor(), Colors.yellow.withValues(alpha: 0.35), 0.4)!
+                    : hsl.withLightness((hsl.lightness - 0.25).clamp(0.0, 1.0)).toColor(),
+                borderRadius: BorderRadius.circular(borderRadius),
+                border: isForced ? Border.all(color: Colors.yellowAccent, width: 3) : null,
+                boxShadow: [
+                  BoxShadow(color: NeumorphicColors.getDarkShadow(themeBgColor), offset: Offset(shadowOffset, shadowOffset), blurRadius: shadowBlur),
+                  BoxShadow(color: NeumorphicColors.getLightShadow(themeBgColor), offset: Offset(-shadowOffset, -shadowOffset), blurRadius: shadowBlur),
+                  if (isForced)
+                    BoxShadow(color: Colors.yellowAccent.withValues(alpha: 0.6), blurRadius: shadowBlur * 2, spreadRadius: 3),
+                ],
+              ),
+              child: Padding(
+                padding: EdgeInsets.all(padding),
+                child: GridView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 3,
+                    crossAxisSpacing: spacing,
+                    mainAxisSpacing: spacing,
+                  ),
+                  itemCount: 9,
+                  itemBuilder: (context, cellIndex) {
+                    return NeumorphicCell(
+                      onTap: (board.isGameOver || (controller.forcedBoardIndex != null && controller.forcedBoardIndex != widget.boardIndex)) 
+                          ? null 
+                          : () {
+                              HapticFeedback.lightImpact(); // Add Tactile Feedback
+                              controller.makeMove(widget.boardIndex, cellIndex);
+                            },
+                      player: board.cells[cellIndex],
+                      baseColor: isForced 
+                          ? Color.lerp(hsl.withLightness((hsl.lightness - 0.25).clamp(0.0, 1.0)).toColor(), Colors.yellow.withValues(alpha: 0.35), 0.4)!
+                          : hsl.withLightness((hsl.lightness - 0.25).clamp(0.0, 1.0)).toColor(),
+                      isBlocked: board.isGameOver || (controller.forcedBoardIndex != null && controller.forcedBoardIndex != widget.boardIndex),
+                      boardSize: boardSize,
+                    );
+                  },
+                ),
               ),
             );
-          },
-          child: Stack(
-            children: [
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 300),
-                decoration: BoxDecoration(
-                  color: boardColor,
-                  borderRadius: BorderRadius.circular(borderRadius),
-                  border: isForced ? Border.all(color: Colors.yellowAccent, width: 3) : null,
-                  boxShadow: [
-                    BoxShadow(color: NeumorphicColors.getDarkShadow(themeBgColor), offset: Offset(shadowOffset, shadowOffset), blurRadius: shadowBlur),
-                    BoxShadow(color: NeumorphicColors.getLightShadow(themeBgColor), offset: Offset(-shadowOffset, -shadowOffset), blurRadius: shadowBlur),
-                    if (isForced)
-                      BoxShadow(color: Colors.yellowAccent.withValues(alpha: 0.5), blurRadius: shadowBlur * 1.5, spreadRadius: 2),
-                  ],
-                ),
-                child: Padding(
-                  padding: EdgeInsets.all(padding),
-                  child: GridView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 3,
-                      crossAxisSpacing: spacing,
-                      mainAxisSpacing: spacing,
-                    ),
-                    itemCount: 9,
-                    itemBuilder: (context, cellIndex) {
-                      return NeumorphicCell(
-                        onTap: (board.isGameOver || (controller.forcedBoardIndex != null && controller.forcedBoardIndex != widget.boardIndex)) 
-                            ? null 
-                            : () => controller.makeMove(widget.boardIndex, cellIndex),
-                        player: board.cells[cellIndex],
-                        baseColor: boardColor,
-                        isBlocked: board.isGameOver || (controller.forcedBoardIndex != null && controller.forcedBoardIndex != widget.boardIndex),
-                        boardSize: boardSize,
-                      );
-                    },
+
+            return TweenAnimationBuilder<double>(
+              key: ValueKey(board.winner),
+              tween: Tween(begin: 0.0, end: 1.0),
+              duration: const Duration(milliseconds: 400),
+              curve: Curves.elasticOut,
+              builder: (context, value, child) {
+                final double shake = (board.winner != null && value < 1.0) ? sin(value * pi * 4) * (boardSize * 0.05) : 0.0;
+                return Transform.translate(
+                  offset: Offset(shake, 0),
+                  child: Transform(
+                    transform: Matrix4.identity()..setEntry(3, 2, 0.001)..rotateX(xRotation)..rotateY(yRotation),
+                    alignment: Alignment.center,
+                    child: child,
                   ),
-                ),
-              ),
-              if (board.winner != null)
-                Positioned.fill(
-                  child: IgnorePointer(
-                    child: Center(
-                      child: AnimatedMarker(
-                        player: board.winner!,
-                        boardSize: boardSize,
-                        isLarge: true,
+                );
+              },
+              child: Stack(
+                children: [
+                  boardContainer,
+                  if (board.winner != null)
+                    Positioned.fill(
+                      child: IgnorePointer(
+                        child: Center(
+                          child: AnimatedMarker(
+                            player: board.winner!,
+                            boardSize: boardSize,
+                            isLarge: true,
+                          ),
+                        ),
                       ),
                     ),
-                  ),
-                ),
-              if (board.winner != null && board.winningLine != null)
-                Positioned.fill(
-                  child: WinningLineWidget(
-                    winner: board.winner!,
-                    winningLine: board.winningLine!,
-                    boardSize: boardSize,
-                    padding: padding,
-                    spacing: spacing,
-                  ),
-                ),
-              if (board.winner != null)
-                Positioned.fill(child: BoardWinnerEffect(winner: board.winner!, boardSize: boardSize)),
-            ],
-          ),
+                  if (board.winner != null && board.winningLine != null)
+                    Positioned.fill(
+                      child: WinningLineWidget(
+                        winner: board.winner!,
+                        winningLine: board.winningLine!,
+                        boardSize: boardSize,
+                        padding: padding,
+                        spacing: spacing,
+                      ),
+                    ),
+                  if (board.winner != null)
+                    Positioned.fill(child: BoardWinnerEffect(winner: board.winner!, boardSize: boardSize)),
+                ],
+              ),
+            );
+          }
         );
       },
     );
@@ -503,9 +515,10 @@ class MarkerPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final double baseStrokeWidth = isLarge ? boardSize * 0.12 : boardSize * 0.04;
+    // Increased base factor from 0.04 to 0.07 for much better visibility on small boards
+    final double baseStrokeWidth = isLarge ? boardSize * 0.12 : boardSize * 0.07;
     final paint = Paint()
-      ..strokeWidth = baseStrokeWidth.clamp(isLarge ? 4.0 : 1.5, isLarge ? 40.0 : 10.0)
+      ..strokeWidth = baseStrokeWidth.clamp(isLarge ? 4.0 : 2.5, isLarge ? 40.0 : 12.0)
       ..strokeCap = StrokeCap.round
       ..style = PaintingStyle.stroke;
 

@@ -7,6 +7,7 @@ import '../../../services/firebase_service.dart';
 import '../../../models/game_board.dart';
 import '../../../models/match_session.dart';
 import '../../../models/player.dart';
+import '../../../logic/match_referee.dart';
 import '../../../services/ai_service.dart';
 import '../../../services/stats_service.dart';
 import '../../settings/logic/settings_controller.dart';
@@ -36,13 +37,17 @@ class GameController with ChangeNotifier {
   }
 
   Future<void> _initGameFromCloud() async {
-    final cloudSession = await _firebaseService.loadGameState();
-    if (cloudSession != null && !cloudSession.isGameOver) {
-      _session = cloudSession;
-      Future.microtask(() => notifyListeners());
-    } else {
-      initializeGame(useMicrotask: true);
+    // Registered users load from cloud; Guests always start fresh
+    if (!_settings.isGuest) {
+      final cloudSession = await _firebaseService.loadGameState();
+      if (cloudSession != null && !cloudSession.isGameOver) {
+        _session = cloudSession;
+        Future.microtask(() => notifyListeners());
+        return;
+      }
     }
+    
+    initializeGame(useMicrotask: true);
   }
 
   // Getters delegated to MatchSession
@@ -51,6 +56,8 @@ class GameController with ChangeNotifier {
   Player get currentPlayer => _session?.currentPlayer ?? Player.X;
 
   Player? get matchWinner => _session?.matchWinner;
+
+  MatchOutcome get matchOutcome => _session?.outcome ?? MatchOutcome.active;
 
   bool get isMatchDraw => _session?.isMatchDraw ?? false;
 
@@ -75,23 +82,53 @@ class GameController with ChangeNotifier {
   int? get forcedBoardIndex => _session?.forcedBoardIndex;
 
   String? get statusMessage {
-    if (isMatchDraw) {
-      if (_settings.ruleSet == GameRuleSet.majorityWins && boards.length == 3) {
-        if (boardsWonX > 0 || boardsWonO > 0) {
-          return "Nice Effort. No overall wins";
-        } else {
-          return "No wins. Try again";
-        }
+    if (isOverallGameOver) {
+      if (matchOutcome == MatchOutcome.winX) return 'Player X Wins!';
+      if (matchOutcome == MatchOutcome.winO) return 'Player O Wins!';
+      if (matchOutcome == MatchOutcome.draw) return "It's A Draw! Play Again?";
+      if (matchOutcome == MatchOutcome.noWinner) {
+        return (boardsWonX + boardsWonO) > 0 
+            ? "No clear winner. Play again?" 
+            : "No wins. Try again";
       }
-      return "Almost Equally matched!!";
     }
-    if (matchWinner != null) {
-      return 'Player ${matchWinner == Player.X ? "X" : "O"} Wins!';
-    }
+
     if (_isAiThinking) {
       return 'AI is thinking...';
     }
     return "Player ${currentPlayer == Player.X ? "X" : "O"}'s Turn";
+  }
+
+  String get winTargetMessage {
+    if (isOverallGameOver) return "";
+    
+    final count = boards.length;
+    final ruleSet = _settings.ruleSet;
+    
+    if (ruleSet == GameRuleSet.ultimate) {
+      return "Conquer 3-in-a-row to claim Victory";
+    }
+    
+    if (ruleSet == GameRuleSet.standard) {
+      if (count == 1) return "Conquer the board to claim Victory";
+      if (count == 2) return "Conquer both boards to claim Victory";
+    }
+    
+    if (ruleSet == GameRuleSet.majorityWins) {
+      switch (count) {
+        case 1: return "Conquer the board to claim Victory";
+        case 2: return "Conquer 2 boards to claim Victory";
+        case 3: return "Conquer 2 or 3 boards to claim Victory";
+        case 4: return "Conquer 3 or 4 boards to claim Victory";
+        case 5: return "Conquer 4 or 5 boards to claim Victory";
+        case 6: return "Conquer 4, 5 or 6 boards to claim Victory";
+        case 7: return "Conquer 5, 6 or 7 boards to claim Victory";
+        case 8: return "Conquer 5, 6, 7 or 8 boards to claim Victory";
+        case 9: return "Conquer 5, 6, 7, 8 or 9 boards to claim Victory";
+      }
+    }
+    
+    return "";
   }
 
   void updateDependencies(SettingsController settings) {
@@ -109,6 +146,15 @@ class GameController with ChangeNotifier {
 
   void resetGame() {
     initializeGame();
+  }
+
+  /// Explicitly saves the current game state to the cloud/local storage.
+  /// Used for lifecycle management (pausing/resuming).
+  Future<void> saveCurrentState() async {
+    // Only registered users persist state across sessions
+    if (!_settings.isGuest && _session != null && !isOverallGameOver) {
+      await _firebaseService.saveGameState(_session!);
+    }
   }
 
   void initializeGame({bool useMicrotask = false}) {
@@ -145,6 +191,11 @@ class GameController with ChangeNotifier {
     _isAiThinking = false;
     _shakeCounter = 0;
 
+    // Sync to cloud immediately for registered users to start a fresh "session"
+    if (!_settings.isGuest) {
+      unawaited(_firebaseService.saveGameState(_session!));
+    }
+
     if (useMicrotask) {
       Future.microtask(() => notifyListeners());
     } else {
@@ -175,30 +226,34 @@ class GameController with ChangeNotifier {
     final success = _session!.applyMove(boardIndex, cellIndex);
 
     if (success) {
+      // 1. Play sound immediately
       _soundManager.playMoveSound();
 
+      // 2. Notify listeners IMMEDIATELY so the mark appears without lag
+      notifyListeners();
+
+      // 3. Handle Game Over sounds/stats
       if (!wasMatchOverBefore && isOverallGameOver) {
         if (matchWinner != null) {
           _soundManager.playWinSound();
           _shakeCounter++;
+          
+          // Persist Game Win for ALL users (Guest and Registered)
+          _settings.updateScore(matchWinner!);
+          _statsService.updateWinCount(matchWinner!);
         } else if (isMatchDraw) {
           _soundManager.playDrawSound();
         }
       }
 
-      if (isOverallGameOver) {
-        if (matchWinner != null) {
-          _settings.updateScore(matchWinner!);
-          _statsService.updateWinCount(matchWinner!);
-        }
+      // 4. Background Cloud Sync (don't block the UI thread)
+      if (!_settings.isGuest) {
+        unawaited(_firebaseService.saveGameState(_session!));
       }
 
-      // Sync state to Cloud (one call handles both mid-game and final state)
-      await _firebaseService.saveGameState(_session!);
-
       _isCompletingMove = false;
-      notifyListeners();
 
+      // 5. Trigger AI if necessary
       if (!isOverallGameOver &&
           _settings.gameMode == GameMode.playerVsAi &&
           currentPlayer == Player.O) {
