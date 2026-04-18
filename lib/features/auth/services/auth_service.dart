@@ -22,7 +22,8 @@ class AuthService {
     try {
       return await _auth.signInAnonymously();
     } on FirebaseAuthException catch (e) {
-      if (kDebugMode) print('Anonymous Sign In Error: ${e.code} - ${e.message}');
+      if (kDebugMode)
+        print('Anonymous Sign In Error: ${e.code} - ${e.message}');
       rethrow;
     }
   }
@@ -33,9 +34,10 @@ class AuthService {
       final GoogleSignInAccount googleUser = await _googleSignIn.authenticate();
 
       final GoogleSignInAuthentication googleAuth = googleUser.authentication;
-      
+
       // Request access token for additional scopes if needed
-      final auth = await googleUser.authorizationClient.authorizeScopes(<String>['email', 'profile', 'openid']);
+      final auth = await googleUser.authorizationClient
+          .authorizeScopes(<String>['email', 'profile', 'openid']);
 
       final AuthCredential credential = GoogleAuthProvider.credential(
         accessToken: auth.accessToken,
@@ -59,11 +61,13 @@ class AuthService {
   }
 
   /// Link an existing Guest session to Email/Password
-  Future<UserCredential?> linkEmailPassword(String email, String password) async {
+  Future<UserCredential?> linkEmailPassword(
+      String email, String password) async {
     try {
-      final credential = EmailAuthProvider.credential(email: email, password: password);
+      final credential =
+          EmailAuthProvider.credential(email: email, password: password);
       final user = _auth.currentUser;
-      
+
       if (user != null) {
         return await user.linkWithCredential(credential);
       }
@@ -122,9 +126,11 @@ class AuthService {
   Future<void> signOut() async {
     try {
       await _auth.signOut();
-      
+
       // Google Sign-In signout is platform-dependent
-      if (!kIsWeb && (defaultTargetPlatform == TargetPlatform.android || defaultTargetPlatform == TargetPlatform.iOS)) {
+      if (!kIsWeb &&
+          (defaultTargetPlatform == TargetPlatform.android ||
+              defaultTargetPlatform == TargetPlatform.iOS)) {
         await _googleSignIn.signOut();
       }
     } catch (e) {
