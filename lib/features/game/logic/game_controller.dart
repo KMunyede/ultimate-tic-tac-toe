@@ -70,6 +70,8 @@ class GameController with ChangeNotifier {
 
   Player get currentPlayer => _session?.currentPlayer ?? Player.X;
 
+  Player? get matchWinner => _session?.matchWinner;
+
   MatchOutcome get matchOutcome => _session?.outcome ?? MatchOutcome.active;
 
   bool get hasPendingCloudSession => _pendingCloudSession != null;

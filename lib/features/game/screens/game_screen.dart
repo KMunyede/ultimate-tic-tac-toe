@@ -297,6 +297,11 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
               Navigator.pop(context);
               game.resolvePendingSession(resume: true);
             },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: theme.colorScheme.primaryContainer,
+              foregroundColor: const Color(0xFF0D47A1), // Dark Blue to match Player O / Tiles
+              textStyle: const TextStyle(fontWeight: FontWeight.bold),
+            ),
             child: const Text('RESUME PREVIOUS'),
           ),
         ],
