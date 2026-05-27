@@ -66,22 +66,22 @@ final List<AppTheme> appThemes = [
   const AppTheme(
     name: 'Sunset Glass (Light)',
     brightness: Brightness.light,
-    mainColor: Color(0xFFFF4500), // Sunset Red-Orange
-    scaffoldBg: Color(0xFFFFF5EE), // Soft Seashell White
-    boardBg: Color(0xFFFFFFFF), // Pure White Card
-    accentGlow: Color(0xFFFFA500), // Sun Orange
-    textColor: Colors.black87,
-    bgGradient: [Color(0xFFFFFAF0), Color(0xFFFFE4B5), Color(0xFFFFF0F5)],
+    mainColor: Color(0xFFD84315), // Deep Sunset Rust Orange (soft low-glare)
+    scaffoldBg: Color(0xFFFCE4D6), // Muted pastel warm clay
+    boardBg: Color(0xFFF5C2B1), // Elegant Frosted Peach-Glass Card (No blinding white!)
+    accentGlow: Color(0xFFFF8F00), // Vibrant amber flare
+    textColor: Color(0xFF3E2723), // Highly visible warm dark chocolate text
+    bgGradient: [Color(0xFFFBE9E7), Color(0xFFFFCCBC), Color(0xFFFFD180)],
   ),
   const AppTheme(
     name: 'Ocean Glass (Light)',
     brightness: Brightness.light,
-    mainColor: Color(0xFF1E90FF), // Ocean Blue
-    scaffoldBg: Color(0xFFF0F8FF), // Alice Soft Blue
-    boardBg: Color(0xFFFFFFFF), // Pure White Card
-    accentGlow: Color(0xFF00E5FF), // Teal Glow
-    textColor: Colors.black87,
-    bgGradient: [Color(0xFFF0F8FF), Color(0xFFD9F2FF), Color(0xFFE6F2FF)],
+    mainColor: Color(0xFF1565C0), // Calming Deep Ocean Blue
+    scaffoldBg: Color(0xFFE1F5FE), // Muted pastel sky blue
+    boardBg: Color(0xFFB3E5FC), // Frosted Ice-Blue Glass Card (No blinding white!)
+    accentGlow: Color(0xFF00ACC1), // Rich teal water flare
+    textColor: Color(0xFF0D47A1), // Highly visible deep navy text
+    bgGradient: [Color(0xFFE0F7FA), Color(0xFFB2EBF2), Color(0xFFE1F5FE)],
   ),
 ];
 
