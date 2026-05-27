@@ -28,6 +28,28 @@ class GameController with ChangeNotifier {
   int _shakeCounter = 0;
   final _aiErrorController = StreamController<String>.broadcast();
 
+  // [NEW] Active power-up card states
+  PowerUpType? _activePowerUp;
+  PowerUpType? get activePowerUp => _activePowerUp;
+
+  void selectPowerUp(PowerUpType? type) {
+    if (_activePowerUp == type) {
+      _activePowerUp = null; // Toggle off
+    } else {
+      _activePowerUp = type;
+    }
+    notifyListeners();
+  }
+
+  // [NEW] Card inventory delegations to MatchSession
+  int get shieldCardsX => _session?.shieldCardsX ?? 0;
+  int get eraserCardsX => _session?.eraserCardsX ?? 0;
+  int get hackerCardsX => _session?.hackerCardsX ?? 0;
+
+  int get shieldCardsO => _session?.shieldCardsO ?? 0;
+  int get eraserCardsO => _session?.eraserCardsO ?? 0;
+  int get hackerCardsO => _session?.hackerCardsO ?? 0;
+
   GameController(
     this._soundManager,
     this._settings,
@@ -224,6 +246,7 @@ class GameController with ChangeNotifier {
     int boardIndex,
     int cellIndex, {
     bool isAiMove = false,
+    PowerUpType? aiPowerUp,
   }) async {
     if (_session == null || isOverallGameOver) return;
 
@@ -240,7 +263,17 @@ class GameController with ChangeNotifier {
     _isCompletingMove = true;
     final bool wasMatchOverBefore = isOverallGameOver;
 
-    final success = _session!.applyMove(boardIndex, cellIndex);
+    final bool success;
+    if (!isAiMove && _activePowerUp != null) {
+      success = _session!.applyPowerUp(boardIndex, cellIndex, _activePowerUp!);
+      if (success) {
+        _activePowerUp = null; // Reset selection on success
+      }
+    } else if (isAiMove && aiPowerUp != null) {
+      success = _session!.applyPowerUp(boardIndex, cellIndex, aiPowerUp);
+    } else {
+      success = _session!.applyMove(boardIndex, cellIndex);
+    }
 
     if (success) {
       // 1. Play sound immediately
@@ -257,10 +290,16 @@ class GameController with ChangeNotifier {
           
           // Persist Game Win for ALL users (Guest and Registered)
           _settings.updateScore(matchWinner!);
-          _statsService.updateWinCount(matchWinner!);
         } else if (isMatchDraw) {
           _soundManager.playDrawSound();
         }
+
+        // Record progression stats (wins, losses, draws, and XP grants)
+        unawaited(_statsService.recordMatchOutcome(
+          gameMode: _settings.gameMode,
+          aiDifficulty: _settings.aiDifficulty,
+          outcome: matchOutcome,
+        ));
       }
 
       // 4. Background Cloud Sync (don't block the UI thread)
@@ -288,20 +327,62 @@ class GameController with ChangeNotifier {
     notifyListeners();
 
     try {
-      final aiMove = await _aiService.getBestMove(
-        boards: boards,
-        aiPlayer: currentPlayer,
-        difficulty: _settings.aiDifficulty,
-        boardCount: _settings.boardCount,
-        ruleSet: _settings.ruleSet,
-        useOnlineAi: _settings.useOnlineAi,
-        forcedBoardIndex: forcedBoardIndex,
-      ).timeout(const Duration(seconds: 20));
+      PowerUpType? selectedAiPowerUp;
+      int selectedBoardIdx = -1;
+      int selectedCellIdx = -1;
 
-      if (aiMove != null) {
-        await makeMove(aiMove.boardIndex, aiMove.cellIndex, isAiMove: true);
+      // Smart AI Heuristic for Chaos Mode (AI is O)
+      if (_settings.ruleSet == GameRuleSet.chaos && forcedBoardIndex != null) {
+        final forcedIdx = forcedBoardIndex!;
+        if (!boards[forcedIdx].isGameOver) {
+          final board = boards[forcedIdx];
+          
+          // Heuristic 1: If opponent (X) is about to win the sub-board, Hacker/Erase it
+          if (board.hasThreat(Player.X)) {
+            int threatCellIdx = _findThreatCellIndex(board, Player.X);
+            if (threatCellIdx != -1 && !board.shields[threatCellIdx]) {
+              if (hackerCardsO > 0 && _random.nextDouble() < 0.45) {
+                selectedAiPowerUp = PowerUpType.hacker;
+                selectedBoardIdx = forcedIdx;
+                selectedCellIdx = threatCellIdx;
+              } else if (eraserCardsO > 0 && _random.nextDouble() < 0.35) {
+                selectedAiPowerUp = PowerUpType.eraser;
+                selectedBoardIdx = forcedIdx;
+                selectedCellIdx = threatCellIdx;
+              }
+            }
+          }
+          
+          // Heuristic 2: If AI itself is close to a sub-board win, protect the board or shield key marks
+          if (selectedAiPowerUp == null && board.hasThreat(Player.O) && shieldCardsO > 0) {
+            int emptyThreatCellIdx = _findThreatCellIndex(board, Player.O);
+            if (emptyThreatCellIdx != -1 && !board.shields[emptyThreatCellIdx] && _random.nextDouble() < 0.35) {
+              selectedAiPowerUp = PowerUpType.shield;
+              selectedBoardIdx = forcedIdx;
+              selectedCellIdx = emptyThreatCellIdx;
+            }
+          }
+        }
+      }
+
+      if (selectedAiPowerUp != null) {
+        await makeMove(selectedBoardIdx, selectedCellIdx, isAiMove: true, aiPowerUp: selectedAiPowerUp);
       } else {
-        _handleAiFailure("AI could not determine a valid move.");
+        final aiMove = await _aiService.getBestMove(
+          boards: boards,
+          aiPlayer: currentPlayer,
+          difficulty: _settings.aiDifficulty,
+          boardCount: _settings.boardCount,
+          ruleSet: _settings.ruleSet,
+          useOnlineAi: _settings.useOnlineAi,
+          forcedBoardIndex: forcedBoardIndex,
+        ).timeout(const Duration(seconds: 20));
+
+        if (aiMove != null) {
+          await makeMove(aiMove.boardIndex, aiMove.cellIndex, isAiMove: true);
+        } else {
+          _handleAiFailure("AI could not determine a valid move.");
+        }
       }
     } catch (e) {
       _handleAiFailure("AI calculation error: $e");
@@ -309,6 +390,29 @@ class GameController with ChangeNotifier {
       _isAiThinking = false;
       notifyListeners();
     }
+  }
+
+  int _findThreatCellIndex(GameBoard board, Player player) {
+    const List<List<int>> winningCombos = [
+      [0, 1, 2], [3, 4, 5], [6, 7, 8],
+      [0, 3, 6], [1, 4, 7], [2, 5, 8],
+      [0, 4, 8], [2, 4, 6],
+    ];
+    for (final combo in winningCombos) {
+      int count = 0;
+      int emptyIdx = -1;
+      for (int idx in combo) {
+        if (board.cells[idx] == player) {
+          count++;
+        } else if (board.cells[idx] == Player.none) {
+          emptyIdx = idx;
+        }
+      }
+      if (count == 2 && emptyIdx != -1) {
+        return emptyIdx;
+      }
+    }
+    return -1;
   }
 
   void _handleAiFailure(String reason) {

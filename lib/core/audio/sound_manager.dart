@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart';
 
@@ -10,10 +11,12 @@ import '../../features/settings/logic/settings_controller.dart';
 /// sound settings from `SettingsController`.
 class SoundManager {
   final SettingsController _settingsController;
+  final Random _random = Random();
 
-  // A single player instance is memory-efficient for sequential sound effects.
-  // Using one instance ensures we don't leak resources on mobile/desktop.
-  final AudioPlayer _audioPlayer = AudioPlayer();
+  // Pre-allocated circular audio player pool for rapid simultaneous overlapping sounds
+  static const int _poolSize = 4;
+  final List<AudioPlayer> _pool = List.generate(_poolSize, (_) => AudioPlayer());
+  int _currentPoolIndex = 0;
 
   // Define asset paths as constants for easy management and to avoid typos.
   // Paths align with the 'assets/' prefix defined in pubspec.yaml
@@ -26,18 +29,27 @@ class SoundManager {
   /// Initializes the sound manager.
   Future<void> init() async {
     if (kDebugMode) {
-      print("SoundManager initialized. Sounds will be loaded on first play.");
+      print("SoundManager initialized with pool size of $_poolSize. Sounds will be loaded on first play.");
     }
   }
 
   /// A private helper to play a sound from assets, respecting sound settings.
-  Future<void> _playSound(String soundPath) async {
+  Future<void> _playSound(String soundPath, {double? playbackRate}) async {
     if (_settingsController.isSoundOn) {
       try {
-        // We stop any currently playing sound to ensure the new one plays immediately
-        // (especially important for rapid moves).
-        await _audioPlayer.stop();
-        await _audioPlayer.play(AssetSource(soundPath));
+        final player = _pool[_currentPoolIndex];
+        _currentPoolIndex = (_currentPoolIndex + 1) % _poolSize;
+
+        // We stop the player if it's currently playing a previous sound to re-trigger immediately
+        await player.stop();
+
+        if (playbackRate != null) {
+          await player.setPlaybackRate(playbackRate);
+        } else {
+          await player.setPlaybackRate(1.0); // Reset to standard speed
+        }
+
+        await player.play(AssetSource(soundPath));
       } catch (e) {
         if (kDebugMode) {
           print("Error playing sound ($soundPath): $e");
@@ -46,9 +58,11 @@ class SoundManager {
     }
   }
 
-  /// Plays the standard move sound.
+  /// Plays the standard move sound with micro pitch modulation.
   Future<void> playMoveSound() async {
-    await _playSound(_moveSoundPath);
+    // Generate speed/pitch between 0.94 and 1.06 (micro pitch variation of +/- 6%)
+    final double pitchMultiplier = 0.94 + _random.nextDouble() * 0.12;
+    await _playSound(_moveSoundPath, playbackRate: pitchMultiplier);
   }
 
   /// Plays the win sound.
@@ -61,19 +75,23 @@ class SoundManager {
     await _playSound(_drawSoundPath);
   }
 
-  /// Stops any currently playing sound.
+  /// Stops any currently playing sound on all players in the pool.
   Future<void> stop() async {
-    try {
-      await _audioPlayer.stop();
-    } catch (e) {
-      if (kDebugMode) {
-        print("Error stopping sound: $e");
+    for (var player in _pool) {
+      try {
+        await player.stop();
+      } catch (e) {
+        if (kDebugMode) {
+          print("Error stopping sound: $e");
+        }
       }
     }
   }
 
-  /// Releases the audio player resources.
+  /// Releases all audio player resources in the pool.
   void dispose() {
-    _audioPlayer.dispose();
+    for (var player in _pool) {
+      player.dispose();
+    }
   }
 }

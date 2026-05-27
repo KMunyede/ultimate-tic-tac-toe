@@ -3,12 +3,14 @@ import 'player.dart';
 /// Represents a single Tic-Tac-Toe board
 class GameBoard {
   List<Player> cells;
+  List<bool> shields; // [NEW] Track cell-level shields in Chaos Mode
   Player? winner;
   List<int>? winningLine;
   bool isDraw;
 
   GameBoard()
     : cells = List.filled(9, Player.none),
+      shields = List.filled(9, false),
       winner = null,
       winningLine = null,
       isDraw = false;
@@ -16,6 +18,7 @@ class GameBoard {
   /// Internal constructor for deserialization
   GameBoard.full({
     required this.cells,
+    required this.shields,
     this.winner,
     this.winningLine,
     required this.isDraw,
@@ -25,6 +28,7 @@ class GameBoard {
 
   void reset() {
     cells = List.filled(9, Player.none);
+    shields = List.filled(9, false);
     winner = null;
     winningLine = null;
     isDraw = false;
@@ -94,6 +98,7 @@ class GameBoard {
 
   Map<String, dynamic> toJson() => {
     'cells': cells.map((e) => e.name).toList(),
+    'shields': shields,
     'winner': winner?.name,
     'winningLine': winningLine,
     'isDraw': isDraw,
@@ -104,6 +109,9 @@ class GameBoard {
       cells: (json['cells'] as List)
           .map((e) => Player.values.byName(e as String))
           .toList(),
+      shields: json['shields'] != null
+          ? List<bool>.from(json['shields'] as List)
+          : List.filled(9, false),
       winner: json['winner'] != null
           ? Player.values.byName(json['winner'] as String)
           : null,
@@ -114,3 +122,4 @@ class GameBoard {
     );
   }
 }
+

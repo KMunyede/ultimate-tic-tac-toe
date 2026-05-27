@@ -8,9 +8,11 @@ import '../../settings/logic/settings_controller.dart';
 import '../../settings/widgets/settings_menu.dart';
 import '../../../core/audio/sound_manager.dart';
 import '../../../widgets/game_board.dart';
-import '../../../widgets/game_status_display.dart';
-import '../../../widgets/score_board.dart';
 import '../../../widgets/help_dialog.dart';
+import '../../../widgets/profile_stats_dialog.dart'; 
+import '../../../widgets/power_up_hand_widget.dart'; 
+import '../../../widgets/animated_vibrant_background.dart'; 
+import '../../../widgets/arcade_cabinet_widgets.dart'; // Added Import
 import '../../../widgets/game_mode_toggle.dart';
 import '../../auth/services/auth_service.dart';
 import '../../../utils/responsive_layout.dart';
@@ -111,15 +113,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
     final isLandscape = res.isLandscape;
     final isMobile = res.deviceType == DeviceType.mobile;
 
-    // Constrain ScoreBoard width for better proportions on tablets
-    Widget scoreBoard = Container(
-      constraints: BoxConstraints(maxWidth: isMobile ? 400 : 600),
-      padding: EdgeInsets.symmetric(
-        vertical: isMobile ? 4.0 : res.spacing / 2,
-        horizontal: isMobile ? 8.0 : res.spacing,
-      ),
-      child: ScoreBoard(isSmallScreen: isMobile),
-    );
+    // ScoreBoard is now handled dynamically by ArcadeScoreMarquee inside layouts.
 
     return PopScope(
       canPop: false,
@@ -141,91 +135,109 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
       },
       child: Listener(
         onPointerDown: (_) => _resetInactivityTimer(),
-        child: Scaffold(
-          appBar: PreferredSize(
-            preferredSize: Size.fromHeight(isLandscape ? 40 : 56),
-            child: AppBar(
-              title: Text(
-                'Ultimate TicTacToe',
-                style: isMobile 
-                    ? TextStyle(fontSize: isLandscape ? 14 : 16) 
-                    : TextStyle(fontSize: res.titleSize * (isLandscape ? 0.6 : 0.8)),
-              ),
-              backgroundColor: theme.colorScheme.primary,
-              foregroundColor: theme.colorScheme.onPrimary,
-              centerTitle: true,
-              elevation: 0,
-              actions: [
-                IconButton(
-                  icon: Icon(Icons.logout, size: isLandscape ? 18 : 24),
-                  onPressed: () => context.read<AuthService>().signOut(),
-                  tooltip: 'Logout',
+        child: AnimatedVibrantBackground(
+          child: Scaffold(
+            backgroundColor: Colors.transparent,
+            appBar: PreferredSize(
+              preferredSize: Size.fromHeight(isLandscape ? 40 : 56),
+              child: AppBar(
+                title: Text(
+                  'Ultimate TicTacToe',
+                  style: isMobile 
+                      ? TextStyle(fontSize: isLandscape ? 14 : 16) 
+                      : TextStyle(fontSize: res.titleSize * (isLandscape ? 0.6 : 0.8)),
                 ),
-                IconButton(
-                  icon: Icon(Icons.help_outline, size: isLandscape ? 18 : 24),
-                  onPressed: () {
-                    soundManager.playMoveSound();
-                    showDialog(
-                      context: context,
-                      builder: (context) => const HelpDialog(),
-                    );
-                  },
-                  tooltip: 'Help & About',
-                ),
-                IconButton(
-                  icon: Icon(Icons.settings, size: isLandscape ? 18 : 24),
-                  onPressed: () {
-                    soundManager.playMoveSound();
-                    showDialog(
-                      context: context,
-                      builder: (context) => const SettingsMenu(),
-                    );
-                  },
-                  tooltip: 'Settings',
-                ),
-                if (isMobile) const SizedBox(width: 4),
-              ],
-            ),
-          ),
-          body: Stack(
-            children: [
-              SafeArea(
-                child: Padding(
-                  padding: isLandscape && isMobile 
-                      ? const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0)
-                      : res.screenPadding,
-                  child: isLandscape
-                      ? _buildLandscapeLayout(game, scoreBoard, isMobile, res)
-                      : _buildPortraitLayout(game, scoreBoard, isMobile, res),
-                ),
-              ),
-              if (_isAutoPaused)
-                _buildPauseOverlay(theme),
-            ],
-          ),
-          floatingActionButton: isLandscape
-              ? null
-              : SizedBox(
-                  height: isMobile ? 40 : 50,
-                  child: FloatingActionButton.extended(
+                backgroundColor: Colors.transparent,
+                foregroundColor: theme.colorScheme.brightness == Brightness.dark ? Colors.white : Colors.black87,
+                centerTitle: true,
+                elevation: 0,
+                actions: [
+                  IconButton(
+                    icon: Icon(Icons.logout, size: isLandscape ? 18 : 24),
+                    onPressed: () => context.read<AuthService>().signOut(),
+                    tooltip: 'Logout',
+                  ),
+                  IconButton(
+                    icon: Icon(Icons.analytics_outlined, size: isLandscape ? 18 : 24),
                     onPressed: () {
                       soundManager.playMoveSound();
-                      _resumeFromInactivity(); // Clear pause state and reset timer
-                      game.resetGame();
+                      showDialog(
+                        context: context,
+                        builder: (context) => const ProfileStatsDialog(),
+                      );
                     },
-                    icon: Icon(Icons.refresh, size: isMobile ? 20 : 24),
-                    label: Text(
-                      'New Game',
-                      style: TextStyle(fontSize: isMobile ? 14 : 16),
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    backgroundColor: theme.colorScheme.secondary,
-                    foregroundColor: theme.colorScheme.onSecondary,
-                    elevation: 2,
+                    tooltip: 'Profile & Statistics',
+                  ),
+                  IconButton(
+                    icon: Icon(Icons.help_outline, size: isLandscape ? 18 : 24),
+                    onPressed: () {
+                      soundManager.playMoveSound();
+                      showDialog(
+                        context: context,
+                        builder: (context) => const HelpDialog(),
+                      );
+                    },
+                    tooltip: 'Help & About',
+                  ),
+                  IconButton(
+                    icon: Icon(Icons.settings, size: isLandscape ? 18 : 24),
+                    onPressed: () {
+                      soundManager.playMoveSound();
+                      showDialog(
+                        context: context,
+                        builder: (context) => const SettingsMenu(),
+                      );
+                    },
+                    tooltip: 'Settings',
+                  ),
+                  if (isMobile) const SizedBox(width: 4),
+                ],
+              ),
+            ),
+            body: Stack(
+              children: [
+                SafeArea(
+                  child: Padding(
+                    padding: isLandscape && isMobile 
+                        ? const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0)
+                        : res.screenPadding,
+                    child: isLandscape
+                        ? _buildLandscapeLayout(game, isMobile, res)
+                        : _buildPortraitLayout(game, isMobile, res),
                   ),
                 ),
+                if (_isAutoPaused)
+                  _buildPauseOverlay(theme),
+              ],
+            ),
+            bottomNavigationBar: isLandscape
+                ? null
+                : ArcadeControlDeck(
+                    cardHandWidget: context.watch<SettingsController>().ruleSet == GameRuleSet.chaos
+                        ? const PowerUpHandWidget()
+                        : null,
+                    onNewGame: () {
+                      soundManager.playMoveSound();
+                      _resumeFromInactivity();
+                      game.resetGame();
+                    },
+                    onHelp: () {
+                      soundManager.playMoveSound();
+                      showDialog(
+                        context: context,
+                        builder: (context) => const HelpDialog(),
+                      );
+                    },
+                    onSettings: () {
+                      soundManager.playMoveSound();
+                      showDialog(
+                        context: context,
+                        builder: (context) => const SettingsMenu(),
+                      );
+                    },
+                  ),
+            floatingActionButton: null,
+          ),
         ),
       ),
     );
@@ -312,133 +324,144 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
 
   Widget _buildPortraitLayout(
     GameController game,
-    Widget scoreBoard,
     bool isMobile,
     ResponsiveLayout res,
   ) {
     return Column(
       children: [
-        scoreBoard,
+        const ArcadeScoreMarquee(),
+        const SizedBox(height: 6),
         const GameModeToggle(),
-        const GameStatusDisplay(),
+        const SizedBox(height: 8),
+        const ArcadeTurnMarquee(),
+        const SizedBox(height: 12),
         Expanded(
           child: Center(
             child: ConstrainedBox(
               constraints: BoxConstraints(maxWidth: res.maxBoardSize),
-              child: const AspectRatio(
-                aspectRatio: 1,
-                child: MultiBoardView(),
+              child: const ArcadeCabinetFrame(
+                child: AspectRatio(
+                  aspectRatio: 1,
+                  child: MultiBoardView(),
+                ),
               ),
             ),
           ),
         ),
-        SizedBox(height: isMobile ? 60 : 100), // Space for FAB
+        const SizedBox(height: 8),
       ],
     );
   }
 
   Widget _buildLandscapeLayout(
     GameController game,
-    Widget scoreBoard,
     bool isMobile,
     ResponsiveLayout res,
   ) {
-    final theme = Theme.of(context);
     final soundManager = context.read<SoundManager>();
-    // Only show persistent settings on Desktop/Large screens. 
-    // Hide on 7-inch/Tablets in landscape to save space.
-    final isLargeScreen = res.deviceType == DeviceType.desktop;
-    final isTablet = res.deviceType == DeviceType.tablet;
+    final settings = context.watch<SettingsController>();
 
-    // Combine Tablet and Mobile Landscape for a consistent three-column proportional layout
-    if (isTablet || isMobile) {
-      return Stack(
-        children: [
-          Row(
+    return Column(
+      children: [
+        // Top header LED High Scores
+        const ArcadeScoreMarquee(),
+        const SizedBox(height: 6),
+        
+        Expanded(
+          child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Left: Proportional Width (Scores and Toggles)
+              // Left Column: Console Inputs & Inventories
               Expanded(
                 flex: 12,
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      ScoreBoard(isSmallScreen: isMobile, isVertical: true),
-                      const SizedBox(height: 12),
                       const GameModeToggle(),
+                      if (settings.ruleSet == GameRuleSet.chaos) ...[
+                        const SizedBox(height: 16),
+                        const PowerUpHandWidget(),
+                      ],
                     ],
                   ),
                 ),
               ),
-              // Center: Proportional Width (The Board)
+              
+              // Center Column: Bezel Monitor & LED Marquee Status
               Expanded(
-                flex: 30,
-                child: Center(
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(
-                      maxWidth: isTablet ? res.maxBoardSize * 1.2 : res.maxBoardSize,
+                flex: 26,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Expanded(
+                      child: Center(
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(
+                            maxWidth: res.maxBoardSize,
+                          ),
+                          child: const ArcadeCabinetFrame(
+                            child: AspectRatio(
+                              aspectRatio: 1,
+                              child: MultiBoardView(),
+                            ),
+                          ),
+                        ),
+                      ),
                     ),
-                    child: const AspectRatio(
-                      aspectRatio: 1,
-                      child: MultiBoardView(),
-                    ),
-                  ),
+                    const SizedBox(height: 6),
+                    const ArcadeTurnMarquee(),
+                  ],
                 ),
               ),
-              // Right: Proportional Width (Action Buttons)
+              
+              // Right Column: Tactile Console Buttons Deck
               Expanded(
                 flex: 12,
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      ElevatedButton(
-                        onPressed: () {
+                      ArcadePushButton(
+                        label: 'PLAYER 1',
+                        actionText: 'START',
+                        buttonColor: Colors.red.shade700,
+                        size: 48.0,
+                        onTap: () {
                           soundManager.playMoveSound();
                           _resumeFromInactivity();
                           game.resetGame();
                         },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: theme.colorScheme.secondary,
-                          foregroundColor: theme.colorScheme.onSecondary,
-                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 12),
-                          minimumSize: const Size(double.infinity, 44),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                        ),
-                        child: const FittedBox(
-                          fit: BoxFit.scaleDown,
-                          child: Text(
-                            'New Game',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
-                          ),
-                        ),
                       ),
-                      const SizedBox(height: 12),
-                      OutlinedButton(
-                        onPressed: () {
+                      const SizedBox(height: 16),
+                      ArcadePushButton(
+                        label: 'OPTION',
+                        actionText: 'CONFIG',
+                        buttonColor: Colors.blue.shade600,
+                        size: 48.0,
+                        onTap: () {
+                          soundManager.playMoveSound();
+                          showDialog(
+                            context: context,
+                            builder: (context) => const SettingsMenu(),
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      ArcadePushButton(
+                        label: 'HELP',
+                        actionText: 'INFO',
+                        buttonColor: Colors.amber.shade600,
+                        size: 48.0,
+                        onTap: () {
                           soundManager.playMoveSound();
                           showDialog(
                             context: context,
                             builder: (context) => const HelpDialog(),
                           );
                         },
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 12),
-                          minimumSize: const Size(double.infinity, 44),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                        ),
-                        child: const FittedBox(
-                          fit: BoxFit.scaleDown,
-                          child: Text(
-                            'Help & About',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
-                          ),
-                        ),
                       ),
                     ],
                   ),
@@ -446,137 +469,8 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
               ),
             ],
           ),
-          const Align(
-            alignment: Alignment.bottomCenter,
-            child: GameStatusDisplay(),
-          ),
-        ],
-      );
-    }
-
-    return Stack(
-      children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Left side: Title and Scores
-            Expanded(
-              flex: isMobile ? 2 : 3,
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Ultimate TicTacToe',
-                      style: TextStyle(
-                        fontSize: res.titleSize,
-                        fontWeight: FontWeight.bold,
-                        color: theme.colorScheme.primary,
-                      ),
-                    ),
-                    SizedBox(height: res.spacing),
-                    scoreBoard,
-                    const GameModeToggle(),
-                    if (!isLargeScreen) ...[
-                      SizedBox(height: res.spacing),
-                      _buildActionButtons(game, theme, soundManager, isMobile, res),
-                    ],
-                  ],
-                ),
-              ),
-            ),
-            SizedBox(width: res.spacing),
-            // Center: The Board
-            Expanded(
-              flex: isMobile ? 4 : 6,
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(maxWidth: res.maxBoardSize),
-                  child: const AspectRatio(
-                    aspectRatio: 1,
-                    child: MultiBoardView(),
-                  ),
-                ),
-              ),
-            ),
-            if (isLargeScreen) ...[
-              SizedBox(width: res.spacing),
-              // Right side: Persistent Settings for Tablets/Desktop
-              Expanded(
-                flex: 3,
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.surfaceContainerLow,
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: const SettingsPanel(),
-                ),
-              ),
-            ],
-          ],
-        ),
-        const Align(
-          alignment: Alignment.bottomCenter,
-          child: GameStatusDisplay(),
         ),
       ],
-    );
-  }
-
-  Widget _buildActionButtons(
-    GameController game,
-    ThemeData theme,
-    SoundManager soundManager,
-    bool isMobile,
-    ResponsiveLayout res,
-  ) {
-    return Column(
-      children: [
-        ElevatedButton.icon(
-          onPressed: () {
-            soundManager.playMoveSound();
-            _resumeFromInactivity(); // Clear pause state and reset timer
-            game.resetGame();
-          },
-          icon: const Icon(Icons.refresh, size: 20),
-          label: const Text('New Game'),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: theme.colorScheme.secondary,
-            foregroundColor: theme.colorScheme.onSecondary,
-            minimumSize: Size(double.infinity, isMobile ? 48 : 56),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-          ),
-        ),
-        SizedBox(height: res.spacing / 2),
-        OutlinedButton.icon(
-          onPressed: () {
-            soundManager.playMoveSound();
-            showDialog(
-              context: context,
-              builder: (context) => const HelpDialog(),
-            );
-          },
-          icon: const Icon(Icons.help_outline, size: 20),
-          label: const Text('Help & About'),
-          style: OutlinedButton.styleFrom(
-            minimumSize: Size(double.infinity, isMobile ? 48 : 56),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class SettingsPanel extends StatelessWidget {
-  const SettingsPanel({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return const Padding(
-      padding: EdgeInsets.all(16.0),
-      child: SettingsMenu(isPersistent: true),
     );
   }
 }

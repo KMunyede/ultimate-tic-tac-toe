@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -125,10 +126,6 @@ class _GameStatusDisplayState extends State<GameStatusDisplay>
 
         final words = displayStatusText.split(' ');
         final color = _getStatusColor(context, game);
-        
-        // Match the background color of the boards
-        final hsl = HSLColor.fromColor(theme.scaffoldBackgroundColor);
-        final boardEquivalentColor = hsl.withLightness((hsl.lightness - 0.25).clamp(0.0, 1.0)).toColor();
 
         if (isGameOver && !_isGameOverState) {
           _isGameOverState = true;
@@ -145,47 +142,53 @@ class _GameStatusDisplayState extends State<GameStatusDisplay>
           return SlideTransition(
             position: _tileOffset,
             child: Center(
-              child: Container(
-                margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 20),
-                decoration: BoxDecoration(
-                  color: boardEquivalentColor.withValues(alpha: 0.95),
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.3),
-                      blurRadius: 15,
-                      offset: const Offset(0, 10),
-                    ),
-                  ],
-                  border: Border.all(color: color.withValues(alpha: 0.5), width: 2),
-                ),
-                child: Wrap(
-                  alignment: WrapAlignment.center,
-                  spacing: 10,
-                  children: List.generate(words.length, (i) {
-                    return FadeTransition(
-                      opacity: _wordFades[i],
-                      child: ScaleTransition(
-                        scale: _wordScales[i],
-                        child: Text(
-                          words[i],
-                          style: TextStyle(
-                            fontSize: baseFontSize,
-                            fontWeight: FontWeight.bold,
-                            color: color,
-                            shadows: [
-                              Shadow(
-                                color: Colors.black.withValues(alpha: 0.1),
-                                offset: const Offset(1, 1),
-                                blurRadius: 2,
-                              ),
-                            ],
-                          ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(20),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                  child: Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                    padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 20),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.surface.withValues(alpha: 0.75),
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.35),
+                          blurRadius: 15,
+                          offset: const Offset(0, 10),
                         ),
-                      ),
-                    );
-                  }),
+                      ],
+                      border: Border.all(color: color.withValues(alpha: 0.5), width: 2),
+                    ),
+                    child: Wrap(
+                      alignment: WrapAlignment.center,
+                      spacing: 10,
+                      children: List.generate(words.length, (i) {
+                        return FadeTransition(
+                          opacity: _wordFades[i],
+                          child: ScaleTransition(
+                            scale: _wordScales[i],
+                            child: Text(
+                              words[i],
+                              style: TextStyle(
+                                fontSize: baseFontSize,
+                                fontWeight: FontWeight.bold,
+                                color: color,
+                                shadows: [
+                                  Shadow(
+                                    color: Colors.black.withValues(alpha: 0.1),
+                                    offset: const Offset(1, 1),
+                                    blurRadius: 2,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        );
+                      }),
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -193,7 +196,7 @@ class _GameStatusDisplayState extends State<GameStatusDisplay>
         }
 
         // Standard Turn Display
-        return Container(
+        final turnContent = Container(
           width: double.infinity,
           // Ignore horizontal padding boundaries in small landscape mode
           padding: EdgeInsets.only(
@@ -203,8 +206,12 @@ class _GameStatusDisplayState extends State<GameStatusDisplay>
             right: isSmallLandscape ? 0 : 4,
           ),
           decoration: isLandscape ? BoxDecoration(
-            color: boardEquivalentColor.withValues(alpha: 0.8),
+            color: theme.colorScheme.surface.withValues(alpha: 0.70),
             borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+            border: Border.all(
+              color: (theme.brightness == Brightness.dark ? Colors.white : Colors.black).withValues(alpha: 0.08),
+              width: 1.0,
+            ),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.1),
@@ -244,6 +251,18 @@ class _GameStatusDisplayState extends State<GameStatusDisplay>
             ],
           ),
         );
+
+        if (isLandscape) {
+          return ClipRRect(
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+              child: turnContent,
+            ),
+          );
+        }
+
+        return turnContent;
       },
     );
   }

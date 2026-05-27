@@ -120,7 +120,7 @@ class _SettingsMenuState extends State<SettingsMenu> {
                 }
               },
               gradient: LinearGradient(
-                colors: [theme.gradientStart, theme.gradientEnd],
+                colors: [theme.mainColor, theme.accentGlow],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),

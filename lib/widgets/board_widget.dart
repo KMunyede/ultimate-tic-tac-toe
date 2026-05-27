@@ -2,6 +2,7 @@
 import 'dart:async';
 import 'dart:math';
 import 'dart:io';
+import 'dart:ui';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -58,7 +59,7 @@ class _BoardWidgetState extends State<BoardWidget> {
 
     final board = controller.boards[widget.boardIndex];
     final theme = Theme.of(context);
-    final themeBgColor = theme.scaffoldBackgroundColor;
+    final themeBgColor = theme.colorScheme.surface;
     final isForced = controller.forcedBoardIndex == widget.boardIndex;
 
     return LayoutBuilder(
@@ -71,54 +72,64 @@ class _BoardWidgetState extends State<BoardWidget> {
         final double borderRadius = boardSize * 0.12;
         final double shadowOffset = (boardSize * 0.04).clamp(2.0, 10.0);
         final double shadowBlur = shadowOffset * 2;
-
-        final hsl = HSLColor.fromColor(themeBgColor);
         
         // Pulse effect for Forced Board in Ultimate Mode
         return StatefulBuilder(
           builder: (context, setInternalState) {
-            final boardContainer = AnimatedContainer(
-              duration: const Duration(milliseconds: 300),
-              decoration: BoxDecoration(
-                color: isForced 
-                    ? Color.lerp(hsl.withLightness((hsl.lightness - 0.25).clamp(0.0, 1.0)).toColor(), Colors.yellow.withValues(alpha: 0.35), 0.4)!
-                    : hsl.withLightness((hsl.lightness - 0.25).clamp(0.0, 1.0)).toColor(),
-                borderRadius: BorderRadius.circular(borderRadius),
-                border: isForced ? Border.all(color: Colors.yellowAccent, width: 3) : null,
-                boxShadow: [
-                  BoxShadow(color: NeumorphicColors.getDarkShadow(themeBgColor), offset: Offset(shadowOffset, shadowOffset), blurRadius: shadowBlur),
-                  BoxShadow(color: NeumorphicColors.getLightShadow(themeBgColor), offset: Offset(-shadowOffset, -shadowOffset), blurRadius: shadowBlur),
-                  if (isForced)
-                    BoxShadow(color: Colors.yellowAccent.withValues(alpha: 0.6), blurRadius: shadowBlur * 2, spreadRadius: 3),
-                ],
-              ),
-              child: Padding(
-                padding: EdgeInsets.all(padding),
-                child: GridView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 3,
-                    crossAxisSpacing: spacing,
-                    mainAxisSpacing: spacing,
+            final boardContainer = ClipRRect(
+              borderRadius: BorderRadius.circular(borderRadius),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 300),
+                  decoration: BoxDecoration(
+                    color: isForced 
+                        ? Color.lerp(themeBgColor.withValues(alpha: 0.65), Colors.yellow.withValues(alpha: 0.35), 0.4)!
+                        : themeBgColor.withValues(alpha: 0.65),
+                    borderRadius: BorderRadius.circular(borderRadius),
+                    border: Border.all(
+                      color: isForced 
+                          ? Colors.yellowAccent 
+                          : (theme.brightness == Brightness.dark ? Colors.white : Colors.black).withValues(alpha: 0.1),
+                      width: isForced ? 3.0 : 1.5,
+                    ),
+                    boxShadow: [
+                      BoxShadow(color: NeumorphicColors.getDarkShadow(themeBgColor), offset: Offset(shadowOffset, shadowOffset), blurRadius: shadowBlur),
+                      BoxShadow(color: NeumorphicColors.getLightShadow(themeBgColor), offset: Offset(-shadowOffset, -shadowOffset), blurRadius: shadowBlur),
+                      if (isForced)
+                        BoxShadow(color: Colors.yellowAccent.withValues(alpha: 0.6), blurRadius: shadowBlur * 2, spreadRadius: 3),
+                    ],
                   ),
-                  itemCount: 9,
-                  itemBuilder: (context, cellIndex) {
-                    return NeumorphicCell(
-                      onTap: (board.isGameOver || (controller.forcedBoardIndex != null && controller.forcedBoardIndex != widget.boardIndex)) 
-                          ? null 
-                          : () {
-                              HapticFeedback.lightImpact(); // Add Tactile Feedback
-                              controller.makeMove(widget.boardIndex, cellIndex);
-                            },
-                      player: board.cells[cellIndex],
-                      baseColor: isForced 
-                          ? Color.lerp(hsl.withLightness((hsl.lightness - 0.25).clamp(0.0, 1.0)).toColor(), Colors.yellow.withValues(alpha: 0.35), 0.4)!
-                          : hsl.withLightness((hsl.lightness - 0.25).clamp(0.0, 1.0)).toColor(),
-                      isBlocked: board.isGameOver || (controller.forcedBoardIndex != null && controller.forcedBoardIndex != widget.boardIndex),
-                      boardSize: boardSize,
-                    );
-                  },
+                  child: Padding(
+                    padding: EdgeInsets.all(padding),
+                    child: GridView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 3,
+                        crossAxisSpacing: spacing,
+                        mainAxisSpacing: spacing,
+                      ),
+                      itemCount: 9,
+                      itemBuilder: (context, cellIndex) {
+                        return NeumorphicCell(
+                          onTap: (board.isGameOver || (controller.forcedBoardIndex != null && controller.forcedBoardIndex != widget.boardIndex)) 
+                              ? null 
+                              : () {
+                                  HapticFeedback.lightImpact(); // Add Tactile Feedback
+                                  controller.makeMove(widget.boardIndex, cellIndex);
+                                },
+                          player: board.cells[cellIndex],
+                          baseColor: isForced 
+                              ? Color.lerp(themeBgColor, Colors.yellow.withValues(alpha: 0.25), 0.4)!
+                              : themeBgColor,
+                          isBlocked: board.isGameOver || (controller.forcedBoardIndex != null && controller.forcedBoardIndex != widget.boardIndex),
+                          isShielded: board.shields[cellIndex],
+                          boardSize: boardSize,
+                        );
+                      },
+                    ),
+                  ),
                 ),
               ),
             );
@@ -245,13 +256,7 @@ class WinningLinePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..strokeWidth = boardSize * 0.05
-      ..strokeCap = StrokeCap.round
-      ..style = PaintingStyle.stroke;
-
-    paint.color = (winner == Player.X ? Colors.red.shade900 : const Color(0xFF0D47A1)).withValues(alpha: 0.8);
-
+    final double strokeWidth = boardSize * 0.05;
     final double cellSize = (boardSize - (padding * 2) - (spacing * 2)) / 3;
 
     Offset getCenter(int index) {
@@ -270,7 +275,42 @@ class WinningLinePainter extends CustomPainter {
       start.dy + (end.dy - start.dy) * progress,
     );
 
-    canvas.drawLine(start, currentEnd, paint);
+    // Determine neon colors for winner
+    final double alpha = 0.95;
+    final Color glowColor = winner == Player.X
+        ? Colors.redAccent.withValues(alpha: alpha * 0.45)
+        : const Color(0xFF00E5FF).withValues(alpha: alpha * 0.5);
+    final Color gasColor = winner == Player.X
+        ? const Color(0xFFFF2A2A).withValues(alpha: alpha)
+        : const Color(0xFF0070FF).withValues(alpha: alpha);
+    final Color coreColor = winner == Player.X
+        ? const Color(0xFFFFEBEE).withValues(alpha: alpha * 0.9)
+        : const Color(0xFFE0F7FA).withValues(alpha: alpha * 0.9);
+
+    // 1. Outer Glow
+    final paintGlow = Paint()
+      ..color = glowColor
+      ..strokeWidth = strokeWidth * 2.0
+      ..strokeCap = StrokeCap.round
+      ..style = PaintingStyle.stroke
+      ..maskFilter = MaskFilter.blur(BlurStyle.normal, strokeWidth * 0.5);
+    canvas.drawLine(start, currentEnd, paintGlow);
+
+    // 2. Neon Gas
+    final paintGas = Paint()
+      ..color = gasColor
+      ..strokeWidth = strokeWidth
+      ..strokeCap = StrokeCap.round
+      ..style = PaintingStyle.stroke;
+    canvas.drawLine(start, currentEnd, paintGas);
+
+    // 3. Core Filament
+    final paintCore = Paint()
+      ..color = coreColor
+      ..strokeWidth = strokeWidth * 0.3
+      ..strokeCap = StrokeCap.round
+      ..style = PaintingStyle.stroke;
+    canvas.drawLine(start, currentEnd, paintCore);
   }
 
   @override
@@ -359,6 +399,7 @@ class NeumorphicCell extends StatefulWidget {
   final Player player;
   final Color baseColor;
   final bool isBlocked;
+  final bool isShielded; // [NEW] Track shields in cell UI
   final double boardSize;
 
   const NeumorphicCell({
@@ -368,6 +409,7 @@ class NeumorphicCell extends StatefulWidget {
     required this.baseColor,
     required this.boardSize,
     this.isBlocked = false,
+    this.isShielded = false,
   });
 
   @override
@@ -416,18 +458,104 @@ class _NeumorphicCellState extends State<NeumorphicCell> with TickerProviderStat
               BoxShadow(color: NeumorphicColors.getLightShadow(widget.baseColor), offset: Offset(-shadowOffset, -shadowOffset), blurRadius: shadowBlur),
             ],
           ),
-          child: Padding(
-            padding: EdgeInsets.all(widget.boardSize * 0.01),
-            child: AnimatedMarker(
-              player: widget.player, 
-              boardSize: widget.boardSize,
-              isLarge: false,
-            ),
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: Padding(
+                  padding: EdgeInsets.all(widget.boardSize * 0.01),
+                  child: AnimatedMarker(
+                    player: widget.player, 
+                    boardSize: widget.boardSize,
+                    isLarge: false,
+                  ),
+                ),
+              ),
+              if (widget.isShielded)
+                Positioned.fill(
+                  child: IgnorePointer(
+                    child: CustomPaint(
+                      painter: ShieldLockPainter(boardSize: widget.boardSize),
+                    ),
+                  ),
+                ),
+            ],
           ),
         ),
       ),
     );
   }
+}
+
+class ShieldLockPainter extends CustomPainter {
+  final double boardSize;
+  ShieldLockPainter({required this.boardSize});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final double strokeWidth = boardSize * 0.016;
+    final Color goldColor = const Color(0xFFFFD700);
+    final Color lightGold = const Color(0xFFFFFDE7);
+    
+    // 1. Draw glowing neon shield outline around the cell
+    final paintGlow = Paint()
+      ..color = goldColor.withValues(alpha: 0.45)
+      ..strokeWidth = strokeWidth * 2.2
+      ..strokeCap = StrokeCap.round
+      ..style = PaintingStyle.stroke
+      ..maskFilter = MaskFilter.blur(BlurStyle.normal, strokeWidth * 0.5);
+      
+    final path = Path()
+      ..addRRect(RRect.fromRectAndRadius(
+        Rect.fromLTWH(0, 0, size.width, size.height),
+        Radius.circular(boardSize * 0.08),
+      ));
+    canvas.drawPath(path, paintGlow);
+
+    final paintGas = Paint()
+      ..color = goldColor
+      ..strokeWidth = strokeWidth
+      ..strokeCap = StrokeCap.round
+      ..style = PaintingStyle.stroke;
+    canvas.drawPath(path, paintGas);
+
+    // 2. Draw Padlock emblem in top-right corner
+    final double iconSize = size.width * 0.28;
+    final double rightOffset = size.width * 0.08;
+    final double topOffset = size.height * 0.08;
+    
+    final paintIcon = Paint()
+      ..color = goldColor
+      ..style = PaintingStyle.fill;
+      
+    final lockRect = Rect.fromLTWH(size.width - iconSize - rightOffset, topOffset + iconSize * 0.4, iconSize, iconSize * 0.6);
+    final lockShackleRect = Rect.fromLTWH(size.width - iconSize - rightOffset + iconSize * 0.2, topOffset, iconSize * 0.6, iconSize * 0.6);
+    
+    // Shackle
+    final shacklePaint = Paint()
+      ..color = goldColor
+      ..strokeWidth = strokeWidth * 0.7
+      ..style = PaintingStyle.stroke;
+    canvas.drawArc(lockShackleRect, 3.14, 3.14, false, shacklePaint);
+    
+    // Body
+    canvas.drawRRect(RRect.fromRectAndRadius(lockRect, Radius.circular(boardSize * 0.015)), paintIcon);
+    
+    // Shackle Core Glow
+    final shackleCorePaint = Paint()
+      ..color = lightGold
+      ..strokeWidth = strokeWidth * 0.25
+      ..style = PaintingStyle.stroke;
+    canvas.drawArc(lockShackleRect, 3.14, 3.14, false, shackleCorePaint);
+    
+    // Body Core Center dot
+    final bodyCorePaint = Paint()
+      ..color = lightGold
+      ..style = PaintingStyle.fill;
+    canvas.drawCircle(Offset(size.width - rightOffset - iconSize * 0.5, topOffset + iconSize * 0.7), boardSize * 0.005, bodyCorePaint);
+  }
+
+  @override
+  bool shouldRepaint(ShieldLockPainter oldDelegate) => false;
 }
 
 class AnimatedMarker extends StatefulWidget {
@@ -517,41 +645,90 @@ class MarkerPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     // Increased base factor from 0.04 to 0.07 for much better visibility on small boards
     final double baseStrokeWidth = isLarge ? boardSize * 0.12 : boardSize * 0.07;
-    final paint = Paint()
-      ..strokeWidth = baseStrokeWidth.clamp(isLarge ? 4.0 : 2.5, isLarge ? 40.0 : 12.0)
-      ..strokeCap = StrokeCap.round
-      ..style = PaintingStyle.stroke;
+    final double strokeWidth = baseStrokeWidth.clamp(isLarge ? 4.0 : 2.5, isLarge ? 40.0 : 12.0);
 
     final double padding = isLarge ? size.width * 0.15 : size.width * 0.22;
     final double alpha = isLarge ? 0.35 : 0.95;
 
+    // Define colors for multi-layered neon paint
+    final Color xGlowColor = Colors.redAccent.withValues(alpha: alpha * 0.45);
+    final Color xGasColor = const Color(0xFFFF2A2A).withValues(alpha: alpha);
+    final Color xCoreColor = const Color(0xFFFFEBEE).withValues(alpha: alpha * 0.9);
+
+    final Color oGlowColor = const Color(0xFF00E5FF).withValues(alpha: alpha * 0.5);
+    final Color oGasColor = const Color(0xFF0070FF).withValues(alpha: alpha);
+    final Color oCoreColor = const Color(0xFFE0F7FA).withValues(alpha: alpha * 0.9);
+
+    void drawNeonLine(Offset p1, Offset p2, Color glow, Color gas, Color core) {
+      // 1. Outer Glow
+      final paintGlow = Paint()
+        ..color = glow
+        ..strokeWidth = strokeWidth * 2.0
+        ..strokeCap = StrokeCap.round
+        ..style = PaintingStyle.stroke
+        ..maskFilter = MaskFilter.blur(BlurStyle.normal, strokeWidth * 0.5);
+      canvas.drawLine(p1, p2, paintGlow);
+
+      // 2. Neon Gas Tube
+      final paintGas = Paint()
+        ..color = gas
+        ..strokeWidth = strokeWidth
+        ..strokeCap = StrokeCap.round
+        ..style = PaintingStyle.stroke;
+      canvas.drawLine(p1, p2, paintGas);
+
+      // 3. Core Filament
+      final paintCore = Paint()
+        ..color = core
+        ..strokeWidth = strokeWidth * 0.3
+        ..strokeCap = StrokeCap.round
+        ..style = PaintingStyle.stroke;
+      canvas.drawLine(p1, p2, paintCore);
+    }
+
+    void drawNeonArc(Rect rect, double startAngle, double sweepAngle, Color glow, Color gas, Color core) {
+      // 1. Outer Glow
+      final paintGlow = Paint()
+        ..color = glow
+        ..strokeWidth = strokeWidth * 2.0
+        ..strokeCap = StrokeCap.round
+        ..style = PaintingStyle.stroke
+        ..maskFilter = MaskFilter.blur(BlurStyle.normal, strokeWidth * 0.5);
+      canvas.drawArc(rect, startAngle, sweepAngle, false, paintGlow);
+
+      // 2. Neon Gas Tube
+      final paintGas = Paint()
+        ..color = gas
+        ..strokeWidth = strokeWidth
+        ..strokeCap = StrokeCap.round
+        ..style = PaintingStyle.stroke;
+      canvas.drawArc(rect, startAngle, sweepAngle, false, paintGas);
+
+      // 3. Core Filament
+      final paintCore = Paint()
+        ..color = core
+        ..strokeWidth = strokeWidth * 0.3
+        ..strokeCap = StrokeCap.round
+        ..style = PaintingStyle.stroke;
+      canvas.drawArc(rect, startAngle, sweepAngle, false, paintCore);
+    }
+
     if (player == Player.X) {
-      paint.color = Colors.red.withValues(alpha: alpha);
       if (progress > 0) {
         double p1 = (progress * 2).clamp(0.0, 1.0);
-        canvas.drawLine(
-          Offset(padding, padding),
-          Offset(padding + (size.width - 2 * padding) * p1, padding + (size.height - 2 * padding) * p1),
-          paint,
-        );
+        final start = Offset(padding, padding);
+        final end = Offset(padding + (size.width - 2 * padding) * p1, padding + (size.height - 2 * padding) * p1);
+        drawNeonLine(start, end, xGlowColor, xGasColor, xCoreColor);
       }
       if (progress > 0.5) {
         double p2 = ((progress - 0.5) * 2).clamp(0.0, 1.0);
-        canvas.drawLine(
-          Offset(size.width - padding, padding),
-          Offset((size.width - padding) - (size.width - 2 * padding) * p2, padding + (size.height - 2 * padding) * p2),
-          paint,
-        );
+        final start = Offset(size.width - padding, padding);
+        final end = Offset((size.width - padding) - (size.width - 2 * padding) * p2, padding + (size.height - 2 * padding) * p2);
+        drawNeonLine(start, end, xGlowColor, xGasColor, xCoreColor);
       }
     } else if (player == Player.O) {
-      paint.color = const Color(0xFF0D47A1).withValues(alpha: alpha);
-      canvas.drawArc(
-        Rect.fromLTRB(padding, padding, size.width - padding, size.height - padding),
-        -1.5,
-        6.28 * progress,
-        false,
-        paint,
-      );
+      final rect = Rect.fromLTRB(padding, padding, size.width - padding, size.height - padding);
+      drawNeonArc(rect, -1.5, 6.28 * progress, oGlowColor, oGasColor, oCoreColor);
     }
   }
 

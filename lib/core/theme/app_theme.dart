@@ -2,118 +2,124 @@ import 'package:flutter/material.dart';
 
 class AppTheme {
   final String name;
-  final Color mainColor;
-  final Color gradientStart;
-  final Color gradientEnd;
+  final Brightness brightness;
+  final Color mainColor;       // Button/Appbar/Main highlight color
+  final Color scaffoldBg;      // Base background color
+  final Color boardBg;         // Core tactile sub-board background
+  final Color accentGlow;      // special effects and locks golden glow
   final Color textColor;
+  final List<Color> bgGradient;
 
   const AppTheme({
     required this.name,
+    required this.brightness,
     required this.mainColor,
-    required this.gradientStart,
-    required this.gradientEnd,
+    required this.scaffoldBg,
+    required this.boardBg,
+    required this.accentGlow,
     required this.textColor,
+    required this.bgGradient,
   });
 }
 
 final List<AppTheme> appThemes = [
   const AppTheme(
-    name: 'Forest Green',
-    mainColor: Color(0xFF228B22),
-    gradientStart: Color(0xFF2E8B57),
-    gradientEnd: Color(0xFF3CB371),
+    name: 'Midnight Cyber (Dark)',
+    brightness: Brightness.dark,
+    mainColor: Color(0xFF00FFCC), // Electric Cyan
+    scaffoldBg: Color(0xFF0A031A), // Dark Space Violet
+    boardBg: Color(0xFF1E0E3D), // Deep Violet Neumorphic Card
+    accentGlow: Color(0xFFFF007F), // Neon Magenta
     textColor: Colors.white,
+    bgGradient: [Color(0xFF0A031A), Color(0xFF1C0A3B), Color(0xFF050110)],
   ),
   const AppTheme(
-    name: 'Ocean Blue',
-    mainColor: Color(0xFF1E90FF),
-    gradientStart: Color(0xFF4682B4),
-    gradientEnd: Color(0xFFADD8E6),
+    name: 'Vaporwave Dream (Dark)',
+    brightness: Brightness.dark,
+    mainColor: Color(0xFFFF71CE), // Fluorescent Pink
+    scaffoldBg: Color(0xFF001733), // Midnight Blue
+    boardBg: Color(0xFF05122E), // Translucent Sapphire Card
+    accentGlow: Color(0xFF01FFC3), // Fluorescent Cyan
     textColor: Colors.white,
+    bgGradient: [Color(0xFF0A001F), Color(0xFF1D0E47), Color(0xFF000E26)],
   ),
   const AppTheme(
-    name: 'Sunset Orange',
-    mainColor: Color(0xFFFF4500),
-    gradientStart: Color(0xFFFF8C00),
-    gradientEnd: Color(0xFFFFA500),
+    name: 'Retro Arcade (Dark)',
+    brightness: Brightness.dark,
+    mainColor: Color(0xFF39FF14), // Electric Green
+    scaffoldBg: Color(0xFF000000), // Pure Pitch Black
+    boardBg: Color(0xFF111111), // Charcoal Grid Card
+    accentGlow: Color(0xFFFF2A2A), // Arcade Red
     textColor: Colors.white,
+    bgGradient: [Color(0xFF000000), Color(0xFF0D0D0D), Color(0xFF000000)],
   ),
   const AppTheme(
-    name: 'Royal Purple',
-    mainColor: Color(0xFF8A2BE2),
-    gradientStart: Color(0xFF9370DB),
-    gradientEnd: Color(0xFFBA55D3),
+    name: 'Solar Eclipse (Dark)',
+    brightness: Brightness.dark,
+    mainColor: Color(0xFFFF8C00), // Fire Amber
+    scaffoldBg: Color(0xFF121212), // Charcoal Dark
+    boardBg: Color(0xFF1E1E1E), // Soft Obsidian Card
+    accentGlow: Color(0xFFFFD700), // Gold Flare
     textColor: Colors.white,
+    bgGradient: [Color(0xFF121212), Color(0xFF261908), Color(0xFF121212)],
   ),
   const AppTheme(
-    name: 'Charcoal',
-    mainColor: Color(0xFF424242),
-    // True Neutral Grey
-    gradientStart: Color(0xFF424242),
-    gradientEnd: Color(0xFF616161),
-    textColor: Colors.white,
+    name: 'Sunset Glass (Light)',
+    brightness: Brightness.light,
+    mainColor: Color(0xFFFF4500), // Sunset Red-Orange
+    scaffoldBg: Color(0xFFFFF5EE), // Soft Seashell White
+    boardBg: Color(0xFFFFFFFF), // Pure White Card
+    accentGlow: Color(0xFFFFA500), // Sun Orange
+    textColor: Colors.black87,
+    bgGradient: [Color(0xFFFFFAF0), Color(0xFFFFE4B5), Color(0xFFFFF0F5)],
   ),
   const AppTheme(
-    name: 'Deep Emerald',
-    mainColor: Color(0xFF064E3B),
-    gradientStart: Color(0xFF064E3B),
-    gradientEnd: Color(0xFF047857),
-    textColor: Colors.white,
-  ),
-  const AppTheme(
-    name: 'Burgundy',
-    mainColor: Color(0xFF7F1D1D),
-    gradientStart: Color(0xFF7F1D1D),
-    gradientEnd: Color(0xFFB91C1C),
-    textColor: Colors.white,
+    name: 'Ocean Glass (Light)',
+    brightness: Brightness.light,
+    mainColor: Color(0xFF1E90FF), // Ocean Blue
+    scaffoldBg: Color(0xFFF0F8FF), // Alice Soft Blue
+    boardBg: Color(0xFFFFFFFF), // Pure White Card
+    accentGlow: Color(0xFF00E5FF), // Teal Glow
+    textColor: Colors.black87,
+    bgGradient: [Color(0xFFF0F8FF), Color(0xFFD9F2FF), Color(0xFFE6F2FF)],
   ),
 ];
 
-ThemeData generateTheme(Color seedColor) {
-  final hsl = HSLColor.fromColor(seedColor);
-
-  // Logic to determine background saturation:
-  // If the seed is a neutral color (low saturation), keep the background desaturated.
-  // This prevents Charcoal (grey) from looking like a faint blue theme.
-  final double targetSaturation = hsl.saturation < 0.15
-      ? hsl.saturation.clamp(0.0, 0.1)
-      : 0.35;
-
-  final Color bgColor = hsl
-      .withLightness(0.85)
-      .withSaturation(targetSaturation)
-      .toColor();
+ThemeData generateTheme(AppTheme theme) {
+  final primaryColor = theme.mainColor;
+  final isDark = theme.brightness == Brightness.dark;
 
   return ThemeData(
     useMaterial3: true,
-    primaryColor: seedColor,
+    brightness: theme.brightness,
+    primaryColor: primaryColor,
     colorScheme: ColorScheme.fromSeed(
-      seedColor: seedColor,
-      brightness: Brightness.light,
-      surface: bgColor,
+      seedColor: primaryColor,
+      brightness: theme.brightness,
+      surface: theme.boardBg,
     ),
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ButtonStyle(
-        backgroundColor: WidgetStateProperty.all(seedColor),
-        foregroundColor: WidgetStateProperty.all(Colors.white),
+        backgroundColor: WidgetStateProperty.all(primaryColor),
+        foregroundColor: WidgetStateProperty.all(isDark ? Colors.black : Colors.white),
       ),
     ),
-    textTheme: const TextTheme(
-      bodyLarge: TextStyle(color: Colors.black87, fontWeight: FontWeight.w500),
-      bodyMedium: TextStyle(color: Colors.black87),
-      displayLarge: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+    textTheme: TextTheme(
+      bodyLarge: TextStyle(color: isDark ? Colors.white70 : Colors.black87, fontWeight: FontWeight.w500),
+      bodyMedium: TextStyle(color: isDark ? Colors.white60 : Colors.black87),
+      displayLarge: TextStyle(color: isDark ? Colors.white : Colors.black, fontWeight: FontWeight.bold),
       headlineSmall: TextStyle(
-        color: Colors.black87,
+        color: isDark ? Colors.white : Colors.black87,
         fontWeight: FontWeight.bold,
       ),
     ),
-    scaffoldBackgroundColor: bgColor,
+    scaffoldBackgroundColor: theme.scaffoldBg,
     appBarTheme: AppBarTheme(
-      backgroundColor: seedColor,
-      foregroundColor: Colors.white,
+      backgroundColor: theme.scaffoldBg,
+      foregroundColor: isDark ? Colors.white : Colors.black87,
       elevation: 0,
-      titleTextStyle: const TextStyle(
-        color: Colors.white,
+      titleTextStyle: TextStyle(
+        color: isDark ? Colors.white : Colors.black87,
         fontSize: 20,
         fontWeight: FontWeight.bold,
       ),
@@ -124,6 +130,15 @@ ThemeData generateTheme(Color seedColor) {
 class NeumorphicColors {
   static Color getLightShadow(Color baseColor) {
     final hsl = HSLColor.fromColor(baseColor);
+    final isDark = hsl.lightness < 0.35;
+    
+    if (isDark) {
+      // In dark mode, light shadow needs to stand out as a soft neon glow
+      return hsl
+          .withLightness((hsl.lightness + 0.16).clamp(0.0, 1.0))
+          .toColor()
+          .withValues(alpha: 0.7);
+    }
     return hsl
         .withLightness((hsl.lightness + 0.12).clamp(0.0, 1.0))
         .toColor()
@@ -132,6 +147,12 @@ class NeumorphicColors {
 
   static Color getDarkShadow(Color baseColor) {
     final hsl = HSLColor.fromColor(baseColor);
+    final isDark = hsl.lightness < 0.35;
+    
+    if (isDark) {
+      // In dark mode, dark shadow is deep pitch black
+      return const Color(0xFF000000).withValues(alpha: 0.85);
+    }
     return hsl
         .withLightness((hsl.lightness - 0.20).clamp(0.0, 1.0))
         .withSaturation((hsl.saturation + 0.1).clamp(0.0, 1.0))
@@ -139,3 +160,4 @@ class NeumorphicColors {
         .withValues(alpha: 0.5);
   }
 }
+

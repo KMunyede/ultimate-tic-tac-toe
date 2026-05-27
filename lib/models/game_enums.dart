@@ -1,7 +1,8 @@
 enum GameRuleSet {
   standard,
   majorityWins,
-  ultimate;
+  ultimate,
+  chaos;
 
   String get displayName {
     switch (this) {
@@ -11,6 +12,8 @@ enum GameRuleSet {
         return 'Majority Wins';
       case GameRuleSet.ultimate:
         return 'Ultimate';
+      case GameRuleSet.chaos:
+        return 'Chaos Mode';
     }
   }
 }
@@ -51,4 +54,21 @@ enum BoardLayout {
   dual,
   trio,
   quad, // Added 4-board layout
+}
+
+enum PowerUpType {
+  shield,
+  eraser,
+  hacker;
+
+  String get displayName {
+    switch (this) {
+      case PowerUpType.shield:
+        return 'Shield';
+      case PowerUpType.eraser:
+        return 'Eraser';
+      case PowerUpType.hacker:
+        return 'Hacker';
+    }
+  }
 }

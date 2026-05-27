@@ -132,6 +132,9 @@ class MatchReferee {
       case GameRuleSet.ultimate:
         rules = UltimateMatchRules();
         break;
+      case GameRuleSet.chaos:
+        rules = UltimateMatchRules();
+        break;
     }
 
     return rules.checkMatchOutcome(boardResults);

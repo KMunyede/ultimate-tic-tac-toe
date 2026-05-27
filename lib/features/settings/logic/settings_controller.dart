@@ -12,7 +12,7 @@ class SettingsController with ChangeNotifier {
 
   AppTheme _currentTheme = appThemes.first;
   AppTheme get currentTheme => _currentTheme;
-  ThemeData get themeData => generateTheme(_currentTheme.mainColor);
+  ThemeData get themeData => generateTheme(_currentTheme);
 
   bool _isSoundOn = true;
   bool get isSoundOn => _isSoundOn;

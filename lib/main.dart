@@ -84,7 +84,7 @@ void main(List<String> args) async {
         ),
         Provider<FirebaseService>.value(value: firebaseService),
         Provider<AuthService>.value(value: authService),
-        Provider<StatsService>.value(value: statsService),
+        ChangeNotifierProvider.value(value: statsService),
         ChangeNotifierProxyProvider<SettingsController, GameController>(
           create: (context) => GameController(
             context.read<SoundManager>(),

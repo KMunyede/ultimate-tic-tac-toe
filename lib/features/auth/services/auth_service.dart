@@ -22,8 +22,9 @@ class AuthService {
     try {
       return await _auth.signInAnonymously();
     } on FirebaseAuthException catch (e) {
-      if (kDebugMode)
+      if (kDebugMode) {
         print('Anonymous Sign In Error: ${e.code} - ${e.message}');
+      }
       rethrow;
     }
   }

@@ -1,4 +1,5 @@
 // lib/widgets/score_board.dart
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../features/game/logic/game_controller.dart';
@@ -97,23 +98,33 @@ class ScoreBoard extends StatelessWidget {
           );
         }
 
-        return Container(
-          padding: EdgeInsets.symmetric(
-            vertical: isSmallScreen ? 12 * scale : 20 * scale,
-            horizontal: horizontalPadding,
-          ),
-          decoration: BoxDecoration(
-            color: theme.colorScheme.surface,
-            borderRadius: BorderRadius.circular(24 * scale),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.1),
-                blurRadius: 15 * scale,
-                offset: Offset(0, 6 * scale),
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(24 * scale),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
+            child: Container(
+              padding: EdgeInsets.symmetric(
+                vertical: isSmallScreen ? 12 * scale : 20 * scale,
+                horizontal: horizontalPadding,
               ),
-            ],
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surface.withValues(alpha: 0.65),
+                borderRadius: BorderRadius.circular(24 * scale),
+                border: Border.all(
+                  color: (theme.brightness == Brightness.dark ? Colors.white : Colors.black).withValues(alpha: 0.1),
+                  width: 1.5,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: theme.brightness == Brightness.dark ? 0.35 : 0.08),
+                    blurRadius: 15 * scale,
+                    offset: Offset(0, 6 * scale),
+                  ),
+                ],
+              ),
+              child: content,
+            ),
           ),
-          child: content,
         );
       },
     );
