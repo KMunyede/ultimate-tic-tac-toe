@@ -26,7 +26,10 @@ class GameController with ChangeNotifier {
   bool _isAiThinking = false;
   bool _isCompletingMove = false; // Guard for state transitions
   int _shakeCounter = 0;
+  int _matchId = 0;
   final _aiErrorController = StreamController<String>.broadcast();
+
+  int get matchId => _matchId;
 
   // [NEW] Active power-up card states
   PowerUpType? _activePowerUp;
@@ -197,6 +200,7 @@ class GameController with ChangeNotifier {
   }
 
   void initializeGame({bool useMicrotask = false}) {
+    _matchId++;
     int count = _settings.boardCount;
     int? initialForcedBoardIndex;
 
@@ -325,6 +329,9 @@ class GameController with ChangeNotifier {
 
     _isAiThinking = true;
     notifyListeners();
+
+    // Intentional suspenseful delay to simulate AI calculation and allow LED tickers to register
+    await Future.delayed(const Duration(milliseconds: 1400));
 
     try {
       PowerUpType? selectedAiPowerUp;

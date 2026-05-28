@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
+import '../core/theme/app_theme.dart';
 import '../features/game/logic/game_controller.dart';
 import '../features/settings/logic/settings_controller.dart';
 import '../models/player.dart';
@@ -76,8 +77,14 @@ class _ArcadePushButtonState extends State<ArcadePushButton>
 
     // Dynamic contrast values based on brightness
     final isDark = theme.brightness == Brightness.dark;
-    final rimColor = isDark ? Colors.grey.shade800 : Colors.grey.shade400;
-    final socketColor = isDark ? Colors.black87 : Colors.grey.shade300;
+    final isLight = theme.brightness == Brightness.light;
+    
+    final rimColor = isLight 
+        ? Color.lerp(theme.scaffoldBackgroundColor, Colors.grey.shade400, 0.45)!
+        : (isDark ? Colors.grey.shade800 : Colors.grey.shade400);
+    final socketColor = isLight
+        ? Color.lerp(theme.scaffoldBackgroundColor, Colors.grey.shade500, 0.7)!
+        : (isDark ? Colors.black87 : Colors.grey.shade300);
 
     return GestureDetector(
       onTapDown: (_) => _handleTapDown(),
@@ -113,7 +120,7 @@ class _ArcadePushButtonState extends State<ArcadePushButton>
                     color: rimColor,
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withValues(alpha: isDark ? 0.6 : 0.2),
+                        color: Colors.black.withValues(alpha: isDark ? 0.6 : 0.12),
                         blurRadius: 6,
                         offset: const Offset(0, 4),
                       ),
@@ -141,7 +148,7 @@ class _ArcadePushButtonState extends State<ArcadePushButton>
                       gradient: RadialGradient(
                         colors: [
                           buttonColor,
-                          Color.lerp(buttonColor, Colors.black, 0.45)!,
+                          Color.lerp(buttonColor, isLight ? Colors.white : Colors.black, isLight ? 0.22 : 0.45)!,
                         ],
                         center: const Alignment(-0.25, -0.25),
                         radius: 0.85,
@@ -150,12 +157,14 @@ class _ArcadePushButtonState extends State<ArcadePushButton>
                           ? []
                           : [
                               BoxShadow(
-                                color: buttonColor.withValues(alpha: 0.6),
+                                color: buttonColor.withValues(alpha: isLight ? 0.35 : 0.6),
                                 blurRadius: 8,
                                 spreadRadius: 1,
                               ),
                               BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.7),
+                                color: isLight 
+                                    ? theme.textTheme.bodyLarge?.color?.withValues(alpha: 0.12) ?? Colors.black12
+                                    : Colors.black.withValues(alpha: 0.7),
                                 blurRadius: 4,
                                 offset: const Offset(0, 3.5),
                               ),
@@ -224,25 +233,36 @@ class ArcadeScoreMarquee extends StatelessWidget {
     final game = context.watch<GameController>();
     final settings = context.watch<SettingsController>();
     final currentTheme = settings.currentTheme;
+    final isLight = currentTheme.brightness == Brightness.light;
 
     // Helper to format values into classic padded retro digits (e.g. 002400)
     String padScore(int score) {
       return (score * 100).toString().padLeft(6, '0');
     }
 
+    final scoreboardBg = isLight
+        ? Color.lerp(currentTheme.scaffoldBg, Colors.white, 0.65)!
+        : const Color(0xFF020108);
+    final scoreboardBorderColor = isLight
+        ? currentTheme.mainColor.withValues(alpha: 0.25)
+        : currentTheme.accentGlow.withValues(alpha: 0.65);
+    final scoreboardGlowColor = isLight
+        ? currentTheme.mainColor.withValues(alpha: 0.08)
+        : currentTheme.accentGlow.withValues(alpha: 0.25);
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       decoration: BoxDecoration(
-        color: const Color(0xFF020108), // Pitch-dark LED background
+        color: scoreboardBg,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: currentTheme.accentGlow.withValues(alpha: 0.65),
+          color: scoreboardBorderColor,
           width: 2.0,
         ),
         boxShadow: [
           BoxShadow(
-            color: currentTheme.accentGlow.withValues(alpha: 0.25),
+            color: scoreboardGlowColor,
             blurRadius: 10,
             spreadRadius: 1,
           ),
@@ -253,6 +273,8 @@ class ArcadeScoreMarquee extends StatelessWidget {
         children: [
           // 1UP (Player X)
           _buildLedColumn(
+            context: context,
+            currentTheme: currentTheme,
             label: '1UP (X)',
             score: padScore(game.sessionWinsX),
             subLabel: 'BOARDS: ${game.boardsWonX}',
@@ -262,6 +284,8 @@ class ArcadeScoreMarquee extends StatelessWidget {
           
           // HIGH SCORE
           _buildLedColumn(
+            context: context,
+            currentTheme: currentTheme,
             label: 'HIGH SCORE',
             score: '999990',
             subLabel: 'V2 CABINET',
@@ -271,6 +295,8 @@ class ArcadeScoreMarquee extends StatelessWidget {
 
           // 2UP (Player O)
           _buildLedColumn(
+            context: context,
+            currentTheme: currentTheme,
             label: '2UP (O)',
             score: padScore(game.sessionWinsO),
             subLabel: 'BOARDS: ${game.boardsWonO}',
@@ -283,12 +309,35 @@ class ArcadeScoreMarquee extends StatelessWidget {
   }
 
   Widget _buildLedColumn({
+    required BuildContext context,
+    required AppTheme currentTheme,
     required String label,
     required String score,
     required String subLabel,
     required bool active,
     required Color glowColor,
   }) {
+    final isLight = currentTheme.brightness == Brightness.light;
+
+    Color getActiveColor(Color baseNeon) {
+      if (!isLight) return baseNeon;
+      if (baseNeon == Colors.red.shade600) {
+        return const Color(0xFFB71C1C); // Deep Crimson
+      }
+      if (baseNeon == const Color(0xFF0D47A1) || baseNeon == Colors.blue.shade600) {
+        return const Color(0xFF0D47A1); // Deep Navy
+      }
+      if (baseNeon == Colors.amber.shade600) {
+        return const Color(0xFFE65100); // Deep Orange Bronze
+      }
+      return currentTheme.textColor;
+    }
+
+    final displayColor = getActiveColor(glowColor);
+    final activeTextColor = active 
+        ? displayColor 
+        : (isLight ? currentTheme.textColor.withValues(alpha: 0.45) : Colors.grey.shade500);
+
     return Expanded(
       child: Column(
         children: [
@@ -296,16 +345,20 @@ class ArcadeScoreMarquee extends StatelessWidget {
           _BlinkingLabel(
             label: label,
             active: active,
-            color: active ? glowColor : Colors.grey.shade500,
+            color: activeTextColor,
           ),
           const SizedBox(height: 6),
           // LED glowing digits
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
             decoration: BoxDecoration(
-              color: Colors.black,
+              color: isLight ? Colors.white.withValues(alpha: 0.95) : Colors.black,
               borderRadius: BorderRadius.circular(4),
-              border: Border.all(color: Colors.white10),
+              border: Border.all(
+                color: isLight 
+                    ? currentTheme.mainColor.withValues(alpha: 0.15) 
+                    : Colors.white10,
+              ),
             ),
             child: Text(
               score,
@@ -314,13 +367,15 @@ class ArcadeScoreMarquee extends StatelessWidget {
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
                 letterSpacing: 1.5,
-                color: glowColor,
-                shadows: [
-                  Shadow(
-                    color: glowColor.withValues(alpha: 0.8),
-                    blurRadius: 6,
-                  ),
-                ],
+                color: displayColor,
+                shadows: isLight
+                    ? []
+                    : [
+                        Shadow(
+                          color: displayColor.withValues(alpha: 0.8),
+                          blurRadius: 6,
+                        ),
+                      ],
               ),
             ),
           ),
@@ -328,11 +383,11 @@ class ArcadeScoreMarquee extends StatelessWidget {
           // Sub-indicator
           Text(
             subLabel.toUpperCase(),
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 7.5,
               fontFamily: 'monospace',
               fontWeight: FontWeight.w900,
-              color: Colors.grey,
+              color: isLight ? currentTheme.textColor.withValues(alpha: 0.6) : Colors.grey,
             ),
           ),
         ],
@@ -390,13 +445,16 @@ class _BlinkingLabelState extends State<_BlinkingLabel>
 
   @override
   Widget build(BuildContext context) {
+    final settings = context.watch<SettingsController>();
+    final isLight = settings.currentTheme.brightness == Brightness.light;
+
     final style = TextStyle(
       fontSize: 9,
       fontFamily: 'monospace',
       fontWeight: FontWeight.w900,
       letterSpacing: 0.5,
       color: widget.color,
-      shadows: widget.active
+      shadows: (widget.active && !isLight)
           ? [
               Shadow(
                 color: widget.color.withValues(alpha: 0.6),
@@ -457,9 +515,17 @@ class _ArcadeTurnMarqueeState extends State<ArcadeTurnMarquee>
     final game = context.watch<GameController>();
     final settings = context.watch<SettingsController>();
     final activeTheme = settings.currentTheme;
+    final isLight = activeTheme.brightness == Brightness.light;
 
     final String statusText = _getTurnText(game);
-    final Color color = _getTurnColor(game);
+    final Color color = _getTurnColor(game, activeTheme);
+
+    final marqueeBg = isLight
+        ? Color.lerp(activeTheme.boardBg, Colors.white, 0.45)!
+        : const Color(0xFF030A02);
+    final marqueeBorder = isLight
+        ? activeTheme.mainColor.withValues(alpha: 0.25)
+        : activeTheme.mainColor.withValues(alpha: 0.35);
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(6),
@@ -467,9 +533,9 @@ class _ArcadeTurnMarqueeState extends State<ArcadeTurnMarquee>
         height: 28,
         width: double.infinity,
         decoration: BoxDecoration(
-          color: const Color(0xFF030A02), // Scrolling sign base dark-green
+          color: marqueeBg,
           border: Border.all(
-            color: activeTheme.mainColor.withValues(alpha: 0.35),
+            color: marqueeBorder,
             width: 1.5,
           ),
         ),
@@ -477,10 +543,10 @@ class _ArcadeTurnMarqueeState extends State<ArcadeTurnMarquee>
           alignment: Alignment.center,
           children: [
             // Retro LED dot grid matrix texture overlay
-            const Positioned.fill(
+            Positioned.fill(
               child: IgnorePointer(
                 child: CustomPaint(
-                  painter: LedGridPainter(),
+                  painter: LedGridPainter(isLight: isLight),
                 ),
               ),
             ),
@@ -502,12 +568,14 @@ class _ArcadeTurnMarqueeState extends State<ArcadeTurnMarquee>
                           fontWeight: FontWeight.bold,
                           letterSpacing: 2.0,
                           color: color,
-                          shadows: [
-                            Shadow(
-                              color: color.withValues(alpha: 0.8),
-                              blurRadius: 4,
-                            ),
-                          ],
+                          shadows: isLight
+                              ? []
+                              : [
+                                  Shadow(
+                                    color: color.withValues(alpha: 0.8),
+                                    blurRadius: 4,
+                                  ),
+                                ],
                         ),
                       ),
                     );
@@ -536,24 +604,28 @@ class _ArcadeTurnMarqueeState extends State<ArcadeTurnMarquee>
         : ' >>> PLAYER O TURN: INSERT COMMAND >>>';
   }
 
-  Color _getTurnColor(GameController game) {
+  Color _getTurnColor(GameController game, AppTheme theme) {
+    final isLight = theme.brightness == Brightness.light;
     if (game.isOverallGameOver) {
-      return Colors.amber.shade500;
+      return isLight ? const Color(0xFFE65100) : Colors.amber.shade500;
     }
     if (game.isAiThinking) {
-      return Colors.teal.shade400;
+      return isLight ? const Color(0xFF006064) : Colors.teal.shade400;
     }
-    return game.currentPlayer == Player.X ? Colors.red.shade500 : const Color(0xFF00FFCC);
+    return game.currentPlayer == Player.X 
+        ? (isLight ? const Color(0xFFB71C1C) : Colors.red.shade500) 
+        : (isLight ? const Color(0xFF0D47A1) : const Color(0xFF00FFCC));
   }
 }
 
 class LedGridPainter extends CustomPainter {
-  const LedGridPainter();
+  final bool isLight;
+  const LedGridPainter({this.isLight = false});
 
   @override
   void paint(Canvas canvas, Size size) {
     final paintDot = Paint()
-      ..color = Colors.black.withValues(alpha: 0.15)
+      ..color = isLight ? Colors.white.withValues(alpha: 0.35) : Colors.black.withValues(alpha: 0.15)
       ..style = PaintingStyle.fill;
 
     // Draw horizontal lines across the display to mock scanlines
@@ -564,7 +636,7 @@ class LedGridPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant LedGridPainter oldDelegate) => oldDelegate.isLight != isLight;
 }
 
 /// A glowing cabinet bezel screen framing the multi-boards view.
@@ -577,26 +649,47 @@ class ArcadeCabinetFrame extends StatelessWidget {
   Widget build(BuildContext context) {
     final settings = context.watch<SettingsController>();
     final activeTheme = settings.currentTheme;
+    final isLight = activeTheme.brightness == Brightness.light;
+
+    final frameBg = isLight
+        ? Color.lerp(activeTheme.scaffoldBg, Colors.grey.shade300, 0.45)!
+        : const Color(0xFF0E0E12);
+    final frameBorderColor = isLight
+        ? Color.lerp(activeTheme.scaffoldBg, Colors.grey.shade500, 0.5)!
+        : const Color(0xFF23232C);
+    final shadowColor = isLight
+        ? activeTheme.textColor.withValues(alpha: 0.08)
+        : Colors.black.withValues(alpha: 0.95);
+    final glowColor = isLight
+        ? activeTheme.mainColor.withValues(alpha: 0.12)
+        : activeTheme.mainColor.withValues(alpha: 0.3);
+
+    final screenBg = isLight
+        ? Color.lerp(activeTheme.boardBg, Colors.white, 0.25)!
+        : Colors.black;
+    final innerBorderColor = isLight
+        ? activeTheme.mainColor.withValues(alpha: 0.2)
+        : activeTheme.accentGlow.withValues(alpha: 0.4);
 
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         // Outer cabinet bezel
-        color: const Color(0xFF0E0E12),
+        color: frameBg,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: const Color(0xFF23232C),
+          color: frameBorderColor,
           width: 6.0,
         ),
         boxShadow: [
           // Dynamic cabinet neon glowing backplates
           BoxShadow(
-            color: activeTheme.mainColor.withValues(alpha: 0.3),
+            color: glowColor,
             blurRadius: 16,
             spreadRadius: 2,
           ),
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.95),
+            color: shadowColor,
             blurRadius: 10,
             offset: const Offset(0, 10),
           ),
@@ -609,17 +702,17 @@ class ArcadeCabinetFrame extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              _buildBezelScrew(),
+              _buildBezelScrew(isLight),
               Text(
                 'CRT-99 MULTIPLEX MONITOR',
                 style: TextStyle(
                   fontSize: 7.5,
                   fontWeight: FontWeight.w900,
-                  color: Colors.grey.shade600,
+                  color: isLight ? activeTheme.textColor.withValues(alpha: 0.5) : Colors.grey.shade600,
                   letterSpacing: 1.0,
                 ),
               ),
-              _buildBezelScrew(),
+              _buildBezelScrew(isLight),
             ],
           ),
           const SizedBox(height: 8),
@@ -627,19 +720,21 @@ class ArcadeCabinetFrame extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: Colors.black,
+              color: screenBg,
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                color: activeTheme.accentGlow.withValues(alpha: 0.4),
+                color: innerBorderColor,
                 width: 2.0,
               ),
-              boxShadow: [
-                BoxShadow(
-                  color: activeTheme.accentGlow.withValues(alpha: 0.15),
-                  blurRadius: 10,
-                  spreadRadius: 1,
-                ),
-              ],
+              boxShadow: isLight
+                  ? []
+                  : [
+                      BoxShadow(
+                        color: activeTheme.accentGlow.withValues(alpha: 0.15),
+                        blurRadius: 10,
+                        spreadRadius: 1,
+                      ),
+                    ],
             ),
             child: Stack(
               children: [
@@ -674,19 +769,22 @@ class ArcadeCabinetFrame extends StatelessWidget {
     );
   }
 
-  Widget _buildBezelScrew() {
+  Widget _buildBezelScrew(bool isLight) {
+    final screwColor = isLight ? Colors.grey.shade400 : const Color(0xFF33333E);
+    final screwLineColor = isLight ? Colors.grey.shade600 : Colors.black45;
+
     return Container(
       width: 6,
       height: 6,
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: Color(0xFF33333E),
+        color: screwColor,
       ),
       child: Center(
         child: Container(
           width: 4,
           height: 1,
-          color: Colors.black45,
+          color: screwLineColor,
         ),
       ),
     );
@@ -712,6 +810,29 @@ class ArcadeControlDeck extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final isLight = theme.brightness == Brightness.light;
+
+    final deckGradientColors = isLight
+        ? [
+            Color.lerp(theme.scaffoldBackgroundColor, Colors.white, 0.45)!,
+            Color.lerp(theme.scaffoldBackgroundColor, Colors.grey.shade300, 0.25)!,
+          ]
+        : [
+            const Color(0xFF131317),
+            isDark ? const Color(0xFF070709) : const Color(0xFF1A1A22),
+          ];
+
+    final deckBorderColor = isLight
+        ? theme.primaryColor.withValues(alpha: 0.12)
+        : Colors.white10;
+
+    final deckShadowColor = isLight
+        ? theme.textTheme.bodyLarge?.color?.withValues(alpha: 0.05) ?? Colors.black12
+        : Colors.black.withValues(alpha: 0.5);
+
+    final coinTextColor = isLight
+        ? theme.textTheme.bodyLarge?.color?.withValues(alpha: 0.45) ?? Colors.grey.shade600
+        : Colors.grey.shade600;
 
     return ClipRRect(
       borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
@@ -720,22 +841,19 @@ class ArcadeControlDeck extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
-            // Brushed metallic carbon deck background
+            // Brushed metallic carbon/silver deck background
             gradient: LinearGradient(
-              colors: [
-                const Color(0xFF131317),
-                isDark ? const Color(0xFF070709) : const Color(0xFF1A1A22),
-              ],
+              colors: deckGradientColors,
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
             ),
             border: Border.all(
-              color: Colors.white10,
+              color: deckBorderColor,
               width: 1.5,
             ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.5),
+                color: deckShadowColor,
                 blurRadius: 15,
                 spreadRadius: 2,
                 offset: const Offset(0, -5),
@@ -789,7 +907,7 @@ class ArcadeControlDeck extends StatelessWidget {
                   fontSize: 7,
                   fontWeight: FontWeight.bold,
                   letterSpacing: 2.0,
-                  color: Colors.grey.shade600,
+                  color: coinTextColor,
                 ),
               ),
             ],

@@ -114,7 +114,7 @@ class MultiBoardView extends StatelessWidget {
                         itemCount: count,
                         itemBuilder: (context, index) {
                           return FlyInWrapper(
-                            key: ValueKey('bw_${boards[index].hashCode}_$index'),
+                            key: ValueKey('bw_${controller.matchId}_$index'),
                             index: index,
                             child: BoardWidget(boardIndex: index),
                           );

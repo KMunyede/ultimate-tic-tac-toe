@@ -139,10 +139,11 @@ class NeumorphicColors {
           .toColor()
           .withValues(alpha: 0.7);
     }
+    // In light mode, return a very soft, diffused ambient light sheen (no blinding pure white glare)
     return hsl
-        .withLightness((hsl.lightness + 0.12).clamp(0.0, 1.0))
+        .withLightness((hsl.lightness + 0.08).clamp(0.0, 1.0))
         .toColor()
-        .withValues(alpha: 1.0);
+        .withValues(alpha: 0.9);
   }
 
   static Color getDarkShadow(Color baseColor) {
@@ -153,11 +154,12 @@ class NeumorphicColors {
       // In dark mode, dark shadow is deep pitch black
       return const Color(0xFF000000).withValues(alpha: 0.85);
     }
+    // In light mode, return a highly-diluted, low-contrast ambient occlusion shadow
     return hsl
-        .withLightness((hsl.lightness - 0.20).clamp(0.0, 1.0))
-        .withSaturation((hsl.saturation + 0.1).clamp(0.0, 1.0))
+        .withLightness((hsl.lightness - 0.09).clamp(0.0, 1.0))
+        .withSaturation((hsl.saturation + 0.05).clamp(0.0, 1.0))
         .toColor()
-        .withValues(alpha: 0.5);
+        .withValues(alpha: 0.22);
   }
 }
 

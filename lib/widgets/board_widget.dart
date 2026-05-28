@@ -90,7 +90,7 @@ class _BoardWidgetState extends State<BoardWidget> {
                     border: Border.all(
                       color: isForced 
                           ? Colors.yellowAccent 
-                          : (theme.brightness == Brightness.dark ? Colors.white : Colors.black).withValues(alpha: 0.1),
+                          : theme.primaryColor.withValues(alpha: theme.brightness == Brightness.dark ? 0.15 : 0.18),
                       width: isForced ? 3.0 : 1.5,
                     ),
                     boxShadow: [
@@ -576,12 +576,20 @@ class AnimatedMarker extends StatefulWidget {
 
 class _AnimatedMarkerState extends State<AnimatedMarker> with SingleTickerProviderStateMixin {
   late AnimationController _controller;
+  late Animation<double> _animation;
   Player? _lastPlayer;
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(vsync: this, duration: const Duration(milliseconds: 500));
+    _controller = AnimationController(
+      vsync: this, 
+      duration: const Duration(milliseconds: 850), // Slowed down for satisfying real-time signature draw speed
+    );
+    _animation = CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeInOutCubic, // Simulated brush acceleration/deceleration
+    );
     if (widget.player != Player.none) {
       _controller.forward();
     }
@@ -613,13 +621,13 @@ class _AnimatedMarkerState extends State<AnimatedMarker> with SingleTickerProvid
       return const SizedBox.shrink();
     }
     return AnimatedBuilder(
-      animation: _controller,
+      animation: _animation,
       builder: (context, child) => SizedBox.expand(
         child: CustomPaint(
           size: Size.infinite,
           painter: MarkerPainter(
             player: widget.player,
-            progress: _controller.value,
+            progress: _animation.value,
             boardSize: widget.boardSize,
             isLarge: widget.isLarge,
           ),
