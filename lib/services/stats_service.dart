@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
@@ -290,6 +291,12 @@ class StatsService extends ChangeNotifier {
   Stream<DocumentSnapshot<Map<String, dynamic>>> get userStats {
     final uid = _userId;
     if (uid == null) return const Stream.empty();
+
+    // Avoid live snapshots on Windows due to Native C++ SDK background threading bugs
+    if (!kIsWeb && Platform.isWindows) {
+      return const Stream.empty();
+    }
+
     return _firestore
         .collection('users')
         .doc(uid)

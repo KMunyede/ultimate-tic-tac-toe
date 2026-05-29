@@ -38,7 +38,7 @@ class _BoardWidgetState extends State<BoardWidget> with SingleTickerProviderStat
     _floatController = AnimationController(
       vsync: this,
       duration: floatDuration,
-    )..repeat();
+    ); // Performance Calibration: Removed ..repeat() to eliminate per-frame sub-board repaints
 
     // Sensors are only supported on mobile platforms. 
     // Checking platform to avoid MissingPluginException on Windows/Web.
@@ -786,7 +786,7 @@ class MarkerPainter extends CustomPainter {
     final double strokeWidth = baseStrokeWidth.clamp(isLarge ? 4.0 : 2.5, isLarge ? 40.0 : 12.0);
 
     final double padding = isLarge ? size.width * 0.15 : size.width * 0.22;
-    final double alpha = isLarge ? 0.35 : 0.95;
+    final double alpha = isLarge ? 0.75 : 0.95;
 
     final Color glowColor = baseColor.withValues(alpha: alpha * 0.45);
     final Color gasColor = baseColor.withValues(alpha: alpha);

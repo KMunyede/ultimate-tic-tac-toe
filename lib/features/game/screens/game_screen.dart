@@ -19,6 +19,7 @@ import '../../auth/services/auth_service.dart';
 import '../../../utils/responsive_layout.dart';
 import '../../../models/player.dart';
 import '../../../widgets/animations/holographic_tilt.dart';
+import '../../../widgets/animations/drifting_hud.dart';
 
 class GameScreen extends StatefulWidget {
   const GameScreen({super.key});
@@ -211,59 +212,94 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                     ),
                   ),
                   
-                  // Decoupled Floating Scoreboard Badges - Fades in ONLY when game ends!
-                  Positioned(
-                    top: 4,
-                    left: 12,
-                    child: AnimatedOpacity(
-                      duration: const Duration(milliseconds: 700),
-                      curve: Curves.easeInOut,
-                      opacity: game.isOverallGameOver ? 1.0 : 0.0,
-                      child: IgnorePointer(
-                        ignoring: !game.isOverallGameOver,
-                        child: const PlayerXScoreBadge(),
-                      ),
-                    ),
-                  ),
-
-                  Positioned(
-                    top: 4,
-                    left: 0,
-                    right: 0,
-                    child: Center(
-                      child: AnimatedOpacity(
-                        duration: const Duration(milliseconds: 700),
-                        curve: Curves.easeInOut,
-                        opacity: game.isOverallGameOver ? 1.0 : 0.0,
-                        child: IgnorePointer(
-                          ignoring: !game.isOverallGameOver,
-                          child: const HighScoreBadge(),
+                  // Decoupled Floating Scoreboard Badges - visible only when game ends!
+                  if (game.isOverallGameOver) ...[
+                    Positioned(
+                      top: 4,
+                      left: 12,
+                      child: DriftingHudWidget(
+                        phaseOffset: 1,
+                        child: GestureDetector(
+                          onTap: () {
+                            soundManager.playMoveSound();
+                            showDialog(
+                              context: context,
+                              builder: (context) => const ProfileStatsDialog(),
+                            );
+                          },
+                          child: const PlayerXScoreBadge(),
                         ),
                       ),
                     ),
-                  ),
 
-                  Positioned(
-                    top: 4,
-                    right: 12,
-                    child: AnimatedOpacity(
-                      duration: const Duration(milliseconds: 700),
-                      curve: Curves.easeInOut,
-                      opacity: game.isOverallGameOver ? 1.0 : 0.0,
-                      child: IgnorePointer(
-                        ignoring: !game.isOverallGameOver,
-                        child: const PlayerOScoreBadge(),
+                    Positioned(
+                      top: 4,
+                      left: 0,
+                      right: 0,
+                      child: Center(
+                        child: DriftingHudWidget(
+                          phaseOffset: 2,
+                          child: GestureDetector(
+                            onTap: () {
+                              soundManager.playMoveSound();
+                              showDialog(
+                                context: context,
+                                builder: (context) => const ProfileStatsDialog(),
+                              );
+                            },
+                            child: const HighScoreBadge(),
+                          ),
+                        ),
                       ),
                     ),
-                  ),
 
-                  // Floating Game Mode Toggle (completely visible but transparent)
+                    Positioned(
+                      top: 4,
+                      right: 12,
+                      child: DriftingHudWidget(
+                        phaseOffset: 3,
+                        child: GestureDetector(
+                          onTap: () {
+                            soundManager.playMoveSound();
+                            showDialog(
+                              context: context,
+                              builder: (context) => const ProfileStatsDialog(),
+                            );
+                          },
+                          child: const PlayerOScoreBadge(),
+                        ),
+                      ),
+                    ),
+                  ],
+
+                  // Floating Game Mode Toggle (completely visible and drifting)
                   Positioned(
-                    top: 70,
+                    top: isLandscape 
+                        ? (game.isOverallGameOver ? 70.0 : 8.0) 
+                        : (game.isOverallGameOver ? 70.0 : 8.0),
                     left: isLandscape ? 20 : 12,
                     right: isLandscape ? null : 12,
                     width: isLandscape ? 220 : null,
-                    child: const GameModeToggle(),
+                    child: DriftingHudWidget(
+                      phaseOffset: 4,
+                      child: const GameModeToggle(),
+                    ),
+                  ),
+
+                  // Dynamic Tactical Telemetry Badge displaying live strategic analysis & progression
+                  Positioned(
+                    top: isLandscape 
+                        ? (game.isOverallGameOver ? 196.0 : 134.0) 
+                        : (game.isOverallGameOver ? 142.0 : 78.0),
+                    left: isLandscape ? 20 : 12,
+                    right: isLandscape ? null : 12,
+                    width: isLandscape ? 220 : null,
+                    child: Center(
+                      child: DriftingHudWidget(
+                        phaseOffset: 5,
+                        child: const TacticalTelemetryBadge(),
+                      ),
+                    ),
                   ),
                   
                   // Dynamic floating turn marquee overlay (dropping from top/sides occasionally)
@@ -274,32 +310,30 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                 ],
               ),
             ),
-            bottomNavigationBar: isLandscape
-                ? null
-                : ArcadeControlDeck(
-                    cardHandWidget: context.watch<SettingsController>().ruleSet == GameRuleSet.chaos
-                        ? const PowerUpHandWidget()
-                        : null,
-                    onNewGame: () {
-                      soundManager.playMoveSound();
-                      _resumeFromInactivity();
-                      game.resetGame();
-                    },
-                    onHelp: () {
-                      soundManager.playMoveSound();
-                      showDialog(
-                        context: context,
-                        builder: (context) => const HelpDialog(),
-                      );
-                    },
-                    onSettings: () {
-                      soundManager.playMoveSound();
-                      showDialog(
-                        context: context,
-                        builder: (context) => const SettingsMenu(),
-                      );
-                    },
-                  ),
+            bottomNavigationBar: ArcadeControlDeck(
+              cardHandWidget: context.watch<SettingsController>().ruleSet == GameRuleSet.chaos
+                  ? const PowerUpHandWidget()
+                  : null,
+              onNewGame: () {
+                soundManager.playMoveSound();
+                _resumeFromInactivity();
+                game.resetGame();
+              },
+              onHelp: () {
+                soundManager.playMoveSound();
+                showDialog(
+                  context: context,
+                  builder: (context) => const HelpDialog(),
+                );
+              },
+              onSettings: () {
+                soundManager.playMoveSound();
+                showDialog(
+                  context: context,
+                  builder: (context) => const SettingsMenu(),
+                );
+              },
+            ),
             floatingActionButton: null,
           ),
         ),
@@ -391,9 +425,10 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
     bool isMobile,
     ResponsiveLayout res,
   ) {
+    final bool showScores = game.isOverallGameOver;
     return Column(
       children: [
-        const SizedBox(height: 118), // Spacer to clear both floating Scoreboard and floating GameModeToggle
+        SizedBox(height: showScores ? 214.0 : 144.0), // Dynamic spacer to clear floating HUD elements
         Expanded(
           child: Center(
             child: LayoutBuilder(
@@ -432,20 +467,18 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
     bool isMobile,
     ResponsiveLayout res,
   ) {
-    final soundManager = context.read<SoundManager>();
     final settings = context.watch<SettingsController>();
-    final isCandy = settings.currentTheme.name.contains('Candy Meadow');
-    final isWood = settings.currentTheme.name.contains('Woodville Carve');
+    final bool showScores = game.isOverallGameOver;
 
     return Column(
       children: [
-        const SizedBox(height: 56), // Spacer to clear the floating scoreboard HUD
+        SizedBox(height: showScores ? 56.0 : 12.0), // Dynamic spacer to clear the floating scoreboard HUD
         
         Expanded(
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Left Column: Console Inputs & Inventories (Visible in Chaos Mode, keeps layout symmetrical in Normal)
+              // Left Column: Console Inputs & Inventories (Visible in Chaos Mode)
               if (settings.ruleSet == GameRuleSet.chaos)
                 const Expanded(
                   flex: 12,
@@ -459,16 +492,11 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                       ],
                     ),
                   ),
-                )
-              else
-                const Expanded(
-                  flex: 12,
-                  child: SizedBox.shrink(), // keeps layout symmetrical
                 ),
               
               // Center Column: Free-Floating Swaying MultiBoardView
               Expanded(
-                flex: 26,
+                flex: 38,
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -501,64 +529,6 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                       ),
                     ),
                   ],
-                ),
-              ),
-              
-              // Right Column: Tactile Console Buttons Deck
-              Expanded(
-                flex: 12,
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      ArcadePushButton(
-                        label: 'PLAYER 1',
-                        actionText: 'START',
-                        buttonColor: isCandy 
-                            ? const Color(0xFFFF4081) 
-                            : (isWood ? const Color(0xFFD84315) : Colors.red.shade700),
-                        size: 48.0,
-                        onTap: () {
-                          soundManager.playMoveSound();
-                          _resumeFromInactivity();
-                          game.resetGame();
-                        },
-                      ),
-                      const SizedBox(height: 16),
-                      ArcadePushButton(
-                        label: 'OPTION',
-                        actionText: 'CONFIG',
-                        buttonColor: isCandy 
-                            ? const Color(0xFF00B0FF) 
-                            : (isWood ? const Color(0xFF8D6E63) : Colors.blue.shade600),
-                        size: 48.0,
-                        onTap: () {
-                          soundManager.playMoveSound();
-                          showDialog(
-                            context: context,
-                            builder: (context) => const SettingsMenu(),
-                          );
-                        },
-                      ),
-                      const SizedBox(height: 16),
-                      ArcadePushButton(
-                        label: 'HELP',
-                        actionText: 'INFO',
-                        buttonColor: isCandy 
-                            ? const Color(0xFFFFD54F) 
-                            : (isWood ? const Color(0xFFFFB300) : Colors.amber.shade600),
-                        size: 48.0,
-                        onTap: () {
-                          soundManager.playMoveSound();
-                          showDialog(
-                            context: context,
-                            builder: (context) => const HelpDialog(),
-                          );
-                        },
-                      ),
-                    ],
-                  ),
                 ),
               ),
             ],

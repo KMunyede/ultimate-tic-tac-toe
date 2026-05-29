@@ -11,6 +11,7 @@ import '../features/game/logic/game_controller.dart';
 import '../features/settings/logic/settings_controller.dart';
 import '../models/player.dart';
 import '../utils/responsive_layout.dart';
+import '../services/stats_service.dart';
 
 /// A custom high-fidelity glossy circular arcade button that simulates physical depth.
 class ArcadePushButton extends StatefulWidget {
@@ -661,189 +662,17 @@ class LedGridPainter extends CustomPainter {
 }
 
 /// A glowing cabinet bezel screen framing the multi-boards view.
-class ArcadeCabinetFrame extends StatefulWidget {
+class ArcadeCabinetFrame extends StatelessWidget {
   final Widget child;
 
   const ArcadeCabinetFrame({super.key, required this.child});
 
   @override
-  State<ArcadeCabinetFrame> createState() => _ArcadeCabinetFrameState();
-}
-
-class _ArcadeCabinetFrameState extends State<ArcadeCabinetFrame>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _pulsateController;
-
-  @override
-  void initState() {
-    super.initState();
-    _pulsateController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 4),
-    )..repeat(reverse: true);
-  }
-
-  @override
-  void dispose() {
-    _pulsateController.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final settings = context.watch<SettingsController>();
-    final activeTheme = settings.currentTheme;
-
-    if (!activeTheme.name.contains('Neon Cyberpulse')) {
-      return widget.child;
-    }
-
-    final isLight = activeTheme.brightness == Brightness.light;
-
-    final frameBg = isLight
-        ? Color.lerp(activeTheme.scaffoldBg, Colors.grey.shade300, 0.45)!
-        : const Color(0xFF0E0E12);
-    final frameBorderColor = isLight
-        ? Color.lerp(activeTheme.scaffoldBg, Colors.grey.shade500, 0.5)!
-        : const Color(0xFF23232C);
-    final shadowColor = isLight
-        ? activeTheme.textColor.withValues(alpha: 0.08)
-        : Colors.black.withValues(alpha: 0.95);
-    final glowColor = isLight
-        ? activeTheme.mainColor.withValues(alpha: 0.12)
-        : activeTheme.mainColor.withValues(alpha: 0.3);
-
-    final screenBg = isLight
-        ? Color.lerp(activeTheme.boardBg, Colors.white, 0.25)!
-        : Colors.black;
-    final innerBorderColor = isLight
-        ? activeTheme.mainColor.withValues(alpha: 0.2)
-        : activeTheme.accentGlow.withValues(alpha: 0.4);
-
-    return AnimatedBuilder(
-      animation: _pulsateController,
-      builder: (context, childWidget) {
-        // Shifting breathing factor mimicking slowly waving electricity
-        final double pulse = 0.70 + (_pulsateController.value * 0.30);
-        final dynamicGlowColor = glowColor.withValues(alpha: glowColor.a * pulse);
-        
-        final dynamicInnerBorderColor = innerBorderColor.withValues(
-          alpha: innerBorderColor.a * (0.8 + _pulsateController.value * 0.2),
-        );
-
-        return Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            // Outer cabinet bezel
-            color: frameBg,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: frameBorderColor,
-              width: 6.0,
-            ),
-            boxShadow: [
-              // Dynamic cabinet neon glowing backplates
-              BoxShadow(
-                color: dynamicGlowColor,
-                blurRadius: 16 * pulse,
-                spreadRadius: 2,
-              ),
-              BoxShadow(
-                color: shadowColor,
-                blurRadius: 10,
-                offset: const Offset(0, 10),
-              ),
-            ],
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Arcade Cabinet Screen Header Logo/Tag
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  _buildBezelScrew(isLight),
-                  const SizedBox(width: 4),
-                  Expanded(
-                    child: Center(
-                      child: FittedBox(
-                        fit: BoxFit.scaleDown,
-                        child: Text(
-                          'CRT-99 MULTIPLEX MONITOR',
-                          style: TextStyle(
-                            fontSize: 7.5,
-                            fontWeight: FontWeight.w900,
-                            color: isLight ? activeTheme.textColor.withValues(alpha: 0.5) : Colors.grey.shade600,
-                            letterSpacing: 1.0,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  _buildBezelScrew(isLight),
-                ],
-              ),
-              const SizedBox(height: 8),
-              // The Board View Surrounded by Inner Glowing CRT Tube Rim
-              Flexible(
-                child: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: screenBg,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: dynamicInnerBorderColor,
-                      width: 2.0,
-                    ),
-                    boxShadow: isLight
-                        ? []
-                        : [
-                            BoxShadow(
-                              color: activeTheme.accentGlow.withValues(alpha: 0.15 * pulse),
-                              blurRadius: 10 * pulse,
-                              spreadRadius: 1,
-                            ),
-                          ],
-                  ),
-                  child: Stack(
-                    children: [
-                      widget.child,
-                      // Glossy CRT glass monitor glare corner overlays
-                      Positioned.fill(
-                        child: IgnorePointer(
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(12),
-                            child: Container(
-                              decoration: const BoxDecoration(
-                                gradient: LinearGradient(
-                                  colors: [
-                                    Colors.white10,
-                                    Colors.transparent,
-                                    Colors.transparent,
-                                  ],
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
-                                  stops: [0.0, 0.25, 1.0],
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildBezelScrew(bool isLight) {
-    return ArcadeScrewWidget(isLight: isLight, size: 10.0);
+    // Return child directly so the boards float completely free and independent
+    // directly on the animated space/meadow gradients without being confined
+    // to a rigid rectangular cabinet monitor!
+    return child;
   }
 }
 
@@ -864,6 +693,7 @@ class ArcadeControlDeck extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final game = context.watch<GameController>();
     final settings = context.watch<SettingsController>();
     final activeTheme = settings.currentTheme;
     final themeName = activeTheme.name;
@@ -896,6 +726,26 @@ class ArcadeControlDeck extends StatelessWidget {
     final deckShadowColor = isLight
         ? activeTheme.textColor.withValues(alpha: 0.05)
         : Colors.black.withValues(alpha: 0.5);
+
+    // Calculate sizes dynamically: fewer boards = larger buttons, more boards = smaller buttons.
+    final int boardsCount = game.boards.length;
+    final double baseButtonSize;
+    if (boardsCount <= 1) {
+      baseButtonSize = 62.0;
+    } else if (boardsCount <= 4) {
+      baseButtonSize = 52.0;
+    } else if (boardsCount <= 9) {
+      baseButtonSize = 44.0;
+    } else {
+      baseButtonSize = 38.0;
+    }
+
+    final double startButtonSize = baseButtonSize * 1.15; // Start button is always slightly larger!
+    final double otherButtonSize = baseButtonSize;
+    
+    final double joystickSize = boardsCount <= 1 
+        ? 80.0 
+        : (boardsCount <= 4 ? 70.0 : (boardsCount <= 9 ? 60.0 : 52.0));
 
     return ClipRRect(
       borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
@@ -951,7 +801,7 @@ class ArcadeControlDeck extends StatelessWidget {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const InteractiveJoystickWidget(size: 76.0),
+                        InteractiveJoystickWidget(size: joystickSize),
                         const SizedBox(width: 24),
                         Expanded(
                           child: Row(
@@ -959,11 +809,12 @@ class ArcadeControlDeck extends StatelessWidget {
                             children: [
                               // Option/Settings
                               ArcadePushButton(
-                                label: 'OPTION',
-                                actionText: 'CONFIG',
+                                label: 'SETTINGS',
+                                actionText: 'SETTINGS',
                                 buttonColor: isCandy 
                                     ? const Color(0xFF00B0FF) 
                                     : (isWood ? const Color(0xFF8D6E63) : Colors.blue.shade600),
+                                size: otherButtonSize,
                                 onTap: onSettings,
                               ),
 
@@ -974,7 +825,7 @@ class ArcadeControlDeck extends StatelessWidget {
                                 buttonColor: isCandy 
                                     ? const Color(0xFFFF4081) 
                                     : (isWood ? const Color(0xFFD84315) : Colors.red.shade700),
-                                size: 64.0, // Major push button
+                                size: startButtonSize,
                                 onTap: onNewGame,
                               ),
 
@@ -985,6 +836,7 @@ class ArcadeControlDeck extends StatelessWidget {
                                 buttonColor: isCandy 
                                     ? const Color(0xFFFFD54F) 
                                     : (isWood ? const Color(0xFFFFB300) : Colors.amber.shade600),
+                                size: otherButtonSize,
                                 onTap: onHelp,
                               ),
                             ],
@@ -1037,7 +889,7 @@ class PlayerXScoreBadge extends StatelessWidget {
     final isWood = currentTheme.name.contains('Woodville Carve');
 
     final isActive = game.currentPlayer == Player.X && !game.isOverallGameOver;
-    final dullCrimson = isLight ? const Color(0xFFB71C1C) : const Color(0xFF8B2635);
+    final dullCrimson = isLight ? const Color(0xFFB71C1C) : currentTheme.colorX;
 
     String padScore(int score) {
       return (score * 100).toString().padLeft(6, '0');
@@ -1201,7 +1053,7 @@ class PlayerOScoreBadge extends StatelessWidget {
     final isWood = currentTheme.name.contains('Woodville Carve');
 
     final isActive = game.currentPlayer == Player.O && !game.isOverallGameOver;
-    final dullBlue = isLight ? const Color(0xFF0D47A1) : const Color(0xFF264E70);
+    final dullBlue = isLight ? const Color(0xFF0D47A1) : currentTheme.colorO;
 
     String padScore(int score) {
       return (score * 100).toString().padLeft(6, '0');
@@ -1363,7 +1215,7 @@ class HighScoreBadge extends StatelessWidget {
     final isCandy = currentTheme.name.contains('Candy Meadow');
     final isWood = currentTheme.name.contains('Woodville Carve');
 
-    final dullAmber = isLight ? const Color(0xFFE65100) : const Color(0xFFC47B2B);
+    final dullAmber = isLight ? const Color(0xFFE65100) : const Color(0xFFFFB300);
 
     // Responsive sizing based on the 4 diagonal display categories
     final double width = res.isLessThan7Inch
@@ -1897,6 +1749,276 @@ class _GlowingCoinSlotWidgetState extends State<GlowingCoinSlotWidget> with Sing
                 ),
               ),
             ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// A beautiful, drifting, glassmorphic HUD badge that displays live tactical suggestions,
+/// active rule telemetry, XP gains, and dynamic AI status to keep the player highly hooked!
+class TacticalTelemetryBadge extends StatelessWidget {
+  const TacticalTelemetryBadge({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final game = context.watch<GameController>();
+    final settings = context.watch<SettingsController>();
+    final statsService = context.watch<StatsService>();
+    
+    final currentTheme = settings.currentTheme;
+    final isLight = currentTheme.brightness == Brightness.light;
+    final res = ResponsiveLayout(context);
+
+    final isCandy = currentTheme.name.contains('Candy Meadow');
+    final isWood = currentTheme.name.contains('Woodville Carve');
+
+    // Dynamic Level & XP values
+    final currentStats = statsService.stats;
+    final int totalXp = currentStats.totalXp;
+    
+    // Simple level calculation: 1 level per 500 XP baseline
+    final int level = (totalXp / 500).floor() + 1;
+    final int xpInLevel = totalXp % 500;
+    final double xpProgress = (xpInLevel / 500.0).clamp(0.0, 1.0);
+
+    // Exciting warm alert/suggestion ticker based on current board state
+    String suggestion = "ANALYZE GRID • READY PLAYER ONE";
+    Color telemetryColor = isLight ? const Color(0xFFE65100) : const Color(0xFFFFB300);
+
+    if (game.isOverallGameOver) {
+      suggestion = "MATCH CONCLUDED • SYSTEM SECURED";
+      telemetryColor = isLight ? Colors.green.shade700 : Colors.greenAccent;
+    } else if (game.isAiThinking) {
+      suggestion = "AI OVERLORD CALCULATING DEVIATION";
+      telemetryColor = isLight ? Colors.purple.shade700 : Colors.purpleAccent;
+    } else if (game.currentPlayer == Player.O) {
+      suggestion = "WARNING • OPPONENT MOVE IMMINENT";
+      telemetryColor = isLight ? Colors.red.shade700 : Colors.redAccent;
+    } else {
+      // Analyze current board status for threats
+      bool boardThreat = false;
+      int forcedIdx = game.forcedBoardIndex ?? -1;
+      if (forcedIdx != -1 && forcedIdx < game.boards.length && !game.boards[forcedIdx].isGameOver) {
+        if (game.boards[forcedIdx].hasThreat(Player.O)) {
+          suggestion = "ALERT • CRITICAL THREAT IN BOARD ${forcedIdx + 1}";
+          telemetryColor = isLight ? Colors.red.shade700 : Colors.redAccent;
+          boardThreat = true;
+        }
+      }
+      if (!boardThreat) {
+        if (settings.ruleSet == GameRuleSet.ultimate && forcedIdx != -1) {
+          suggestion = "LOCKDOWN • MATCH PLAY CONFINED TO SECTOR ${forcedIdx + 1}";
+        } else if (settings.ruleSet == GameRuleSet.chaos && (game.shieldCardsX > 0 || game.eraserCardsX > 0)) {
+          suggestion = "TACTICAL • DISPATCH SHIELD/ERASER CARD NOW";
+          telemetryColor = isLight ? Colors.blue.shade700 : Colors.cyanAccent;
+        } else {
+          suggestion = "GRID ANALYSIS • INJECT COMMAND INTO EMPTY TILE";
+        }
+      }
+    }
+
+    final double width = res.isLessThan7Inch ? 230.0 : 280.0;
+    final double titleFontSize = res.isLessThan7Inch ? 8.0 : 9.5;
+    final double progressHeight = res.isLessThan7Inch ? 4.0 : 6.0;
+
+    final BoxDecoration containerDeco = isCandy
+        ? BoxDecoration(
+            color: const Color(0xFFF5F5DC), // Warm cream
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: const Color(0xFFD7CCC8), width: 1.5),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.12),
+                blurRadius: 5,
+                offset: const Offset(0, 3),
+              ),
+            ],
+          )
+        : (isWood
+            ? BoxDecoration(
+                color: const Color(0xFF3E2723).withValues(alpha: 0.85), // Rich warm dark wood
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xFF271510), width: 1.2),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.25),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              )
+            : BoxDecoration( // Neon Cyberpulse
+                color: isLight
+                    ? Colors.white.withValues(alpha: 0.2)
+                    : currentTheme.scaffoldBg.withValues(alpha: 0.35),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: currentTheme.mainColor.withValues(alpha: 0.3),
+                  width: 1.2,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: currentTheme.mainColor.withValues(alpha: 0.08),
+                    blurRadius: 8,
+                    spreadRadius: 0.5,
+                  ),
+                ],
+              ));
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+        child: Container(
+          width: width,
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          decoration: containerDeco,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Header: XP & Level Indicator
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'LVL $level PROGRESSION',
+                    style: TextStyle(
+                      fontSize: titleFontSize,
+                      fontWeight: FontWeight.w900,
+                      color: isCandy
+                          ? const Color(0xFF5D4037)
+                          : (isWood ? const Color(0xFFFFB74D) : currentTheme.textColor.withValues(alpha: 0.7)),
+                    ),
+                  ),
+                  Text(
+                    '$xpInLevel/500 XP',
+                    style: TextStyle(
+                      fontSize: titleFontSize - 1.0,
+                      fontWeight: FontWeight.w900,
+                      color: isCandy
+                          ? const Color(0xFF8D6E63)
+                          : (isWood ? const Color(0xFFFFB74D).withValues(alpha: 0.8) : currentTheme.textColor.withValues(alpha: 0.5)),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 5),
+              // XP Progress Bar
+              Container(
+                height: progressHeight,
+                decoration: BoxDecoration(
+                  color: isCandy || isWood
+                      ? Colors.black12
+                      : currentTheme.textColor.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(3),
+                ),
+                child: FractionallySizedBox(
+                  alignment: Alignment.centerLeft,
+                  widthFactor: xpProgress,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: isCandy
+                            ? [const Color(0xFFFF4081), const Color(0xFFFF80AB)]
+                            : (isWood
+                                ? [const Color(0xFFFFB300), const Color(0xFFFFE082)]
+                                : [currentTheme.mainColor, currentTheme.accentGlow]),
+                      ),
+                      borderRadius: BorderRadius.circular(3),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 6),
+              // Live Tactical Suggestion Ticker
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                decoration: BoxDecoration(
+                  color: isLight ? Colors.white.withValues(alpha: 0.5) : Colors.black.withValues(alpha: 0.25),
+                  borderRadius: BorderRadius.circular(4),
+                  border: Border.all(
+                    color: isCandy || isWood ? Colors.black12 : (isLight ? Colors.black.withValues(alpha: 0.05) : Colors.white10),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    // Dynamic small blinking beacon
+                    _LiveBeacon(color: telemetryColor),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        suggestion,
+                        style: TextStyle(
+                          fontSize: titleFontSize - 1.5,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 0.5,
+                          color: telemetryColor,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _LiveBeacon extends StatefulWidget {
+  final Color color;
+  const _LiveBeacon({required this.color});
+
+  @override
+  State<_LiveBeacon> createState() => _LiveBeaconState();
+}
+
+class _LiveBeaconState extends State<_LiveBeacon> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1000),
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        return Opacity(
+          opacity: _controller.value,
+          child: Container(
+            width: 7,
+            height: 7,
+            decoration: BoxDecoration(
+              color: widget.color,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: widget.color.withValues(alpha: 0.6),
+                  blurRadius: 3,
+                  spreadRadius: 0.5,
+                ),
+              ],
+            ),
           ),
         );
       },
