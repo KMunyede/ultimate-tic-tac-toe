@@ -1,5 +1,6 @@
 // lib/widgets/arcade_cabinet_widgets.dart
 
+import 'dart:math';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -9,6 +10,7 @@ import '../core/theme/app_theme.dart';
 import '../features/game/logic/game_controller.dart';
 import '../features/settings/logic/settings_controller.dart';
 import '../models/player.dart';
+import '../utils/responsive_layout.dart';
 
 /// A custom high-fidelity glossy circular arcade button that simulates physical depth.
 class ArcadePushButton extends StatefulWidget {
@@ -241,14 +243,14 @@ class ArcadeScoreMarquee extends StatelessWidget {
     }
 
     final scoreboardBg = isLight
-        ? Color.lerp(currentTheme.scaffoldBg, Colors.white, 0.65)!
-        : const Color(0xFF020108);
+        ? Colors.white.withValues(alpha: 0.45)
+        : currentTheme.scaffoldBg.withValues(alpha: 0.35);
     final scoreboardBorderColor = isLight
-        ? currentTheme.mainColor.withValues(alpha: 0.25)
-        : currentTheme.accentGlow.withValues(alpha: 0.65);
+        ? currentTheme.mainColor.withValues(alpha: 0.20)
+        : currentTheme.accentGlow.withValues(alpha: 0.45);
     final scoreboardGlowColor = isLight
-        ? currentTheme.mainColor.withValues(alpha: 0.08)
-        : currentTheme.accentGlow.withValues(alpha: 0.25);
+        ? currentTheme.mainColor.withValues(alpha: 0.05)
+        : currentTheme.accentGlow.withValues(alpha: 0.15);
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -363,9 +365,8 @@ class ArcadeScoreMarquee extends StatelessWidget {
             child: Text(
               score,
               style: TextStyle(
-                fontFamily: 'monospace',
                 fontSize: 16,
-                fontWeight: FontWeight.bold,
+                fontWeight: FontWeight.w900,
                 letterSpacing: 1.5,
                 color: displayColor,
                 shadows: isLight
@@ -385,7 +386,6 @@ class ArcadeScoreMarquee extends StatelessWidget {
             subLabel.toUpperCase(),
             style: TextStyle(
               fontSize: 7.5,
-              fontFamily: 'monospace',
               fontWeight: FontWeight.w900,
               color: isLight ? currentTheme.textColor.withValues(alpha: 0.6) : Colors.grey,
             ),
@@ -400,11 +400,13 @@ class _BlinkingLabel extends StatefulWidget {
   final String label;
   final bool active;
   final Color color;
+  final double fontSize;
 
   const _BlinkingLabel({
     required this.label,
     required this.active,
     required this.color,
+    this.fontSize = 9.0,
   });
 
   @override
@@ -449,8 +451,7 @@ class _BlinkingLabelState extends State<_BlinkingLabel>
     final isLight = settings.currentTheme.brightness == Brightness.light;
 
     final style = TextStyle(
-      fontSize: 9,
-      fontFamily: 'monospace',
+      fontSize: widget.fontSize,
       fontWeight: FontWeight.w900,
       letterSpacing: 0.5,
       color: widget.color,
@@ -490,23 +491,20 @@ class ArcadeTurnMarquee extends StatefulWidget {
 
 class _ArcadeTurnMarqueeState extends State<ArcadeTurnMarquee>
     with SingleTickerProviderStateMixin {
-  late AnimationController _scrollController;
-  late Animation<double> _scrollOffset;
+  late AnimationController _pulseController;
 
   @override
   void initState() {
     super.initState();
-    _scrollController = AnimationController(
+    _pulseController = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 4),
-    )..repeat();
-
-    _scrollOffset = Tween<double>(begin: 1.0, end: -1.0).animate(_scrollController);
+      duration: const Duration(milliseconds: 1000),
+    )..repeat(reverse: true);
   }
 
   @override
   void dispose() {
-    _scrollController.dispose();
+    _pulseController.dispose();
     super.dispose();
   }
 
@@ -516,92 +514,115 @@ class _ArcadeTurnMarqueeState extends State<ArcadeTurnMarquee>
     final settings = context.watch<SettingsController>();
     final activeTheme = settings.currentTheme;
     final isLight = activeTheme.brightness == Brightness.light;
+    final res = ResponsiveLayout(context);
 
-    final String statusText = _getTurnText(game);
+    final String statusText = _getTurnText(game, activeTheme);
     final Color color = _getTurnColor(game, activeTheme);
 
-    final marqueeBg = isLight
-        ? Color.lerp(activeTheme.boardBg, Colors.white, 0.45)!
-        : const Color(0xFF030A02);
-    final marqueeBorder = isLight
-        ? activeTheme.mainColor.withValues(alpha: 0.25)
-        : activeTheme.mainColor.withValues(alpha: 0.35);
+    final double fontSize = res.isLessThan7Inch ? 9.5 : 11.5;
 
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(6),
-      child: Container(
-        height: 28,
-        width: double.infinity,
-        decoration: BoxDecoration(
-          color: marqueeBg,
-          border: Border.all(
-            color: marqueeBorder,
-            width: 1.5,
-          ),
-        ),
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            // Retro LED dot grid matrix texture overlay
-            Positioned.fill(
-              child: IgnorePointer(
-                child: CustomPaint(
-                  painter: LedGridPainter(isLight: isLight),
-                ),
+    return Center(
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+          child: Container(
+            height: 38,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            decoration: BoxDecoration(
+              color: isLight 
+                  ? Colors.white.withValues(alpha: 0.15) 
+                  : const Color(0xFF0C100B).withValues(alpha: 0.50),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: color.withValues(alpha: 0.45),
+                width: 1.5,
               ),
+              boxShadow: isLight
+                  ? []
+                  : [
+                      BoxShadow(
+                        color: color.withValues(alpha: 0.1),
+                        blurRadius: 10,
+                        spreadRadius: 1,
+                      )
+                    ],
             ),
-            // Sliding LED Marquee Text
-            AnimatedBuilder(
-              animation: _scrollController,
-              builder: (context, child) {
-                return LayoutBuilder(
-                  builder: (context, constraints) {
-                    final double scrollWidth = constraints.maxWidth;
-                    final double xPosition = _scrollOffset.value * (scrollWidth * 0.65);
-                    return Transform.translate(
-                      offset: Offset(xPosition, 0),
-                      child: Text(
-                        statusText,
-                        style: TextStyle(
-                          fontFamily: 'monospace',
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 2.0,
-                          color: color,
-                          shadows: isLight
-                              ? []
-                              : [
-                                  Shadow(
-                                    color: color.withValues(alpha: 0.8),
-                                    blurRadius: 4,
-                                  ),
-                                ],
-                        ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // Pulsing tactical LED status beacon
+                AnimatedBuilder(
+                  animation: _pulseController,
+                  builder: (context, child) {
+                    return Container(
+                      width: 7,
+                      height: 7,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: color.withValues(alpha: _pulseController.value * 0.7 + 0.3),
+                        boxShadow: isLight
+                            ? []
+                            : [
+                                BoxShadow(
+                                  color: color.withValues(alpha: _pulseController.value * 0.6),
+                                  blurRadius: 4,
+                                  spreadRadius: 1.5,
+                                )
+                              ],
                       ),
                     );
                   },
-                );
-              },
+                ),
+                const SizedBox(width: 8),
+                // Unified text style
+                Text(
+                  statusText,
+                  style: TextStyle(
+                    fontSize: fontSize,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 2.0,
+                    color: color,
+                    shadows: isLight
+                        ? []
+                        : [
+                            Shadow(
+                              color: color.withValues(alpha: 0.8),
+                              blurRadius: 4,
+                            ),
+                          ],
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
   }
 
-  String _getTurnText(GameController game) {
+  String _getTurnText(GameController game, AppTheme theme) {
+    final isCandy = theme.name.contains('Candy Meadow');
+    final isWood = theme.name.contains('Woodville Carve');
+
     if (game.isOverallGameOver) {
       if (game.matchWinner != null) {
-        return '<<< MATCH OVER: PLAYER ${game.matchWinner == Player.X ? 'X' : 'O'} WINS! PRESS START >>>';
+        final String winnerName = game.matchWinner == Player.X 
+            ? (isCandy ? 'LADYBUGS' : (isWood ? 'SLATE X' : 'PLAYER X'))
+            : (isCandy ? 'DONUTS' : (isWood ? 'STONE O' : 'PLAYER O'));
+        return 'MATCH OVER • $winnerName WIN';
       }
-      return '<<< MATCH OVER: DRAW GAME. PRESS START >>>';
+      return 'MATCH OVER • DRAW MATCH';
     }
     if (game.isAiThinking) {
-      return '<<< SYSTEM: AI COMPUTER IS THINKING... STAND BY >>>';
+      return 'AI COMPUTER THINKING • STAND BY';
     }
-    return game.currentPlayer == Player.X
-        ? '<<< PLAYER X TURN: INSERT COMMAND <<< '
-        : ' >>> PLAYER O TURN: INSERT COMMAND >>>';
+    
+    final String activePlayerName = game.currentPlayer == Player.X 
+        ? (isCandy ? 'LADYBUG' : (isWood ? 'SLATE X' : 'PLAYER X'))
+        : (isCandy ? 'DONUT' : (isWood ? 'STONE O' : 'PLAYER O'));
+    return '$activePlayerName TURN • READY';
   }
 
   Color _getTurnColor(GameController game, AppTheme theme) {
@@ -640,15 +661,43 @@ class LedGridPainter extends CustomPainter {
 }
 
 /// A glowing cabinet bezel screen framing the multi-boards view.
-class ArcadeCabinetFrame extends StatelessWidget {
+class ArcadeCabinetFrame extends StatefulWidget {
   final Widget child;
 
   const ArcadeCabinetFrame({super.key, required this.child});
 
   @override
+  State<ArcadeCabinetFrame> createState() => _ArcadeCabinetFrameState();
+}
+
+class _ArcadeCabinetFrameState extends State<ArcadeCabinetFrame>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _pulsateController;
+
+  @override
+  void initState() {
+    super.initState();
+    _pulsateController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 4),
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _pulsateController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final settings = context.watch<SettingsController>();
     final activeTheme = settings.currentTheme;
+
+    if (!activeTheme.name.contains('Neon Cyberpulse')) {
+      return widget.child;
+    }
+
     final isLight = activeTheme.brightness == Brightness.light;
 
     final frameBg = isLight
@@ -671,123 +720,130 @@ class ArcadeCabinetFrame extends StatelessWidget {
         ? activeTheme.mainColor.withValues(alpha: 0.2)
         : activeTheme.accentGlow.withValues(alpha: 0.4);
 
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        // Outer cabinet bezel
-        color: frameBg,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: frameBorderColor,
-          width: 6.0,
-        ),
-        boxShadow: [
-          // Dynamic cabinet neon glowing backplates
-          BoxShadow(
-            color: glowColor,
-            blurRadius: 16,
-            spreadRadius: 2,
-          ),
-          BoxShadow(
-            color: shadowColor,
-            blurRadius: 10,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Arcade Cabinet Screen Header Logo/Tag
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              _buildBezelScrew(isLight),
-              Text(
-                'CRT-99 MULTIPLEX MONITOR',
-                style: TextStyle(
-                  fontSize: 7.5,
-                  fontWeight: FontWeight.w900,
-                  color: isLight ? activeTheme.textColor.withValues(alpha: 0.5) : Colors.grey.shade600,
-                  letterSpacing: 1.0,
-                ),
+    return AnimatedBuilder(
+      animation: _pulsateController,
+      builder: (context, childWidget) {
+        // Shifting breathing factor mimicking slowly waving electricity
+        final double pulse = 0.70 + (_pulsateController.value * 0.30);
+        final dynamicGlowColor = glowColor.withValues(alpha: glowColor.a * pulse);
+        
+        final dynamicInnerBorderColor = innerBorderColor.withValues(
+          alpha: innerBorderColor.a * (0.8 + _pulsateController.value * 0.2),
+        );
+
+        return Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            // Outer cabinet bezel
+            color: frameBg,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: frameBorderColor,
+              width: 6.0,
+            ),
+            boxShadow: [
+              // Dynamic cabinet neon glowing backplates
+              BoxShadow(
+                color: dynamicGlowColor,
+                blurRadius: 16 * pulse,
+                spreadRadius: 2,
               ),
-              _buildBezelScrew(isLight),
+              BoxShadow(
+                color: shadowColor,
+                blurRadius: 10,
+                offset: const Offset(0, 10),
+              ),
             ],
           ),
-          const SizedBox(height: 8),
-          // The Board View Surrounded by Inner Glowing CRT Tube Rim
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: screenBg,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: innerBorderColor,
-                width: 2.0,
-              ),
-              boxShadow: isLight
-                  ? []
-                  : [
-                      BoxShadow(
-                        color: activeTheme.accentGlow.withValues(alpha: 0.15),
-                        blurRadius: 10,
-                        spreadRadius: 1,
-                      ),
-                    ],
-            ),
-            child: Stack(
-              children: [
-                child,
-                // Glossy CRT glass monitor glare corner overlays
-                Positioned.fill(
-                  child: IgnorePointer(
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: Container(
-                        decoration: const BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [
-                              Colors.white10,
-                              Colors.transparent,
-                              Colors.transparent,
-                            ],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            stops: [0.0, 0.25, 1.0],
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Arcade Cabinet Screen Header Logo/Tag
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  _buildBezelScrew(isLight),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Center(
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          'CRT-99 MULTIPLEX MONITOR',
+                          style: TextStyle(
+                            fontSize: 7.5,
+                            fontWeight: FontWeight.w900,
+                            color: isLight ? activeTheme.textColor.withValues(alpha: 0.5) : Colors.grey.shade600,
+                            letterSpacing: 1.0,
                           ),
                         ),
                       ),
                     ),
                   ),
+                  const SizedBox(width: 4),
+                  _buildBezelScrew(isLight),
+                ],
+              ),
+              const SizedBox(height: 8),
+              // The Board View Surrounded by Inner Glowing CRT Tube Rim
+              Flexible(
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: screenBg,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: dynamicInnerBorderColor,
+                      width: 2.0,
+                    ),
+                    boxShadow: isLight
+                        ? []
+                        : [
+                            BoxShadow(
+                              color: activeTheme.accentGlow.withValues(alpha: 0.15 * pulse),
+                              blurRadius: 10 * pulse,
+                              spreadRadius: 1,
+                            ),
+                          ],
+                  ),
+                  child: Stack(
+                    children: [
+                      widget.child,
+                      // Glossy CRT glass monitor glare corner overlays
+                      Positioned.fill(
+                        child: IgnorePointer(
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: Container(
+                              decoration: const BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [
+                                    Colors.white10,
+                                    Colors.transparent,
+                                    Colors.transparent,
+                                  ],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                  stops: [0.0, 0.25, 1.0],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
   Widget _buildBezelScrew(bool isLight) {
-    final screwColor = isLight ? Colors.grey.shade400 : const Color(0xFF33333E);
-    final screwLineColor = isLight ? Colors.grey.shade600 : Colors.black45;
-
-    return Container(
-      width: 6,
-      height: 6,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: screwColor,
-      ),
-      child: Center(
-        child: Container(
-          width: 4,
-          height: 1,
-          color: screwLineColor,
-        ),
-      ),
-    );
+    return ArcadeScrewWidget(isLight: isLight, size: 10.0);
   }
 }
 
@@ -808,38 +864,44 @@ class ArcadeControlDeck extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final isLight = theme.brightness == Brightness.light;
+    final settings = context.watch<SettingsController>();
+    final activeTheme = settings.currentTheme;
+    final themeName = activeTheme.name;
+    final isLight = activeTheme.brightness == Brightness.light;
 
-    final deckGradientColors = isLight
+    final isCandy = themeName.contains('Candy Meadow');
+    final isWood = themeName.contains('Woodville Carve');
+
+    final deckGradientColors = isCandy
         ? [
-            Color.lerp(theme.scaffoldBackgroundColor, Colors.white, 0.45)!,
-            Color.lerp(theme.scaffoldBackgroundColor, Colors.grey.shade300, 0.25)!,
+            const Color(0xFF8D6E63), // Warm wood top
+            const Color(0xFF5D4037), // Warm wood bottom
           ]
-        : [
-            const Color(0xFF131317),
-            isDark ? const Color(0xFF070709) : const Color(0xFF1A1A22),
-          ];
+        : (isWood
+            ? [
+                const Color(0xFF3E2723), // Rich mahogany top
+                const Color(0xFF271A15), // Rich mahogany bottom
+              ]
+            : [ // Neon Cyberpulse
+                const Color(0xFF131317),
+                const Color(0xFF070709),
+              ]);
 
-    final deckBorderColor = isLight
-        ? theme.primaryColor.withValues(alpha: 0.12)
-        : Colors.white10;
+    final deckBorderColor = isCandy
+        ? const Color(0xFF5D4037).withValues(alpha: 0.5)
+        : (isWood
+            ? const Color(0xFF3E2723)
+            : Colors.white10);
 
     final deckShadowColor = isLight
-        ? theme.textTheme.bodyLarge?.color?.withValues(alpha: 0.05) ?? Colors.black12
+        ? activeTheme.textColor.withValues(alpha: 0.05)
         : Colors.black.withValues(alpha: 0.5);
-
-    final coinTextColor = isLight
-        ? theme.textTheme.bodyLarge?.color?.withValues(alpha: 0.45) ?? Colors.grey.shade600
-        : Colors.grey.shade600;
 
     return ClipRRect(
       borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
             // Brushed metallic carbon/silver deck background
             gradient: LinearGradient(
@@ -860,60 +922,984 @@ class ArcadeControlDeck extends StatelessWidget {
               ),
             ],
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
+          child: Stack(
             children: [
-              // 1. Power-Ups Slots Row (if chaos ruleset card exists)
-              if (cardHandWidget != null) ...[
-                cardHandWidget!,
-                const SizedBox(height: 12),
-              ],
-
-              // 2. Tactile Push Buttons Row
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  // Option/Settings (Blue button)
-                  ArcadePushButton(
-                    label: 'OPTION',
-                    actionText: 'CONFIG',
-                    buttonColor: Colors.blue.shade600,
-                    onTap: onSettings,
-                  ),
-
-                  // START / New Match (Big Red button!)
-                  ArcadePushButton(
-                    label: 'PLAYER 1',
-                    actionText: 'START',
-                    buttonColor: Colors.red.shade700,
-                    size: 64.0, // Major push button
-                    onTap: onNewGame,
-                  ),
-
-                  // Info/Help (Yellow button)
-                  ArcadePushButton(
-                    label: 'HELP',
-                    actionText: 'INFO',
-                    buttonColor: Colors.amber.shade600,
-                    onTap: onHelp,
-                  ),
-                ],
+              // Screws in the top-left and top-right of the control deck console
+              Positioned(
+                top: 8,
+                left: 8,
+                child: ArcadeScrewWidget(isLight: isLight, size: 10.0),
               ),
-              const SizedBox(height: 6),
-              // Arcade signature tag
-              Text(
-                'INSERT COIN - CREDIT 99',
-                style: TextStyle(
-                  fontSize: 7,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 2.0,
-                  color: coinTextColor,
+              Positioned(
+                top: 8,
+                right: 8,
+                child: ArcadeScrewWidget(isLight: isLight, size: 10.0),
+              ),
+              // Main content
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // 1. Power-Ups Slots Row (if chaos ruleset card exists)
+                    if (cardHandWidget != null) ...[
+                      cardHandWidget!,
+                      const SizedBox(height: 12),
+                    ],
+
+                    // 2. Controller Section: Interactive Joystick (Left) + Action Buttons (Right)
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const InteractiveJoystickWidget(size: 76.0),
+                        const SizedBox(width: 24),
+                        Expanded(
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                            children: [
+                              // Option/Settings
+                              ArcadePushButton(
+                                label: 'OPTION',
+                                actionText: 'CONFIG',
+                                buttonColor: isCandy 
+                                    ? const Color(0xFF00B0FF) 
+                                    : (isWood ? const Color(0xFF8D6E63) : Colors.blue.shade600),
+                                onTap: onSettings,
+                              ),
+
+                              // START / New Match (Big button!)
+                              ArcadePushButton(
+                                label: 'PLAYER 1',
+                                actionText: 'START',
+                                buttonColor: isCandy 
+                                    ? const Color(0xFFFF4081) 
+                                    : (isWood ? const Color(0xFFD84315) : Colors.red.shade700),
+                                size: 64.0, // Major push button
+                                onTap: onNewGame,
+                              ),
+
+                              // Info/Help
+                              ArcadePushButton(
+                                label: 'HELP',
+                                actionText: 'INFO',
+                                buttonColor: isCandy 
+                                    ? const Color(0xFFFFD54F) 
+                                    : (isWood ? const Color(0xFFFFB300) : Colors.amber.shade600),
+                                onTap: onHelp,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    // Arcade signature tag
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const GlowingCoinSlotWidget(),
+                        const SizedBox(width: 16),
+                        Text(
+                          'CREDIT 99',
+                          style: TextStyle(
+                            fontSize: 8.5,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 2.0,
+                            color: isLight ? Colors.grey.shade700 : Colors.amber.shade600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               ),
             ],
           ),
         ),
       ),
+    );
+  }
+}
+
+/// A floating glassmorphic score badge for Player X, glowing with dull crimson.
+class PlayerXScoreBadge extends StatelessWidget {
+  const PlayerXScoreBadge({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final game = context.watch<GameController>();
+    final settings = context.watch<SettingsController>();
+    final currentTheme = settings.currentTheme;
+    final isLight = currentTheme.brightness == Brightness.light;
+    final res = ResponsiveLayout(context);
+
+    final isCandy = currentTheme.name.contains('Candy Meadow');
+    final isWood = currentTheme.name.contains('Woodville Carve');
+
+    final isActive = game.currentPlayer == Player.X && !game.isOverallGameOver;
+    final dullCrimson = isLight ? const Color(0xFFB71C1C) : const Color(0xFF8B2635);
+
+    String padScore(int score) {
+      return (score * 100).toString().padLeft(6, '0');
+    }
+
+    // Responsive sizing based on the 4 diagonal display categories
+    final double width = res.isLessThan7Inch
+        ? 110.0
+        : (res.is7To8Inch ? 122.0 : (res.is8To10Inch ? 135.0 : 145.0));
+    final double paddingHorizontal = res.isLessThan7Inch ? 6.0 : 10.0;
+    final double paddingVertical = res.isLessThan7Inch ? 4.0 : 6.0;
+    final double blinkLabelFontSize = res.isLessThan7Inch ? 8.0 : 9.5;
+    final double scoreFontSize = res.isLessThan7Inch ? 11.0 : 13.0;
+    final double boardsWonFontSize = res.isLessThan7Inch ? 6.5 : 7.0;
+
+    final BoxDecoration containerDeco = isCandy
+        ? BoxDecoration(
+            color: const Color(0xFF8D6E63), // Warm wood plank color
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: isActive ? const Color(0xFFFFB74D) : const Color(0xFF5D4037),
+              width: isActive ? 2.5 : 1.2,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.18),
+                blurRadius: 4,
+                offset: const Offset(0, 3),
+              ),
+            ],
+          )
+        : (isWood
+            ? BoxDecoration(
+                color: const Color(0xFF4E342E), // Embossed dark wood
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: isActive ? const Color(0xFFFFB300) : const Color(0xFF3E2723),
+                  width: isActive ? 2.0 : 1.0,
+                ),
+              )
+            : BoxDecoration( // Neon Cyberpulse
+                color: isLight
+                    ? Colors.white.withValues(alpha: 0.15)
+                    : currentTheme.scaffoldBg.withValues(alpha: 0.25),
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(16),
+                  bottomLeft: Radius.circular(16),
+                  topRight: Radius.circular(6),
+                  bottomRight: Radius.circular(6),
+                ),
+                border: Border.all(
+                  color: isActive
+                      ? dullCrimson.withValues(alpha: 0.8)
+                      : dullCrimson.withValues(alpha: 0.25),
+                  width: isActive ? 2.0 : 1.2,
+                ),
+                boxShadow: isActive
+                    ? [
+                        BoxShadow(
+                          color: dullCrimson.withValues(alpha: 0.15),
+                          blurRadius: 8,
+                          spreadRadius: 0.5,
+                        ),
+                      ]
+                    : [],
+              ));
+
+    return ClipRRect(
+      borderRadius: isCandy || isWood
+          ? BorderRadius.circular(14)
+          : const BorderRadius.only(
+              topLeft: Radius.circular(16),
+              bottomLeft: Radius.circular(16),
+              topRight: Radius.circular(6),
+              bottomRight: Radius.circular(6),
+            ),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+        child: Container(
+          width: width,
+          padding: EdgeInsets.symmetric(horizontal: paddingHorizontal, vertical: paddingVertical),
+          decoration: containerDeco,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  if (isCandy) ...[
+                    _buildLadybugIcon(size: 11),
+                    const SizedBox(width: 4),
+                  ],
+                  _BlinkingLabel(
+                    label: isCandy ? 'LADYBUG' : (isWood ? 'SLATE X' : '1UP (X)'),
+                    active: isActive,
+                    color: isCandy
+                        ? (isActive ? Colors.redAccent.shade100 : Colors.grey.shade400)
+                        : (isWood
+                            ? (isActive ? const Color(0xFFFFB300) : Colors.grey.shade500)
+                            : (isActive ? dullCrimson : currentTheme.textColor.withValues(alpha: 0.45))),
+                    fontSize: blinkLabelFontSize,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1.5),
+                decoration: BoxDecoration(
+                  color: isCandy || isWood
+                      ? const Color(0xFF3E2723).withValues(alpha: 0.25)
+                      : (isLight ? Colors.white.withValues(alpha: 0.9) : Colors.black.withValues(alpha: 0.3)),
+                  borderRadius: BorderRadius.circular(4),
+                  border: Border.all(
+                    color: isCandy || isWood ? Colors.black26 : (isLight ? currentTheme.mainColor.withValues(alpha: 0.15) : Colors.white10),
+                  ),
+                ),
+                child: Text(
+                  padScore(game.sessionWinsX),
+                  style: TextStyle(
+                    fontSize: scoreFontSize,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 1.2,
+                    color: isCandy
+                        ? const Color(0xFFFFCCBC)
+                        : (isWood ? const Color(0xFFFFE0B2) : dullCrimson),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                'BOARDS: ${game.boardsWonX}',
+                style: TextStyle(
+                  fontSize: boardsWonFontSize,
+                  fontWeight: FontWeight.w900,
+                  color: isCandy
+                      ? Colors.orange.shade100
+                      : (isWood ? const Color(0xFFFFE0B2).withValues(alpha: 0.7) : (isLight ? currentTheme.textColor.withValues(alpha: 0.6) : Colors.grey.shade500)),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A floating glassmorphic score badge for Player O, glowing with dull steel blue.
+class PlayerOScoreBadge extends StatelessWidget {
+  const PlayerOScoreBadge({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final game = context.watch<GameController>();
+    final settings = context.watch<SettingsController>();
+    final currentTheme = settings.currentTheme;
+    final isLight = currentTheme.brightness == Brightness.light;
+    final res = ResponsiveLayout(context);
+
+    final isCandy = currentTheme.name.contains('Candy Meadow');
+    final isWood = currentTheme.name.contains('Woodville Carve');
+
+    final isActive = game.currentPlayer == Player.O && !game.isOverallGameOver;
+    final dullBlue = isLight ? const Color(0xFF0D47A1) : const Color(0xFF264E70);
+
+    String padScore(int score) {
+      return (score * 100).toString().padLeft(6, '0');
+    }
+
+    // Responsive sizing based on the 4 diagonal display categories
+    final double width = res.isLessThan7Inch
+        ? 110.0
+        : (res.is7To8Inch ? 122.0 : (res.is8To10Inch ? 135.0 : 145.0));
+    final double paddingHorizontal = res.isLessThan7Inch ? 6.0 : 10.0;
+    final double paddingVertical = res.isLessThan7Inch ? 4.0 : 6.0;
+    final double blinkLabelFontSize = res.isLessThan7Inch ? 8.0 : 9.5;
+    final double scoreFontSize = res.isLessThan7Inch ? 11.0 : 13.0;
+    final double boardsWonFontSize = res.isLessThan7Inch ? 6.5 : 7.0;
+
+    final BoxDecoration containerDeco = isCandy
+        ? BoxDecoration(
+            color: const Color(0xFF8D6E63), // Warm wood plank color
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: isActive ? const Color(0xFFFFB74D) : const Color(0xFF5D4037),
+              width: isActive ? 2.5 : 1.2,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.18),
+                blurRadius: 4,
+                offset: const Offset(0, 3),
+              ),
+            ],
+          )
+        : (isWood
+            ? BoxDecoration(
+                color: const Color(0xFF4E342E), // Embossed dark wood
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: isActive ? const Color(0xFFFFB300) : const Color(0xFF3E2723),
+                  width: isActive ? 2.0 : 1.0,
+                ),
+              )
+            : BoxDecoration( // Neon Cyberpulse
+                color: isLight
+                    ? Colors.white.withValues(alpha: 0.15)
+                    : currentTheme.scaffoldBg.withValues(alpha: 0.25),
+                borderRadius: const BorderRadius.only(
+                  topRight: Radius.circular(16),
+                  bottomRight: Radius.circular(16),
+                  topLeft: Radius.circular(6),
+                  bottomLeft: Radius.circular(6),
+                ),
+                border: Border.all(
+                  color: isActive
+                      ? dullBlue.withValues(alpha: 0.8)
+                      : dullBlue.withValues(alpha: 0.25),
+                  width: isActive ? 2.0 : 1.2,
+                ),
+                boxShadow: isActive
+                    ? [
+                        BoxShadow(
+                          color: dullBlue.withValues(alpha: 0.15),
+                          blurRadius: 8,
+                          spreadRadius: 0.5,
+                        ),
+                      ]
+                    : [],
+              ));
+
+    return ClipRRect(
+      borderRadius: isCandy || isWood
+          ? BorderRadius.circular(14)
+          : const BorderRadius.only(
+              topRight: Radius.circular(16),
+              bottomRight: Radius.circular(16),
+              topLeft: Radius.circular(6),
+              bottomLeft: Radius.circular(6),
+            ),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+        child: Container(
+          width: width,
+          padding: EdgeInsets.symmetric(horizontal: paddingHorizontal, vertical: paddingVertical),
+          decoration: containerDeco,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  if (isCandy) ...[
+                    _buildDonutIcon(size: 11),
+                    const SizedBox(width: 4),
+                  ],
+                  _BlinkingLabel(
+                    label: isCandy ? 'DONUT' : (isWood ? 'STONE O' : '2UP (O)'),
+                    active: isActive,
+                    color: isCandy
+                        ? (isActive ? Colors.pinkAccent.shade100 : Colors.grey.shade400)
+                        : (isWood
+                            ? (isActive ? const Color(0xFFFFB300) : Colors.grey.shade500)
+                            : (isActive ? dullBlue : currentTheme.textColor.withValues(alpha: 0.45))),
+                    fontSize: blinkLabelFontSize,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1.5),
+                decoration: BoxDecoration(
+                  color: isCandy || isWood
+                      ? const Color(0xFF3E2723).withValues(alpha: 0.25)
+                      : (isLight ? Colors.white.withValues(alpha: 0.9) : Colors.black.withValues(alpha: 0.3)),
+                  borderRadius: BorderRadius.circular(4),
+                  border: Border.all(
+                    color: isCandy || isWood ? Colors.black26 : (isLight ? currentTheme.mainColor.withValues(alpha: 0.15) : Colors.white10),
+                  ),
+                ),
+                child: Text(
+                  padScore(game.sessionWinsO),
+                  style: TextStyle(
+                    fontSize: scoreFontSize,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 1.2,
+                    color: isCandy
+                        ? const Color(0xFFFFCCBC)
+                        : (isWood ? const Color(0xFFFFE0B2) : dullBlue),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                'BOARDS: ${game.boardsWonO}',
+                style: TextStyle(
+                  fontSize: boardsWonFontSize,
+                  fontWeight: FontWeight.w900,
+                  color: isCandy
+                      ? Colors.orange.shade100
+                      : (isWood ? const Color(0xFFFFE0B2).withValues(alpha: 0.7) : (isLight ? currentTheme.textColor.withValues(alpha: 0.6) : Colors.grey.shade500)),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A floating glassmorphic central stats plate displaying high score record, glowing with dull amber.
+class HighScoreBadge extends StatelessWidget {
+  const HighScoreBadge({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final settings = context.watch<SettingsController>();
+    final currentTheme = settings.currentTheme;
+    final isLight = currentTheme.brightness == Brightness.light;
+    final res = ResponsiveLayout(context);
+
+    final isCandy = currentTheme.name.contains('Candy Meadow');
+    final isWood = currentTheme.name.contains('Woodville Carve');
+
+    final dullAmber = isLight ? const Color(0xFFE65100) : const Color(0xFFC47B2B);
+
+    // Responsive sizing based on the 4 diagonal display categories
+    final double width = res.isLessThan7Inch
+        ? 96.0
+        : (res.is7To8Inch ? 108.0 : (res.is8To10Inch ? 120.0 : 130.0));
+    final double paddingHorizontal = res.isLessThan7Inch ? 6.0 : 8.0;
+    final double paddingVertical = res.isLessThan7Inch ? 4.0 : 6.0;
+    final double highLabelFontSize = res.isLessThan7Inch ? 7.0 : 8.0;
+    final double scoreFontSize = res.isLessThan7Inch ? 12.0 : 14.0;
+    final double cabinetFontSize = res.isLessThan7Inch ? 6.5 : 7.0;
+
+    final BoxDecoration containerDeco = isCandy
+        ? BoxDecoration(
+            color: const Color(0xFF8D6E63), // Warm wood plank color
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: const Color(0xFF5D4037), width: 1.5),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.15),
+                blurRadius: 4,
+                offset: const Offset(0, 3),
+              ),
+            ],
+          )
+        : (isWood
+            ? BoxDecoration(
+                color: const Color(0xFF4E342E), // Carved wood panel style
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xFF3E2723), width: 1.0),
+              )
+            : BoxDecoration( // Neon Cyberpulse
+                color: isLight
+                    ? Colors.white.withValues(alpha: 0.12)
+                    : currentTheme.scaffoldBg.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: dullAmber.withValues(alpha: 0.25),
+                  width: 1.2,
+                ),
+              ));
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(10),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+        child: Container(
+          width: width,
+          padding: EdgeInsets.symmetric(horizontal: paddingHorizontal, vertical: paddingVertical),
+          decoration: containerDeco,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'HIGH SCORE',
+                style: TextStyle(
+                  fontSize: highLabelFontSize,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 1.5,
+                  color: isCandy
+                      ? const Color(0xFFFFCCBC)
+                      : (isWood ? const Color(0xFFFFB300) : dullAmber),
+                  shadows: isLight || isCandy || isWood
+                      ? []
+                      : [
+                          Shadow(
+                            color: dullAmber.withValues(alpha: 0.3),
+                            blurRadius: 4,
+                          ),
+                        ],
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '999990',
+                style: TextStyle(
+                  fontSize: scoreFontSize,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 1.2,
+                  color: isCandy
+                      ? const Color(0xFFFFB300)
+                      : (isWood ? const Color(0xFFFFE0B2) : dullAmber),
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                isCandy ? 'SWEET PLANK' : (isWood ? 'WOOD RECORD' : 'V2 CABINET'),
+                style: TextStyle(
+                  fontSize: cabinetFontSize,
+                  fontWeight: FontWeight.w900,
+                  color: isCandy
+                      ? Colors.orange.shade100
+                      : (isWood ? const Color(0xFFFFE0B2).withValues(alpha: 0.6) : (isLight ? currentTheme.textColor.withValues(alpha: 0.5) : Colors.grey.shade600)),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+Widget _buildLadybugIcon({double size = 12.0}) {
+  return Container(
+    width: size,
+    height: size,
+    decoration: const BoxDecoration(
+      shape: BoxShape.circle,
+      color: Color(0xFFE53935),
+    ),
+    child: Stack(
+      alignment: Alignment.center,
+      children: [
+        // Separation line
+        Container(
+          width: 1.0,
+          height: size,
+          color: Colors.black,
+        ),
+        // Spots
+        Positioned(
+          left: size * 0.15,
+          top: size * 0.25,
+          child: Container(width: 1.5, height: 1.5, color: Colors.black),
+        ),
+        Positioned(
+          right: size * 0.15,
+          top: size * 0.25,
+          child: Container(width: 1.5, height: 1.5, color: Colors.black),
+        ),
+        // Head
+        Positioned(
+          top: 0,
+          child: Container(
+            width: size * 0.4,
+            height: size * 0.25,
+            decoration: const BoxDecoration(
+              color: Colors.black,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(2)),
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+Widget _buildDonutIcon({double size = 12.0}) {
+  return Container(
+    width: size,
+    height: size,
+    decoration: BoxDecoration(
+      shape: BoxShape.circle,
+      color: const Color(0xFFFF4081), // Pink glazing
+      border: Border.all(color: const Color(0xFFE5A882), width: size * 0.25), // Golden pastry hole
+    ),
+  );
+}
+
+class ArcadeScrewWidget extends StatelessWidget {
+  final bool isLight;
+  final double size;
+  const ArcadeScrewWidget({super.key, required this.isLight, this.size = 14.0});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: size,
+      height: size,
+      child: CustomPaint(
+        painter: HexScrewPainter(isLight: isLight),
+      ),
+    );
+  }
+}
+
+class HexScrewPainter extends CustomPainter {
+  final bool isLight;
+  HexScrewPainter({required this.isLight});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = size.width / 2;
+
+    // 1. Dark bottom shadow (depth rim)
+    final shadowPaint = Paint()
+      ..color = Colors.black.withValues(alpha: isLight ? 0.25 : 0.6)
+      ..style = PaintingStyle.fill;
+    canvas.drawCircle(Offset(center.dx, center.dy + 1), radius, shadowPaint);
+
+    // 2. Beveled metal outer rim
+    final rimPaint = Paint()
+      ..shader = RadialGradient(
+        colors: isLight
+            ? [Colors.grey.shade300, Colors.grey.shade500]
+            : [const Color(0xFF555562), const Color(0xFF22222A)],
+        center: const Alignment(-0.2, -0.2),
+      ).createShader(Rect.fromCircle(center: center, radius: radius))
+      ..style = PaintingStyle.fill;
+    canvas.drawCircle(center, radius - 0.5, rimPaint);
+
+    // 3. Inner Hex Socket
+    final hexPaint = Paint()
+      ..color = isLight ? Colors.grey.shade800 : const Color(0xFF0F0F12)
+      ..style = PaintingStyle.fill;
+
+    final hexPath = Path();
+    final double hexRadius = radius * 0.45;
+    for (int i = 0; i < 6; i++) {
+      final double angle = i * pi / 3;
+      final double x = center.dx + cos(angle) * hexRadius;
+      final double y = center.dy + sin(angle) * hexRadius;
+      if (i == 0) {
+        hexPath.moveTo(x, y);
+      } else {
+        hexPath.lineTo(x, y);
+      }
+    }
+    hexPath.close();
+    canvas.drawPath(hexPath, hexPaint);
+
+    // 4. Specular reflection highlight
+    final highlightPaint = Paint()
+      ..color = Colors.white.withValues(alpha: 0.4)
+      ..strokeWidth = 0.8
+      ..style = PaintingStyle.stroke;
+    canvas.drawArc(
+      Rect.fromCircle(center: center, radius: radius - 1.5),
+      -2.2,
+      1.0,
+      false,
+      highlightPaint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant HexScrewPainter oldDelegate) => oldDelegate.isLight != isLight;
+}
+
+class InteractiveJoystickWidget extends StatefulWidget {
+  final double size;
+  const InteractiveJoystickWidget({super.key, this.size = 72.0});
+
+  @override
+  State<InteractiveJoystickWidget> createState() => _InteractiveJoystickWidgetState();
+}
+
+class _InteractiveJoystickWidgetState extends State<InteractiveJoystickWidget> with SingleTickerProviderStateMixin {
+  late AnimationController _idleController;
+  double _tiltX = 0.0;
+  double _tiltY = 0.0;
+  bool _isHovered = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _idleController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 3000),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _idleController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final settings = context.watch<SettingsController>();
+    final activeTheme = settings.currentTheme;
+    
+    // Ball top color matches the active theme
+    Color ballColor = const Color(0xFFFF1744); // Neon default red
+    if (activeTheme.name.contains('Candy Meadow')) {
+      ballColor = const Color(0xFFFF4081); // Candy pink
+    } else if (activeTheme.name.contains('Woodville Carve')) {
+      ballColor = const Color(0xFFFF9100); // Amber orange
+    }
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovered = true),
+      onHover: (event) {
+        final double halfSize = widget.size / 2;
+        final double dx = (event.localPosition.dx - halfSize) / halfSize;
+        final double dy = (event.localPosition.dy - halfSize) / halfSize;
+        setState(() {
+          _tiltX = dx.clamp(-1.0, 1.0);
+          _tiltY = dy.clamp(-1.0, 1.0);
+        });
+      },
+      onExit: (_) => setState(() {
+        _isHovered = false;
+        _tiltX = 0.0;
+        _tiltY = 0.0;
+      }),
+      child: AnimatedBuilder(
+        animation: _idleController,
+        builder: (context, child) {
+          // If not hovered, sway gently in a slow infinite circle
+          double finalTiltX = _tiltX;
+          double finalTiltY = _tiltY;
+          if (!_isHovered) {
+            final double angle = _idleController.value * 2 * pi;
+            finalTiltX = cos(angle) * 0.18;
+            finalTiltY = sin(angle) * 0.18;
+          }
+
+          return CustomPaint(
+            size: Size(widget.size, widget.size),
+            painter: JoystickPainter(
+              tiltX: finalTiltX,
+              tiltY: finalTiltY,
+              ballColor: ballColor,
+              isLight: activeTheme.brightness == Brightness.light,
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class JoystickPainter extends CustomPainter {
+  final double tiltX;
+  final double tiltY;
+  final Color ballColor;
+  final bool isLight;
+
+  JoystickPainter({
+    required this.tiltX,
+    required this.tiltY,
+    required this.ballColor,
+    required this.isLight,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final double radius = size.width / 2;
+
+    // 1. Dark Recess Hole Well
+    final wellPaint = Paint()
+      ..shader = RadialGradient(
+        colors: isLight
+            ? [Colors.grey.shade400, Colors.grey.shade600]
+            : [const Color(0xFF070709), const Color(0xFF202028)],
+      ).createShader(Rect.fromCircle(center: center, radius: radius))
+      ..style = PaintingStyle.fill;
+    canvas.drawCircle(center, radius, wellPaint);
+
+    final wellBorder = Paint()
+      ..color = isLight ? Colors.grey.shade700 : const Color(0xFF33333E)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.0;
+    canvas.drawCircle(center, radius, wellBorder);
+
+    // 2. Black Rubber Dust Washer
+    final double washerRadius = radius * 0.6;
+    final Offset washerCenter = center + Offset(tiltX * radius * 0.14, tiltY * radius * 0.14);
+    
+    final washerShadow = Paint()
+      ..color = Colors.black.withValues(alpha: 0.45)
+      ..style = PaintingStyle.fill;
+    canvas.drawCircle(Offset(washerCenter.dx, washerCenter.dy + 1.5), washerRadius, washerShadow);
+
+    final washerPaint = Paint()
+      ..color = isLight ? const Color(0xFF222222) : const Color(0xFF15151A)
+      ..style = PaintingStyle.fill;
+    canvas.drawCircle(washerCenter, washerRadius, washerPaint);
+
+    // Inner well hole inside washer
+    final washerHolePaint = Paint()
+      ..color = Colors.black
+      ..style = PaintingStyle.fill;
+    canvas.drawCircle(washerCenter, washerRadius * 0.25, washerHolePaint);
+
+    // 3. Chrome Shaft
+    final Offset ballCenter = center + Offset(tiltX * radius * 0.42, tiltY * radius * 0.42);
+    
+    final shaftShadowPaint = Paint()
+      ..color = Colors.black.withValues(alpha: 0.35)
+      ..strokeWidth = radius * 0.16
+      ..strokeCap = StrokeCap.round;
+    canvas.drawLine(washerCenter + const Offset(1, 2), ballCenter + const Offset(1, 2), shaftShadowPaint);
+
+    final shaftPaint = Paint()
+      ..shader = LinearGradient(
+        colors: [Colors.grey.shade300, Colors.white, Colors.grey.shade500, Colors.grey.shade700],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      ).createShader(Rect.fromPoints(washerCenter, ballCenter))
+      ..strokeWidth = radius * 0.13
+      ..strokeCap = StrokeCap.round;
+    canvas.drawLine(washerCenter, ballCenter, shaftPaint);
+
+    // 4. sphere Ball Top
+    final double ballRadius = radius * 0.38;
+    
+    final ballShadow = Paint()
+      ..color = Colors.black.withValues(alpha: 0.5)
+      ..style = PaintingStyle.fill
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2.5);
+    canvas.drawCircle(Offset(ballCenter.dx + 2, ballCenter.dy + 4), ballRadius, ballShadow);
+
+    final ballPaint = Paint()
+      ..shader = RadialGradient(
+        colors: [
+          Color.lerp(ballColor, Colors.white, 0.4)!,
+          ballColor,
+          Color.lerp(ballColor, Colors.black, 0.5)!,
+        ],
+        center: const Alignment(-0.35, -0.35),
+        radius: 0.9,
+      ).createShader(Rect.fromCircle(center: ballCenter, radius: ballRadius))
+      ..style = PaintingStyle.fill;
+    canvas.drawCircle(ballCenter, ballRadius, ballPaint);
+
+    // Specular high gloss white shine on ball
+    final shinePaint = Paint()
+      ..color = Colors.white.withValues(alpha: 0.45)
+      ..style = PaintingStyle.fill;
+    canvas.drawCircle(ballCenter + Offset(-ballRadius * 0.3, -ballRadius * 0.3), ballRadius * 0.18, shinePaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant JoystickPainter oldDelegate) =>
+      oldDelegate.tiltX != tiltX || oldDelegate.tiltY != tiltY || oldDelegate.ballColor != ballColor || oldDelegate.isLight != isLight;
+}
+
+class GlowingCoinSlotWidget extends StatefulWidget {
+  const GlowingCoinSlotWidget({super.key});
+
+  @override
+  State<GlowingCoinSlotWidget> createState() => _GlowingCoinSlotWidgetState();
+}
+
+class _GlowingCoinSlotWidgetState extends State<GlowingCoinSlotWidget> with SingleTickerProviderStateMixin {
+  late AnimationController _glowController;
+
+  @override
+  void initState() {
+    super.initState();
+    _glowController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _glowController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final settings = context.watch<SettingsController>();
+    final activeTheme = settings.currentTheme;
+    final isLight = activeTheme.brightness == Brightness.light;
+
+    return AnimatedBuilder(
+      animation: _glowController,
+      builder: (context, child) {
+        final double val = _glowController.value;
+        // Pulsing high-contrast amber/neon orange glow
+        final orangeGlow = const Color(0xFFFF3D00).withValues(alpha: 0.35 + 0.65 * val);
+        final textColor = isLight ? const Color(0xFFD84315) : const Color(0xFFFF6D00);
+
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          decoration: BoxDecoration(
+            color: isLight ? Colors.grey.shade200 : const Color(0xFF0F0F12),
+            borderRadius: BorderRadius.circular(6),
+            border: Border.all(
+              color: isLight ? Colors.grey.shade400 : const Color(0xFF33333E),
+              width: 1.5,
+            ),
+            boxShadow: isLight
+                ? []
+                : [
+                    BoxShadow(
+                      color: orangeGlow.withValues(alpha: orangeGlow.a * 0.25),
+                      blurRadius: 8,
+                      spreadRadius: 1,
+                    ),
+                  ],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Vertical glowing coin slot opening
+              Container(
+                width: 3.5,
+                height: 14,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF070709),
+                  borderRadius: BorderRadius.circular(1.5),
+                  border: Border.all(
+                    color: orangeGlow,
+                    width: 1.0,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: orangeGlow,
+                      blurRadius: 3 * val,
+                      spreadRadius: 0.5 * val,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              // Stenciled text
+              Text(
+                'INSERT COIN',
+                style: TextStyle(
+                  fontSize: 7.5,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 1.0,
+                  color: textColor,
+                  shadows: isLight
+                      ? []
+                      : [
+                          Shadow(
+                            color: textColor.withValues(alpha: 0.6),
+                            blurRadius: 3,
+                          ),
+                        ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

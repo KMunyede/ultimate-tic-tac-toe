@@ -20,11 +20,21 @@ class StatsService extends ChangeNotifier {
   StatsService() {
     _loadLocalStats();
     // Listen for auth changes to load Firestore stats if user logs in
-    _auth.authStateChanges().listen((user) {
-      if (user != null) {
-        _syncWithFirestore(user.uid);
-      }
-    });
+    _auth.authStateChanges().listen(
+      (user) {
+        if (user != null) {
+          _syncWithFirestore(user.uid);
+        } else {
+          // Reset stats to local offline levels on logout to prevent stat leak
+          _loadLocalStats();
+        }
+      },
+      onError: (error) {
+        if (kDebugMode) {
+          print("Error in authStateChanges stream: $error");
+        }
+      },
+    );
   }
 
   Future<void> _loadLocalStats() async {
@@ -280,7 +290,15 @@ class StatsService extends ChangeNotifier {
   Stream<DocumentSnapshot<Map<String, dynamic>>> get userStats {
     final uid = _userId;
     if (uid == null) return const Stream.empty();
-    return _firestore.collection('users').doc(uid).snapshots();
+    return _firestore
+        .collection('users')
+        .doc(uid)
+        .snapshots()
+        .handleError((error) {
+      if (kDebugMode) {
+        print("Error listening to userStats stream: $error");
+      }
+    });
   }
 }
 

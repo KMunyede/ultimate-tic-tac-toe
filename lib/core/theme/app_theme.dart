@@ -20,68 +20,52 @@ class AppTheme {
     required this.textColor,
     required this.bgGradient,
   });
+
+  Color get colorX {
+    if (name.contains('Neon Cyberpulse')) return accentGlow; // Neon Pink
+    if (name.contains('Candy Meadow')) return accentGlow;    // Ladybug Red
+    if (name.contains('Woodville Carve')) return const Color(0xFF8A8A8A); // Slate Grey Stone
+    return mainColor;
+  }
+
+  Color get colorO {
+    if (name.contains('Neon Cyberpulse')) return mainColor;  // Neon Cyan
+    if (name.contains('Candy Meadow')) return mainColor;     // Donut Pink
+    if (name.contains('Woodville Carve')) return const Color(0xFFFFFFFF); // White Plaster Stone
+    return accentGlow;
+  }
 }
 
 final List<AppTheme> appThemes = [
   const AppTheme(
-    name: 'Midnight Cyber (Dark)',
+    name: 'Cyberpunk Neon Cyberpulse (Dark)',
     brightness: Brightness.dark,
-    mainColor: Color(0xFF00FFCC), // Electric Cyan
-    scaffoldBg: Color(0xFF0A031A), // Dark Space Violet
-    boardBg: Color(0xFF1E0E3D), // Deep Violet Neumorphic Card
-    accentGlow: Color(0xFFFF007F), // Neon Magenta
+    mainColor: Color(0xFF00FFCC), // Neon Cyan
+    scaffoldBg: Color(0xFF0A0B10), // Cyber Black
+    boardBg: Color(0xFF121420), // Dark Cyber Card
+    accentGlow: Color(0xFFFF007F), // Neon Pink/Magenta
     textColor: Colors.white,
-    bgGradient: [Color(0xFF0A031A), Color(0xFF1C0A3B), Color(0xFF050110)],
+    bgGradient: [Color(0xFF08090E), Color(0xFF121422), Color(0xFF040508)],
   ),
   const AppTheme(
-    name: 'Vaporwave Dream (Dark)',
-    brightness: Brightness.dark,
-    mainColor: Color(0xFFFF71CE), // Fluorescent Pink
-    scaffoldBg: Color(0xFF001733), // Midnight Blue
-    boardBg: Color(0xFF05122E), // Translucent Sapphire Card
-    accentGlow: Color(0xFF01FFC3), // Fluorescent Cyan
-    textColor: Colors.white,
-    bgGradient: [Color(0xFF0A001F), Color(0xFF1D0E47), Color(0xFF000E26)],
-  ),
-  const AppTheme(
-    name: 'Retro Arcade (Dark)',
-    brightness: Brightness.dark,
-    mainColor: Color(0xFF39FF14), // Electric Green
-    scaffoldBg: Color(0xFF000000), // Pure Pitch Black
-    boardBg: Color(0xFF111111), // Charcoal Grid Card
-    accentGlow: Color(0xFFFF2A2A), // Arcade Red
-    textColor: Colors.white,
-    bgGradient: [Color(0xFF000000), Color(0xFF0D0D0D), Color(0xFF000000)],
-  ),
-  const AppTheme(
-    name: 'Solar Eclipse (Dark)',
-    brightness: Brightness.dark,
-    mainColor: Color(0xFFFF8C00), // Fire Amber
-    scaffoldBg: Color(0xFF121212), // Charcoal Dark
-    boardBg: Color(0xFF1E1E1E), // Soft Obsidian Card
-    accentGlow: Color(0xFFFFD700), // Gold Flare
-    textColor: Colors.white,
-    bgGradient: [Color(0xFF121212), Color(0xFF261908), Color(0xFF121212)],
-  ),
-  const AppTheme(
-    name: 'Sunset Glass (Light)',
+    name: 'Ladybug Sugar Candy Meadow (Light)',
     brightness: Brightness.light,
-    mainColor: Color(0xFFD84315), // Deep Sunset Rust Orange (soft low-glare)
-    scaffoldBg: Color(0xFFFCE4D6), // Muted pastel warm clay
-    boardBg: Color(0xFFF5C2B1), // Elegant Frosted Peach-Glass Card (No blinding white!)
-    accentGlow: Color(0xFFFF8F00), // Vibrant amber flare
-    textColor: Color(0xFF3E2723), // Highly visible warm dark chocolate text
-    bgGradient: [Color(0xFFFBE9E7), Color(0xFFFFCCBC), Color(0xFFFFD180)],
+    mainColor: Color(0xFFFF4081), // Donut Frosting Pink
+    scaffoldBg: Color(0xFFE2F1E8), // Sky/Meadow pastel base
+    boardBg: Color(0xFFFBE9E7), // Cozy Wooden cake/peach base
+    accentGlow: Color(0xFFE53935), // Ladybug Red
+    textColor: Color(0xFF3E2723), // Wood dark brown
+    bgGradient: [Color(0xFFE1F5FE), Color(0xFFE8F5E9), Color(0xFFFFF9C4)], // Sky, meadow & sun colors
   ),
   const AppTheme(
-    name: 'Ocean Glass (Light)',
+    name: 'Rustic Mahogany Woodville Carve (Warm)',
     brightness: Brightness.light,
-    mainColor: Color(0xFF1565C0), // Calming Deep Ocean Blue
-    scaffoldBg: Color(0xFFE1F5FE), // Muted pastel sky blue
-    boardBg: Color(0xFFB3E5FC), // Frosted Ice-Blue Glass Card (No blinding white!)
-    accentGlow: Color(0xFF00ACC1), // Rich teal water flare
-    textColor: Color(0xFF0D47A1), // Highly visible deep navy text
-    bgGradient: [Color(0xFFE0F7FA), Color(0xFFB2EBF2), Color(0xFFE1F5FE)],
+    mainColor: Color(0xFFD84315), // Copper Gold
+    scaffoldBg: Color(0xFF4E342E), // Deep Mahogany scaffolding
+    boardBg: Color(0xFF6D4C41), // Medium warm wood board plate
+    accentGlow: Color(0xFFFFB300), // Carved Amber Glow
+    textColor: Color(0xFFFFE0B2), // Light wood grain text
+    bgGradient: [Color(0xFF3E2723), Color(0xFF4E342E), Color(0xFF5D4037)], // Warm wood grains
   ),
 ];
 
@@ -162,4 +146,3 @@ class NeumorphicColors {
         .withValues(alpha: 0.22);
   }
 }
-

@@ -14,14 +14,24 @@ import '../models/ai_models.dart';
 import '../models/game_enums.dart';
 import '../models/player.dart';
 import '../models/match_session.dart';
+import 'persistence_service.dart';
 
 class FirebaseService {
   final FirebaseFunctions _functions = FirebaseFunctions.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final PersistenceService _persistence = PersistenceService();
 
-  /// Saves the current game state to Firestore
+  /// Saves the current game state to Firestore & Local Storage
   Future<void> saveGameState(MatchSession session) async {
+    // 1. Always save locally first under key 'saved_game_session'
+    try {
+      await _persistence.save({'saved_game_session': session.toJson()});
+      if (kDebugMode) print('💾 [FirebaseService] Game state saved locally.');
+    } catch (e) {
+      if (kDebugMode) print('❌ [FirebaseService] Error saving local state: $e');
+    }
+
     final user = _auth.currentUser;
     if (user == null) return;
 
@@ -30,7 +40,7 @@ class FirebaseService {
         'session': session.toJson(),
         'lastUpdated': FieldValue.serverTimestamp(),
       });
-      if (kDebugMode) print('✅ [FirebaseService] Game state saved successfully.');
+      if (kDebugMode) print('✅ [FirebaseService] Game state saved successfully to Firestore.');
     } on FirebaseException catch (e) {
       if (e.code == 'not-found' || e.message?.contains('database') == true) {
         if (kDebugMode) {
@@ -45,24 +55,55 @@ class FirebaseService {
     }
   }
 
-  /// Loads the saved game state from Firestore
+  /// Loads the saved game state from Firestore or fallback to Local Storage
   Future<MatchSession?> loadGameState() async {
+    // Helper to load local state
+    Future<MatchSession?> loadLocalState() async {
+      try {
+        final localData = await _persistence.loadAll();
+        if (localData.containsKey('saved_game_session')) {
+          final sessionData = Map<String, dynamic>.from(localData['saved_game_session']);
+          if (kDebugMode) print('💾 [FirebaseService] Game state loaded from local fallback.');
+          return MatchSession.fromJson(sessionData);
+        }
+      } catch (e) {
+        if (kDebugMode) print('❌ [FirebaseService] Error loading local fallback: $e');
+      }
+      return null;
+    }
+
     final user = _auth.currentUser;
-    if (user == null) return null;
+    if (user == null) {
+      return await loadLocalState();
+    }
 
     try {
-      final doc = await _firestore.collection('game_states').doc(user.uid).get();
+      // Fetch from Firestore with a 4-second timeout to handle slow networks/denied permissions gracefully
+      final doc = await _firestore
+          .collection('game_states')
+          .doc(user.uid)
+          .get()
+          .timeout(const Duration(seconds: 4));
+
       if (doc.exists && doc.data() != null) {
         final sessionData = doc.data()!['session'] as Map<String, dynamic>;
         if (kDebugMode) print('✅ [FirebaseService] Game state loaded from cloud.');
+        
+        // Update local cache to match the cloud state
+        try {
+          await _persistence.save({'saved_game_session': sessionData});
+        } catch (_) {}
+        
         return MatchSession.fromJson(sessionData);
       }
     } on FirebaseException catch (e) {
-      if (kDebugMode) print('⚠️ [FirebaseService] Firestore load failed (likely not initialized): ${e.code}');
+      if (kDebugMode) print('⚠️ [FirebaseService] Firestore load failed: ${e.code}');
     } catch (e) {
       if (kDebugMode) print('❌ [FirebaseService] Unexpected error loading state: $e');
     }
-    return null;
+
+    // Fallback if cloud load failed
+    return await loadLocalState();
   }
 
   /// Fetches AI move from Cloud Functions with automatic REST fallback for Windows.

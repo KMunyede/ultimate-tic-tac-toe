@@ -6,6 +6,7 @@ import '../logic/settings_controller.dart';
 import '../../../core/audio/sound_manager.dart';
 import '../../../widgets/gradient_button.dart';
 import '../../../widgets/help_dialog.dart';
+import '../../game/screens/animation_demo_screen.dart';
 
 class SettingsMenu extends StatefulWidget {
   final bool isPersistent;
@@ -110,6 +111,33 @@ class _SettingsMenuState extends State<SettingsMenu> {
                   soundManager.playMoveSound();
                 }
               },
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () {
+                  soundManager.playMoveSound();
+                  if (!widget.isPersistent) {
+                    Navigator.of(context).pop();
+                  }
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => const AnimationDemoScreen(),
+                    ),
+                  );
+                },
+                style: OutlinedButton.styleFrom(
+                  side: BorderSide(color: theme.mainColor.withValues(alpha: 0.5)),
+                  foregroundColor: theme.textColor,
+                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                icon: Icon(Icons.palette_outlined, color: theme.mainColor),
+                label: const Text('Graphics & Animation Lab', style: TextStyle(fontWeight: FontWeight.bold)),
+              ),
             ),
             const SizedBox(height: 20),
             GradientButton(

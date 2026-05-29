@@ -14,6 +14,7 @@ import 'package:tictactoe/services/stats_service.dart';
 import 'package:tictactoe/models/player.dart';
 import 'package:tictactoe/widgets/game_board.dart';
 import 'package:tictactoe/widgets/board_widget.dart';
+import 'package:tictactoe/logic/match_referee.dart';
 
 // Fakes to avoid platform dependencies and hangs during tests
 class FakeSettingsController extends SettingsController {
@@ -66,7 +67,11 @@ class FakeAuthService extends Fake implements AuthService {
 
 class FakeStatsService extends Fake implements StatsService {
   @override
-  Future<void> updateWinCount(Player winner) async {}
+  Future<void> recordMatchOutcome({
+    required GameMode gameMode,
+    required AiDifficulty aiDifficulty,
+    required MatchOutcome outcome,
+  }) async {}
 }
 
 void main() {

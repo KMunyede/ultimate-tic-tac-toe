@@ -35,7 +35,14 @@ class _AuthGateState extends State<AuthGate> {
         final user = snapshot.data;
 
         if (user == null) {
-          _lastUserId = null;
+          if (_lastUserId != null || !context.read<SettingsController>().isGuest) {
+            _lastUserId = null;
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) {
+                context.read<SettingsController>().loadSettings(isGuest: true);
+              }
+            });
+          }
           return const AuthScreen();
         }
 

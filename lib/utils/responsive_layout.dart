@@ -38,46 +38,47 @@ class ResponsiveLayout {
 
   bool get isSmallLandscape => isLandscape && diagonalInches < 7.0;
 
-  // Spacing based on device
+  // Exact diagonal display category getters as requested
+  bool get isLessThan7Inch => diagonalInches < 7.0;
+  bool get is7To8Inch => diagonalInches >= 7.0 && diagonalInches < 8.0;
+  bool get is8To10Inch => diagonalInches >= 8.0 && diagonalInches < 10.0;
+  bool get is10InchOrLarger => diagonalInches >= 10.0;
+
+  // Spacing based on exact diagonal categories
   double get spacing {
-    switch (deviceType) {
-      case DeviceType.desktop:
-        return 32.0;
-      case DeviceType.tablet:
-        return 24.0;
-      case DeviceType.mobile:
-        return 16.0;
-    }
+    if (isLessThan7Inch) return 10.0;
+    if (is7To8Inch) return 12.0;
+    if (is8To10Inch) return 14.0;
+    return 18.0;
   }
 
-  // Padding based on device
+  // Padding based on exact diagonal categories
   EdgeInsets get screenPadding {
-    switch (deviceType) {
-      case DeviceType.desktop:
-        return const EdgeInsets.all(48.0);
-      case DeviceType.tablet:
-        return const EdgeInsets.all(32.0);
-      case DeviceType.mobile:
-        return const EdgeInsets.all(16.0);
+    if (isLessThan7Inch) {
+      return const EdgeInsets.symmetric(horizontal: 10.0, vertical: 6.0);
     }
+    if (is7To8Inch) {
+      return const EdgeInsets.symmetric(horizontal: 14.0, vertical: 8.0);
+    }
+    if (is8To10Inch) {
+      return const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0);
+    }
+    return const EdgeInsets.symmetric(horizontal: 28.0, vertical: 16.0);
   }
 
-  // Font sizes
+  // Font sizes based on exact diagonal categories
   double get titleSize {
-    switch (deviceType) {
-      case DeviceType.desktop:
-        return 32.0;
-      case DeviceType.tablet:
-        return 28.0;
-      case DeviceType.mobile:
-        return 22.0;
-    }
+    if (isLessThan7Inch) return 18.0;
+    if (is7To8Inch) return 21.0;
+    if (is8To10Inch) return 24.0;
+    return 28.0;
   }
 
-  // Board constraints
+  // Board constraints based on exact diagonal categories
   double get maxBoardSize {
-    if (deviceType == DeviceType.mobile) return 450.0;
-    if (deviceType == DeviceType.tablet) return 600.0;
-    return 800.0; // Larger board for Desktop/Windows/Web
+    if (isLessThan7Inch) return 420.0;
+    if (is7To8Inch) return 480.0;
+    if (is8To10Inch) return 560.0;
+    return 760.0; // Desktop or full 10"+ tablet size
   }
 }

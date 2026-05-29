@@ -112,13 +112,43 @@ class BackgroundMeshPainter extends CustomPainter {
     final isDark = theme.brightness == Brightness.dark;
     final List<Color> colors = theme.bgGradient;
     
-    // 1. Draw solid base or radial base gradient
     final rect = Rect.fromLTWH(0, 0, size.width, size.height);
+    final double waveAngle = time * 2 * pi;
+    final double dx = cos(waveAngle) * 0.20;
+    final double dy = sin(waveAngle) * 0.20;
+    
+    // Wave the gradient stops dynamically to simulate fluid currents washing over the layout
+    final double stop1 = (0.0 + sin(waveAngle) * 0.12).clamp(0.0, 0.25);
+    final double stop2 = (0.5 + sin(waveAngle + 2.094) * 0.12).clamp(0.35, 0.65);
+    final double stop3 = (1.0 + sin(waveAngle + 4.188) * 0.12).clamp(0.75, 1.0);
+
+    // Generate organic shifting color bands to simulate gentle liquid currents flowing in a river
+    final List<Color> dynamicColors = colors.map((color) {
+      final hsl = HSLColor.fromColor(color);
+      final int idx = colors.indexOf(color);
+      
+      // Calculate desynchronized wave offsets per color band
+      final double hueOffset = sin(waveAngle + idx * 1.5) * 12.0; // Subtle +/- 12 degree shift
+      final double lightnessOffset = cos(waveAngle * 1.2 + idx * 2.0) * 0.04; // Soothing +/- 4% light shift
+      
+      return hsl
+          .withHue((hsl.hue + hueOffset) % 360.0) // Wrap hue around 360 safely
+          .withLightness((hsl.lightness + lightnessOffset).clamp(0.0, 1.0))
+          .toColor();
+    }).toList();
+
     final paintBase = Paint()
       ..shader = LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: colors.length >= 2 ? colors : [theme.scaffoldBg, theme.scaffoldBg],
+        begin: Alignment(-1.0 - dx, -1.0 + dy),
+        end: Alignment(1.0 + dx, 1.0 - dy),
+        colors: dynamicColors.length >= 3 
+            ? dynamicColors 
+            : (dynamicColors.length == 2 
+                ? [dynamicColors[0], dynamicColors[1], dynamicColors[0]] 
+                : [theme.scaffoldBg, theme.boardBg, theme.scaffoldBg]),
+        stops: dynamicColors.length >= 3 
+            ? [stop1, stop2, stop3] 
+            : null,
       ).createShader(rect);
     canvas.drawRect(rect, paintBase);
 
@@ -165,20 +195,73 @@ class BackgroundMeshPainter extends CustomPainter {
       _drawCyberGrid(canvas, size, theme.mainColor.withValues(alpha: 0.08));
     }
 
-    // 4. Draw Rising Energy Nodes (floating stars/dust)
-    final paintNode = Paint()..style = PaintingStyle.fill;
-    for (var node in energyNodes) {
+    // 4. Draw Rising Energy Nodes (floating themed leaves, blossoms, and embers)
+    final isCandy = theme.name.contains('Candy Meadow');
+    final isWood = theme.name.contains('Woodville Carve');
+
+    for (int i = 0; i < energyNodes.length; i++) {
+      final node = energyNodes[i];
       final double posX = node.x * size.width;
       final double posY = node.y * size.height;
-      paintNode.color = theme.mainColor.withValues(alpha: node.opacity);
-      canvas.drawCircle(Offset(posX, posY), node.size, paintNode);
+      final pos = Offset(posX, posY);
 
-      // Core filament glow for larger nodes
-      if (node.size > 4.0) {
-        paintNode.color = Colors.white.withValues(alpha: node.opacity * 1.5);
-        canvas.drawCircle(Offset(posX, posY), node.size * 0.35, paintNode);
+      if (isCandy) {
+        if (i % 2 == 0) {
+          _drawLeafNode(canvas, pos, node.size * 1.5, node.opacity * 0.7);
+        } else {
+          _drawBlossomNode(canvas, pos, node.size * 1.2, node.opacity * 0.8);
+        }
+      } else if (isWood) {
+        _drawEmberNode(canvas, pos, node.size * 1.2, node.opacity);
+      } else {
+        // Neon Cyberpulse: star circle
+        final paintNode = Paint()..style = PaintingStyle.fill;
+        paintNode.color = theme.mainColor.withValues(alpha: node.opacity);
+        canvas.drawCircle(pos, node.size, paintNode);
+
+        if (node.size > 4.0) {
+          paintNode.color = Colors.white.withValues(alpha: node.opacity * 1.5);
+          canvas.drawCircle(pos, node.size * 0.35, paintNode);
+        }
       }
     }
+  }
+
+  void _drawLeafNode(Canvas canvas, Offset pos, double size, double opacity) {
+    final leafPaint = Paint()
+      ..color = Colors.green.shade400.withValues(alpha: opacity)
+      ..style = PaintingStyle.fill;
+    final path = Path()
+      ..moveTo(pos.dx, pos.dy - size)
+      ..quadraticBezierTo(pos.dx + size, pos.dy, pos.dx, pos.dy + size)
+      ..quadraticBezierTo(pos.dx - size, pos.dy, pos.dx, pos.dy - size);
+    canvas.drawPath(path, leafPaint);
+  }
+
+  void _drawBlossomNode(Canvas canvas, Offset pos, double size, double opacity) {
+    final paint = Paint()
+      ..color = Colors.pinkAccent.shade100.withValues(alpha: opacity)
+      ..style = PaintingStyle.fill;
+    canvas.drawCircle(Offset(pos.dx - size * 0.4, pos.dy), size * 0.5, paint);
+    canvas.drawCircle(Offset(pos.dx + size * 0.4, pos.dy), size * 0.5, paint);
+    canvas.drawCircle(Offset(pos.dx, pos.dy - size * 0.4), size * 0.5, paint);
+    canvas.drawCircle(Offset(pos.dx, pos.dy + size * 0.4), size * 0.5, paint);
+    
+    paint.color = Colors.yellow.shade300.withValues(alpha: opacity);
+    canvas.drawCircle(pos, size * 0.3, paint);
+  }
+
+  void _drawEmberNode(Canvas canvas, Offset pos, double size, double opacity) {
+    final paint = Paint()
+      ..color = const Color(0xFFFFB300).withValues(alpha: opacity)
+      ..style = PaintingStyle.fill;
+    final path = Path()
+      ..moveTo(pos.dx, pos.dy - size)
+      ..lineTo(pos.dx + size * 0.7, pos.dy)
+      ..lineTo(pos.dx, pos.dy + size)
+      ..lineTo(pos.dx - size * 0.7, pos.dy)
+      ..close();
+    canvas.drawPath(path, paint);
   }
 
   void _drawCyberGrid(Canvas canvas, Size size, Color gridColor) {

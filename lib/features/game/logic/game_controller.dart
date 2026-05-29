@@ -254,6 +254,13 @@ class GameController with ChangeNotifier {
   }) async {
     if (_session == null || isOverallGameOver) return;
 
+    if (isAiMove) {
+      if (_settings.gameMode != GameMode.playerVsAi ||
+          currentPlayer != Player.O) {
+        return;
+      }
+    }
+
     if (!isAiMove) {
       if (_settings.gameMode == GameMode.playerVsAi &&
           currentPlayer == Player.O) {
@@ -327,11 +334,21 @@ class GameController with ChangeNotifier {
   Future<void> _triggerAiMove() async {
     if (isOverallGameOver || _isAiThinking || _session == null) return;
 
+    final currentMatchId = _matchId;
     _isAiThinking = true;
     notifyListeners();
 
     // Intentional suspenseful delay to simulate AI calculation and allow LED tickers to register
     await Future.delayed(const Duration(milliseconds: 1400));
+
+    if (_matchId != currentMatchId || isOverallGameOver || _session == null) {
+      return;
+    }
+    if (_settings.gameMode != GameMode.playerVsAi || currentPlayer != Player.O) {
+      _isAiThinking = false;
+      notifyListeners();
+      return;
+    }
 
     try {
       PowerUpType? selectedAiPowerUp;
