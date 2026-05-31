@@ -1,4 +1,5 @@
 // lib/firebase_service.dart
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -17,7 +18,9 @@ import '../models/match_session.dart';
 import 'persistence_service.dart';
 
 class FirebaseService {
-  final FirebaseFunctions _functions = FirebaseFunctions.instance;
+  final FirebaseFunctions _functions = FirebaseFunctions.instanceFor(
+    region: dotenv.env['FIREBASE_REGION'] ?? 'us-central1',
+  );
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final PersistenceService _persistence = PersistenceService();
@@ -78,12 +81,12 @@ class FirebaseService {
     }
 
     try {
-      // Fetch from Firestore with a 4-second timeout to handle slow networks/denied permissions gracefully
+      // Fetch from Firestore with a 5-second timeout to handle slow networks/denied permissions gracefully
       final doc = await _firestore
           .collection('game_states')
           .doc(user.uid)
           .get()
-          .timeout(const Duration(seconds: 4));
+          .timeout(const Duration(seconds: 5));
 
       if (doc.exists && doc.data() != null) {
         final sessionData = doc.data()!['session'] as Map<String, dynamic>;
@@ -95,6 +98,10 @@ class FirebaseService {
         } catch (_) {}
         
         return MatchSession.fromJson(sessionData);
+      }
+    } on TimeoutException catch (_) {
+      if (kDebugMode) {
+        print('ℹ️ [FirebaseService] Cloud sync timed out (5s limit). Loading offline state.');
       }
     } on FirebaseException catch (e) {
       if (kDebugMode) print('⚠️ [FirebaseService] Firestore load failed: ${e.code}');

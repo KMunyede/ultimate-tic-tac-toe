@@ -13,37 +13,12 @@ class InteractiveHolographicTilt extends StatefulWidget {
   State<InteractiveHolographicTilt> createState() => _InteractiveHolographicTiltState();
 }
 
-class _InteractiveHolographicTiltState extends State<InteractiveHolographicTilt>
-    with SingleTickerProviderStateMixin {
+class _InteractiveHolographicTiltState extends State<InteractiveHolographicTilt> {
   Offset _tilt = Offset.zero;
-  late AnimationController _resetController;
-  late Animation<Offset> _resetAnimation;
-  Offset _exitStartTilt = Offset.zero;
   bool _isTracking = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _resetController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 350),
-    );
-    _resetAnimation = _resetController.drive(
-      Tween<Offset>(begin: Offset.zero, end: Offset.zero),
-    );
-  }
-
-  @override
-  void dispose() {
-    _resetController.dispose();
-    super.dispose();
-  }
 
   void _onPointerMove(Offset localPos, Size size) {
     if (!mounted) return;
-    if (_resetController.isAnimating) {
-      _resetController.stop();
-    }
     // Calculate normalized offset relative to center of the widget: -1.0 to 1.0
     final double nx = ((localPos.dx / size.width) - 0.5).clamp(-0.5, 0.5) * 2;
     final double ny = ((localPos.dy / size.height) - 0.5).clamp(-0.5, 0.5) * 2;
@@ -55,15 +30,9 @@ class _InteractiveHolographicTiltState extends State<InteractiveHolographicTilt>
 
   void _onPointerExit() {
     if (!mounted) return;
-    _exitStartTilt = _tilt;
-    _resetAnimation = _resetController.drive(
-      Tween<Offset>(begin: _exitStartTilt, end: Offset.zero).chain(
-        CurveTween(curve: Curves.easeOutBack), // Smooth retro physical bounce back!
-      ),
-    );
-    _resetController.forward(from: 0.0);
     setState(() {
       _isTracking = false;
+      _tilt = Offset.zero;
     });
   }
 
@@ -82,18 +51,15 @@ class _InteractiveHolographicTiltState extends State<InteractiveHolographicTilt>
             onPanUpdate: (details) => _onPointerMove(details.localPosition, size),
             onPanEnd: (_) => _onPointerExit(),
             onPanCancel: () => _onPointerExit(),
-            child: AnimatedBuilder(
-              animation: _resetController,
-              builder: (context, child) {
-                final currentTilt = _isTracking ? _tilt : _resetAnimation.value;
+            child: TweenAnimationBuilder<Offset>(
+              tween: Tween<Offset>(begin: Offset.zero, end: _isTracking ? _tilt : Offset.zero),
+              duration: const Duration(milliseconds: 240),
+              curve: Curves.easeOutCubic, // Cushioned cubic easing curves for high-fidelity smoothness
+              builder: (context, currentTilt, child) {
                 // Max tilt angle (approx. 9 degrees)
                 const double maxTiltAngle = 0.15;
                 final double rotX = -currentTilt.dy * maxTiltAngle;
                 final double rotY = currentTilt.dx * maxTiltAngle;
-
-                // 3D Shadow shifting coordinates (moves opposite to tilt)
-                final double shadowDx = -currentTilt.dx * 12.0;
-                final double shadowDy = -currentTilt.dy * 12.0;
 
                 return Transform(
                   transform: Matrix4.identity()
@@ -101,34 +67,7 @@ class _InteractiveHolographicTiltState extends State<InteractiveHolographicTilt>
                     ..rotateX(rotX)
                     ..rotateY(rotY),
                   alignment: Alignment.center,
-                  child: Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      // Occlusion Shadow Layer shifting dynamically
-                      Positioned(
-                        left: shadowDx,
-                        top: shadowDy,
-                        right: -shadowDx,
-                        bottom: -shadowDy,
-                        child: IgnorePointer(
-                          child: Container(
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(20),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.25),
-                                  blurRadius: 24,
-                                  spreadRadius: -2,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                      // Actual gameplay board widget
-                      widget.child,
-                    ],
-                  ),
+                  child: widget.child,
                 );
               },
             ),

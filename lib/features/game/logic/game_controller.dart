@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/foundation.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 import '../../../services/firebase_service.dart';
 import '../../../models/game_board.dart';
@@ -28,8 +29,24 @@ class GameController with ChangeNotifier {
   int _shakeCounter = 0;
   int _matchId = 0;
   final _aiErrorController = StreamController<String>.broadcast();
+  bool _isPaused = false;
+  String? _lastAuthUserId;
+  String? _liveBannerText;
+  String? get liveBannerText => _liveBannerText;
+
+  int? _lastPlayedBoardIndex;
+  int? _lastPlayedCellIndex;
+  int? get lastPlayedBoardIndex => _lastPlayedBoardIndex;
+  int? get lastPlayedCellIndex => _lastPlayedCellIndex;
 
   int get matchId => _matchId;
+  bool get isPaused => _isPaused;
+
+  void togglePause() {
+    if (_session == null || isOverallGameOver) return;
+    _isPaused = !_isPaused;
+    notifyListeners();
+  }
 
   // [NEW] Active power-up card states
   PowerUpType? _activePowerUp;
@@ -59,21 +76,64 @@ class GameController with ChangeNotifier {
     this._firebaseService,
     this._statsService,
   ) : _aiService = AiService(_firebaseService) {
+    _lastAuthUserId = FirebaseAuth.instance.currentUser?.uid;
     _initGameFromCloud();
   }
 
   Future<void> _initGameFromCloud() async {
-    // Registered users check for cloud state; Guests always start fresh
+    // 1. Initialize the game immediately from local state/defaults so the app starts instantly!
+    initializeGame(useMicrotask: true);
+
+    // 2. Registered users check for cloud state in the background
     if (!_settings.isGuest) {
-      final cloudSession = await _firebaseService.loadGameState();
-      if (cloudSession != null && !cloudSession.isGameOver) {
-        _pendingCloudSession = cloudSession;
-        Future.microtask(() => notifyListeners());
-        return;
+      try {
+        final cloudSession = await _firebaseService.loadGameState();
+        if (cloudSession != null && !cloudSession.isGameOver) {
+          // Only offer to resume if the user hasn't made any moves in the current session yet!
+          final isPristine = _session == null ||
+              _session!.boards.every((b) => b.cells.every((c) => c == Player.none));
+          
+          final cloudHasMoves = cloudSession.boards.any((b) => b.cells.any((c) => c != Player.none));
+          if (isPristine && cloudHasMoves) {
+            _pendingCloudSession = cloudSession;
+            notifyListeners();
+          }
+        }
+      } catch (e) {
+        if (kDebugMode) {
+          print("Background cloud session check skipped or failed: $e");
+        }
       }
     }
-    
-    initializeGame(useMicrotask: true);
+  }
+
+  Future<void> checkCloudStateAfterAuth() async {
+    if (_settings.isGuest) return;
+
+    try {
+      final cloudSession = await _firebaseService.loadGameState();
+      
+      final isPristine = _session == null ||
+          _session!.boards.every((b) => b.cells.every((c) => c == Player.none));
+
+      final cloudHasMoves = cloudSession != null &&
+          cloudSession.boards.any((b) => b.cells.any((c) => c != Player.none));
+
+      if (cloudSession != null && !cloudSession.isGameOver && cloudHasMoves) {
+        // If there's a valid saved game in the cloud, offer to resume it
+        _pendingCloudSession = cloudSession;
+        notifyListeners();
+      } else {
+        // No cloud game exists (or it's over/blank), so we auto-save their current guest game to the cloud!
+        if (_session != null && !isOverallGameOver && !isPristine) {
+          await _firebaseService.saveGameState(_session!);
+        }
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print("Error checking cloud state after auth: $e");
+      }
+    }
   }
 
   /// Called by the UI when the user decides whether to resume or start new.
@@ -83,6 +143,11 @@ class GameController with ChangeNotifier {
     if (resume) {
       _session = _pendingCloudSession;
       _pendingCloudSession = null;
+      _isPaused = false; // Ensure unpaused on resume
+      
+      // Update settings controller to match the resumed game session
+      _settings.syncWithSession(_session!);
+      
       notifyListeners();
     } else {
       _pendingCloudSession = null;
@@ -175,12 +240,23 @@ class GameController with ChangeNotifier {
 
   void updateDependencies(SettingsController settings) {
     _settings = settings;
+
+    final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+    if (currentUserId != _lastAuthUserId) {
+      _lastAuthUserId = currentUserId;
+      if (!_settings.isGuest && currentUserId != null) {
+        // Trigger cloud synchronization after user signs up or signs in
+        Future.microtask(() => checkCloudStateAfterAuth());
+      }
+    }
+
     // Auto-trigger AI if it's AI's turn after settings update or dependency sync
     if (_settings.gameMode == GameMode.playerVsAi &&
         currentPlayer == Player.O &&
         !isOverallGameOver &&
         !_isAiThinking &&
-        !_isCompletingMove) {
+        !_isCompletingMove &&
+        !_isPaused) {
       // Use microtask to avoid notifying during the build phase of a ProxyProvider
       Future.microtask(() => _triggerAiMove());
     }
@@ -233,6 +309,10 @@ class GameController with ChangeNotifier {
 
     _isAiThinking = false;
     _shakeCounter = 0;
+    _isPaused = false;
+    _liveBannerText = null;
+    _lastPlayedBoardIndex = null;
+    _lastPlayedCellIndex = null;
 
     // Sync to cloud immediately for registered users to start a fresh "session"
     if (!_settings.isGuest) {
@@ -252,7 +332,7 @@ class GameController with ChangeNotifier {
     bool isAiMove = false,
     PowerUpType? aiPowerUp,
   }) async {
-    if (_session == null || isOverallGameOver) return;
+    if (_session == null || isOverallGameOver || _isPaused) return;
 
     if (isAiMove) {
       if (_settings.gameMode != GameMode.playerVsAi ||
@@ -273,6 +353,7 @@ class GameController with ChangeNotifier {
 
     _isCompletingMove = true;
     final bool wasMatchOverBefore = isOverallGameOver;
+    final List<Player?> oldWinners = _session!.boards.map((b) => b.winner).toList();
 
     final bool success;
     if (!isAiMove && _activePowerUp != null) {
@@ -289,6 +370,19 @@ class GameController with ChangeNotifier {
     if (success) {
       // 1. Play sound immediately
       _soundManager.playMoveSound();
+
+      // Record last played move coordinates
+      _lastPlayedBoardIndex = boardIndex;
+      _lastPlayedCellIndex = cellIndex;
+
+      // Detect sub-board conquest to trigger high-energy encouragement banners
+      final List<Player?> newWinners = _session!.boards.map((b) => b.winner).toList();
+      for (int i = 0; i < oldWinners.length; i++) {
+        if (oldWinners[i] == null && newWinners[i] != null) {
+          final String symbol = newWinners[i] == Player.X ? "X" : "O";
+          _triggerBoardConqueredBanner(i, symbol);
+        }
+      }
 
       // 2. Notify listeners IMMEDIATELY so the mark appears without lag
       notifyListeners();
@@ -332,14 +426,14 @@ class GameController with ChangeNotifier {
   }
 
   Future<void> _triggerAiMove() async {
-    if (isOverallGameOver || _isAiThinking || _session == null) return;
+    if (isOverallGameOver || _isAiThinking || _session == null || _isPaused) return;
 
     final currentMatchId = _matchId;
     _isAiThinking = true;
     notifyListeners();
 
-    // Intentional suspenseful delay to simulate AI calculation and allow LED tickers to register
-    await Future.delayed(const Duration(milliseconds: 1400));
+    // Suspenseful visual delay to let Player 1's drawing completely finish and provide calm breathing room
+    await Future.delayed(const Duration(milliseconds: 1800));
 
     if (_matchId != currentMatchId || isOverallGameOver || _session == null) {
       return;
@@ -392,6 +486,7 @@ class GameController with ChangeNotifier {
       if (selectedAiPowerUp != null) {
         await makeMove(selectedBoardIdx, selectedCellIdx, isAiMove: true, aiPowerUp: selectedAiPowerUp);
       } else {
+        // Calibrated snappy 4-second timeout for AI move call (online and offline)
         final aiMove = await _aiService.getBestMove(
           boards: boards,
           aiPlayer: currentPlayer,
@@ -400,20 +495,84 @@ class GameController with ChangeNotifier {
           ruleSet: _settings.ruleSet,
           useOnlineAi: _settings.useOnlineAi,
           forcedBoardIndex: forcedBoardIndex,
-        ).timeout(const Duration(seconds: 20));
+        ).timeout(const Duration(seconds: 4));
 
         if (aiMove != null) {
           await makeMove(aiMove.boardIndex, aiMove.cellIndex, isAiMove: true);
         } else {
-          _handleAiFailure("AI could not determine a valid move.");
+          // Attempt failsafe move injection
+          await _executeFailsafeMove("BestMove returned null");
         }
       }
     } catch (e) {
-      _handleAiFailure("AI calculation error: $e");
+      // Mute noisy error dialogs and trigger local failsafe move immediately
+      if (kDebugMode) {
+        print("AI move failed, executing failsafe: $e");
+      }
+      await _executeFailsafeMove("Exception: $e");
     } finally {
       _isAiThinking = false;
       notifyListeners();
     }
+  }
+
+  Future<void> _executeFailsafeMove(String reason) async {
+    final failsafeMove = _calculateFailsafeMove();
+    if (failsafeMove != null) {
+      await makeMove(failsafeMove.boardIndex, failsafeMove.cellIndex, isAiMove: true);
+    } else {
+      // Board is completely locked - last resort
+      _handleAiFailure("Failsafe move failed: No valid empty cells available. Reason: $reason");
+    }
+  }
+
+  AiMove? _calculateFailsafeMove() {
+    // 1. Try forced board first
+    if (forcedBoardIndex != null && forcedBoardIndex! < boards.length) {
+      final forcedIdx = forcedBoardIndex!;
+      if (!boards[forcedIdx].isGameOver) {
+        for (int i = 0; i < 9; i++) {
+          if (boards[forcedIdx].cells[i] == Player.none) {
+            return AiMove(forcedIdx, i);
+          }
+        }
+      }
+    }
+    // 2. Try any non-won board
+    for (int b = 0; b < boards.length; b++) {
+      if (!boards[b].isGameOver) {
+        for (int c = 0; c < 9; c++) {
+          if (boards[b].cells[c] == Player.none) {
+            return AiMove(b, c);
+          }
+        }
+      }
+    }
+    // 3. Last resort fallback
+    for (int b = 0; b < boards.length; b++) {
+      for (int c = 0; c < 9; c++) {
+        if (boards[b].cells[c] == Player.none) {
+          return AiMove(b, c);
+        }
+      }
+    }
+    return null;
+  }
+
+  void _triggerBoardConqueredBanner(int boardIdx, String winner) {
+    final messages = [
+      "captured Sector ${boardIdx + 1}!",
+      "claimed Sector ${boardIdx + 1} with a nice move!",
+      "secured Sector ${boardIdx + 1}!",
+      "wins Sector ${boardIdx + 1}!",
+    ];
+    _liveBannerText = "🎉 Player $winner ${messages[_random.nextInt(messages.length)]}";
+    notifyListeners();
+    // Auto dismiss after 5 seconds
+    Future.delayed(const Duration(seconds: 5), () {
+      _liveBannerText = null;
+      notifyListeners();
+    });
   }
 
   int _findThreatCellIndex(GameBoard board, Player player) {

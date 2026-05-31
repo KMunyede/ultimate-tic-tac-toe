@@ -23,11 +23,12 @@ class StatsService extends ChangeNotifier {
     // Listen for auth changes to load Firestore stats if user logs in
     _auth.authStateChanges().listen(
       (user) {
-        if (user != null) {
+        if (user != null && !user.isAnonymous) {
           _syncWithFirestore(user.uid);
         } else {
-          // Reset stats to local offline levels on logout to prevent stat leak
-          _loadLocalStats();
+          // Reset stats to clean zeroed state for guest/anonymous or logged out users
+          _stats = const PlayerStats();
+          notifyListeners();
         }
       },
       onError: (error) {
@@ -39,6 +40,12 @@ class StatsService extends ChangeNotifier {
   }
 
   Future<void> _loadLocalStats() async {
+    final user = _auth.currentUser;
+    if (user == null || user.isAnonymous) {
+      _stats = const PlayerStats();
+      notifyListeners();
+      return;
+    }
     try {
       final localData = await _persistence.loadAll();
       if (localData.containsKey('player_stats')) {
@@ -62,7 +69,11 @@ class StatsService extends ChangeNotifier {
 
   Future<void> _syncWithFirestore(String uid) async {
     try {
-      final doc = await _firestore.collection('users').doc(uid).get();
+      final doc = await _firestore
+          .collection('users')
+          .doc(uid)
+          .get()
+          .timeout(const Duration(seconds: 5));
       if (doc.exists && doc.data() != null) {
         final data = doc.data()!;
         if (data.containsKey('player_stats')) {
@@ -95,8 +106,25 @@ class StatsService extends ChangeNotifier {
     required AiDifficulty aiDifficulty,
     required MatchOutcome outcome,
   }) async {
+    final currentUser = _auth.currentUser;
+    if (currentUser == null || currentUser.isAnonymous) {
+      // Keep game statistics, scores, etc. empty/locked for guest/unregistered users
+      return;
+    }
     int xpEarned = 0;
     PlayerStats newStats = _stats;
+
+    int nextStreak = _stats.currentStreak;
+    int nextMaxStreak = _stats.maxStreak;
+
+    if (outcome == MatchOutcome.winX) {
+      nextStreak = _stats.currentStreak + 1;
+      if (nextStreak > nextMaxStreak) {
+        nextMaxStreak = nextStreak;
+      }
+    } else if (outcome == MatchOutcome.winO) {
+      nextStreak = 0;
+    }
 
     if (gameMode == GameMode.playerVsAi) {
       // Human is Player X, AI is Player O
@@ -107,18 +135,24 @@ class StatsService extends ChangeNotifier {
           newStats = _stats.copyWith(
             winsVsAiEasy: _stats.winsVsAiEasy + 1,
             totalXp: _stats.totalXp + xpEarned,
+            currentStreak: nextStreak,
+            maxStreak: nextMaxStreak,
           );
         } else if (aiDifficulty == AiDifficulty.medium) {
           xpEarned = 150;
           newStats = _stats.copyWith(
             winsVsAiMedium: _stats.winsVsAiMedium + 1,
             totalXp: _stats.totalXp + xpEarned,
+            currentStreak: nextStreak,
+            maxStreak: nextMaxStreak,
           );
         } else if (aiDifficulty == AiDifficulty.hard) {
           xpEarned = 200;
           newStats = _stats.copyWith(
             winsVsAiHard: _stats.winsVsAiHard + 1,
             totalXp: _stats.totalXp + xpEarned,
+            currentStreak: nextStreak,
+            maxStreak: nextMaxStreak,
           );
         }
       } else if (outcome == MatchOutcome.winO) {
@@ -128,18 +162,24 @@ class StatsService extends ChangeNotifier {
           newStats = _stats.copyWith(
             lossesVsAiEasy: _stats.lossesVsAiEasy + 1,
             totalXp: _stats.totalXp + xpEarned,
+            currentStreak: nextStreak,
+            maxStreak: nextMaxStreak,
           );
         } else if (aiDifficulty == AiDifficulty.medium) {
           xpEarned = 30;
           newStats = _stats.copyWith(
             lossesVsAiMedium: _stats.lossesVsAiMedium + 1,
             totalXp: _stats.totalXp + xpEarned,
+            currentStreak: nextStreak,
+            maxStreak: nextMaxStreak,
           );
         } else if (aiDifficulty == AiDifficulty.hard) {
           xpEarned = 40;
           newStats = _stats.copyWith(
             lossesVsAiHard: _stats.lossesVsAiHard + 1,
             totalXp: _stats.totalXp + xpEarned,
+            currentStreak: nextStreak,
+            maxStreak: nextMaxStreak,
           );
         }
       } else if (outcome == MatchOutcome.draw) {
@@ -149,18 +189,24 @@ class StatsService extends ChangeNotifier {
           newStats = _stats.copyWith(
             drawsVsAiEasy: _stats.drawsVsAiEasy + 1,
             totalXp: _stats.totalXp + xpEarned,
+            currentStreak: nextStreak,
+            maxStreak: nextMaxStreak,
           );
         } else if (aiDifficulty == AiDifficulty.medium) {
           xpEarned = 60;
           newStats = _stats.copyWith(
             drawsVsAiMedium: _stats.drawsVsAiMedium + 1,
             totalXp: _stats.totalXp + xpEarned,
+            currentStreak: nextStreak,
+            maxStreak: nextMaxStreak,
           );
         } else if (aiDifficulty == AiDifficulty.hard) {
           xpEarned = 80;
           newStats = _stats.copyWith(
             drawsVsAiHard: _stats.drawsVsAiHard + 1,
             totalXp: _stats.totalXp + xpEarned,
+            currentStreak: nextStreak,
+            maxStreak: nextMaxStreak,
           );
         }
       }
@@ -171,18 +217,24 @@ class StatsService extends ChangeNotifier {
         newStats = _stats.copyWith(
           winsLocalPvp: _stats.winsLocalPvp + 1,
           totalXp: _stats.totalXp + xpEarned,
+          currentStreak: nextStreak,
+          maxStreak: nextMaxStreak,
         );
       } else if (outcome == MatchOutcome.winO) {
         xpEarned = 50;
         newStats = _stats.copyWith(
           lossesLocalPvp: _stats.lossesLocalPvp + 1, // X loses, O wins locally
           totalXp: _stats.totalXp + xpEarned,
+          currentStreak: nextStreak,
+          maxStreak: nextMaxStreak,
         );
       } else if (outcome == MatchOutcome.draw) {
         xpEarned = 25;
         newStats = _stats.copyWith(
           drawsLocalPvp: _stats.drawsLocalPvp + 1,
           totalXp: _stats.totalXp + xpEarned,
+          currentStreak: nextStreak,
+          maxStreak: nextMaxStreak,
         );
       }
     }
@@ -306,6 +358,32 @@ class StatsService extends ChangeNotifier {
         print("Error listening to userStats stream: $error");
       }
     });
+  }
+
+  Future<void> updateCustomStats(PlayerStats updatedStats) async {
+    _stats = updatedStats;
+    notifyListeners();
+    
+    final user = _auth.currentUser;
+    if (user == null || user.isAnonymous) {
+      // Guests don't persist stats
+      return;
+    }
+    
+    // Save locally
+    await _persistence.save({'player_stats': _stats.toJson()});
+    
+    // Save to Firestore
+    try {
+      await _firestore.collection('users').doc(user.uid).set({
+        'player_stats': _stats.toJson(),
+        'lastUpdated': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    } catch (e) {
+      if (kDebugMode) {
+        print("Error saving custom stats to Firestore: $e");
+      }
+    }
   }
 }
 

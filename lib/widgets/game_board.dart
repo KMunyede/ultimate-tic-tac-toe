@@ -5,9 +5,18 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../features/game/logic/game_controller.dart';
+import '../features/settings/logic/settings_controller.dart';
 import 'board_widget.dart';
 import 'animations/fly_in_wrapper.dart';
 import 'animations/confetti_overlay.dart';
+
+class GridPattern {
+  final int cols;
+  final int rows;
+  final List<int?> cells;
+
+  GridPattern({required this.cols, required this.rows, required this.cells});
+}
 
 class MultiBoardView extends StatelessWidget {
   const MultiBoardView({super.key});
@@ -17,18 +26,17 @@ class MultiBoardView extends StatelessWidget {
     final mediaQuery = MediaQuery.of(context);
     final screenWidth = mediaQuery.size.width;
     final screenHeight = mediaQuery.size.height;
-    
-    // Approximate physical size calculation
-    // Note: devicePixelRatio is used to convert logical pixels to physical pixels
-    // Standard PPI for logical pixels is 96 or 160 depending on platform context
-    // Here we use 160 as the baseline for "dp" to inches conversion
     final double diagonalInches = sqrt(pow(screenWidth / 160, 2) + pow(screenHeight / 160, 2));
 
-    return Consumer<GameController>(
-      builder: (context, controller, child) {
+    return Consumer2<GameController, SettingsController>(
+      builder: (context, controller, settings, child) {
         final boards = controller.boards;
         final int count = boards.length;
         if (count == 0) return const SizedBox.shrink();
+
+        final templates = SettingsController.getTemplatesForCount(count);
+        final selectedTemplate = templates[settings.layoutIndex % templates.length];
+        final positions = selectedTemplate.positions;
 
         return Stack(
           children: [
@@ -36,89 +44,191 @@ class MultiBoardView extends StatelessWidget {
               controller,
               LayoutBuilder(
                 builder: (context, constraints) {
-                  final isLandscape = screenWidth > screenHeight;
-                  
-                  // Force 3x3 for 9 boards on small landscape devices (< 7 inches)
-                  bool forceThreeByThree = count == 9 && isLandscape && diagonalInches < 7.0;
+                  double outerPadding = 16.0;
+                  if (diagonalInches < 5.5) {
+                    outerPadding = 8.0; // Phone
+                  } else if (diagonalInches >= 8.0) {
+                    outerPadding = 32.0; // Tablet
+                  }
 
-                  int cols, rows;
-                  if (forceThreeByThree) {
-                    cols = 3;
-                    rows = 3;
-                  } else {
-                    // Default grid logic
-                    if (count <= 1) {
-                      cols = 1; rows = 1;
-                    } else if (count <= 2) {
-                      cols = 2; rows = 1;
-                    } else if (count <= 4) {
-                      cols = 2; rows = 2;
-                    } else if (count <= 6) {
-                      cols = 3; rows = 2;
-                    } else if (count <= 9) {
-                      cols = 3; rows = 3;
-                    } else if (count <= 12) {
-                      cols = 4; rows = 3;
-                    } else {
-                      cols = 4; rows = 4;
+                  final double rawAvailW = constraints.maxWidth - (outerPadding * 2);
+                  final double rawAvailH = constraints.maxHeight - (outerPadding * 2);
+
+                  // Keep layout clustered elegantly on extremely wide screens
+                  double availW = rawAvailW;
+                  double availH = rawAvailH;
+                  if (availW > availH * 1.6) {
+                    availW = availH * 1.6;
+                  }
+
+                  // 1. Physics-Aware Binary Search Sizing Engine:
+                  // Automatically tests and stretches board sizes vertically/horizontally
+                  // to utilize wide tablets and tall phones to the absolute maximum.
+                  double low = 40.0;
+                  double high = min(availW, availH) * 0.92; // Max size clamps to 92% of smaller dimension to look elegant
+                  double boardSize = low;
+
+                  for (int iter = 0; iter < 24; iter++) {
+                    double mid = (low + high) / 2;
+                    
+                    // Generate candidate centers based on normalized layout positions
+                    List<Offset> candidateCenters = [];
+                    for (int i = 0; i < count; i++) {
+                      final pos = positions[i];
+                      final double cx = pos.dx * (availW - mid) + mid / 2;
+                      final double cy = pos.dy * (availH - mid) + mid / 2;
+                      candidateCenters.add(Offset(cx, cy));
                     }
-
-                    // Adjust layout for landscape aspect ratio if not already forced
-                    if (isLandscape && !forceThreeByThree) {
-                      if (count == 9) {
-                        cols = 3; rows = 3;
-                      } else if (count > 4 && count <= 6) {
-                        cols = 3; rows = 2;
-                      } else if (count > 6 && count <= 8) {
-                        cols = 4; rows = 2;
-                      } else if (count > 9 && count <= 12) {
-                        cols = 4; rows = 3;
+                    
+                    // Simulate repulsion physics inside search loop to see if they fit after relaxation!
+                    final double minDistance = mid * 1.16; // 16% safety gap
+                    final double minX = mid / 2;
+                    final double maxX = availW - mid / 2;
+                    final double minY = mid / 2;
+                    final double maxY = availH - mid / 2;
+                    
+                    for (int step = 0; step < 8; step++) {
+                      for (int i = 0; i < count; i++) {
+                        for (int j = i + 1; j < count; j++) {
+                          final Offset delta = candidateCenters[j] - candidateCenters[i];
+                          final double dist = delta.distance;
+                          if (dist < minDistance) {
+                            final Offset dir = dist > 0.001 
+                                ? delta / dist 
+                                : Offset(sin(i * 3.0), cos(i * 3.0));
+                            final double overlap = minDistance - dist;
+                            final Offset push = dir * (overlap * 0.5);
+                            candidateCenters[i] -= push;
+                            candidateCenters[j] += push;
+                          }
+                        }
+                      }
+                      
+                      // Bound candidate coordinates to screen limits during evaluation
+                      for (int i = 0; i < count; i++) {
+                        double cx = candidateCenters[i].dx.clamp(minX, maxX);
+                        double cy = candidateCenters[i].dy.clamp(minY, maxY);
+                        candidateCenters[i] = Offset(cx, cy);
                       }
                     }
+                    
+                    // Evaluate if candidate centers fit on screen and don't overlap after relaxation
+                    bool isValid = true;
+                    for (int i = 0; i < count; i++) {
+                      if (candidateCenters[i].dx < minX - 1.0 || 
+                          candidateCenters[i].dx > maxX + 1.0 ||
+                          candidateCenters[i].dy < minY - 1.0 || 
+                          candidateCenters[i].dy > maxY + 1.0) {
+                        isValid = false;
+                        break;
+                      }
+                      for (int j = i + 1; j < count; j++) {
+                        if ((candidateCenters[j] - candidateCenters[i]).distance < minDistance - 1.0) {
+                          isValid = false;
+                          break;
+                        }
+                      }
+                      if (!isValid) break;
+                    }
+                    
+                    if (isValid) {
+                      boardSize = mid;
+                      low = mid; // Try larger
+                    } else {
+                      high = mid; // Try smaller
+                    }
                   }
 
-                  double spacing = count > 9 ? 4.0 : (count > 4 ? 8.0 : 12.0);
-                  double outerPadding = 8.0;
+                  // Clamp defensively
+                  boardSize = boardSize.clamp(40.0, 750.0);
 
-                  // Reduce padding and spacing for smaller screens to maximize tile size
-                  if (diagonalInches < 5.5) {
-                    spacing = count >= 9 ? 2.0 : 4.0;
-                    outerPadding = 4.0;
+                  // 2. Convert normalized positions to absolute centers using the optimized boardSize
+                  final List<Offset> centers = [];
+                  for (int i = 0; i < count; i++) {
+                    final pos = positions[i];
+                    final double cx = pos.dx * (availW - boardSize) + boardSize / 2;
+                    final double cy = pos.dy * (availH - boardSize) + boardSize / 2;
+                    centers.add(Offset(cx, cy));
                   }
 
-                  final double availW = constraints.maxWidth - (outerPadding * 2);
-                  final double availH = constraints.maxHeight - (outerPadding * 2);
+                  // 3. Perform iterative overlap repulsion pass to maintain clear gaps
+                  final double minDistance = boardSize * 1.16; // 16% safety gap margin
+                  final double minX = boardSize / 2;
+                  final double maxX = availW - boardSize / 2;
+                  final double minY = boardSize / 2;
+                  final double maxY = availH - boardSize / 2;
 
-                  // Tile size flexes to fill available space while maintaining square aspect ratio
-                  final double boardSize = min(
-                    (availW / cols) - spacing,
-                    (availH / rows) - spacing,
-                  ).clamp(30.0, 800.0);
+                  for (int step = 0; step < 15; step++) {
+                    for (int i = 0; i < count; i++) {
+                      for (int j = i + 1; j < count; j++) {
+                        final Offset delta = centers[j] - centers[i];
+                        final double dist = delta.distance;
+                        if (dist < minDistance) {
+                          final Offset dir = dist > 0.001 
+                              ? delta / dist 
+                              : Offset(sin(i * 3.0), cos(i * 3.0));
+                          final double overlap = minDistance - dist;
+                          final Offset push = dir * (overlap * 0.5);
+                          centers[i] -= push;
+                          centers[j] += push;
+                        }
+                      }
+                    }
+                    
+                    // Soft elastic boundary repulsion (keeps them safely inside constraints)
+                    for (int i = 0; i < count; i++) {
+                      double cx = centers[i].dx;
+                      double cy = centers[i].dy;
 
-                  final double gridWidth = (boardSize + spacing) * cols;
-                  final double gridHeight = (boardSize + spacing) * rows;
+                      if (maxX > minX) {
+                        if (cx < minX) {
+                          cx += (minX - cx) * 0.42;
+                        } else if (cx > maxX) {
+                          cx -= (cx - maxX) * 0.42;
+                        }
+                      } else {
+                        cx = availW / 2;
+                      }
+
+                      if (maxY > minY) {
+                        if (cy < minY) {
+                          cy += (minY - cy) * 0.42;
+                        } else if (cy > maxY) {
+                          cy -= (cy - maxY) * 0.42;
+                        }
+                      } else {
+                        cy = availH / 2;
+                      }
+
+                      centers[i] = Offset(cx, cy);
+                    }
+                  }
 
                   return Center(
                     child: SizedBox(
-                      width: gridWidth,
-                      height: gridHeight,
-                      child: GridView.builder(
-                        padding: EdgeInsets.all(spacing / 2),
-                        physics: const NeverScrollableScrollPhysics(),
-                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: cols,
-                          mainAxisSpacing: spacing,
-                          crossAxisSpacing: spacing,
-                          childAspectRatio: 1.0,
-                        ),
-                        itemCount: count,
-                        itemBuilder: (context, index) {
-                          return FlyInWrapper(
-                            key: ValueKey('bw_${controller.matchId}_$index'),
-                            index: index,
-                            child: BoardWidget(boardIndex: index),
+                      width: availW,
+                      height: availH,
+                      child: Stack(
+                        clipBehavior: Clip.none,
+                        children: List.generate(count, (cellIndex) {
+                          final center = centers[cellIndex];
+                          final double left = center.dx - boardSize / 2;
+                          final double top = center.dy - boardSize / 2;
+
+                          return AnimatedPositioned(
+                            duration: const Duration(milliseconds: 700),
+                            curve: Curves.easeOutBack,
+                            left: left,
+                            top: top,
+                            width: boardSize,
+                            height: boardSize,
+                            child: FlyInWrapper(
+                              key: ValueKey('bw_${controller.matchId}_$cellIndex'),
+                              index: cellIndex,
+                              child: BoardWidget(boardIndex: cellIndex),
+                            ),
                           );
-                        },
+                        }),
                       ),
                     ),
                   );

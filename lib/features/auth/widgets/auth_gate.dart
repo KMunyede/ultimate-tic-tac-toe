@@ -33,6 +33,7 @@ class _AuthGateState extends State<AuthGate> {
         }
 
         final user = snapshot.data;
+        final bool isGuest = user?.isAnonymous ?? true;
 
         if (user == null) {
           if (_lastUserId != null || !context.read<SettingsController>().isGuest) {
@@ -46,14 +47,15 @@ class _AuthGateState extends State<AuthGate> {
           return const AuthScreen();
         }
 
-        // Only trigger settings load if the user identity has actually changed
+        // Only trigger settings load if the user identity or anonymity status has actually changed
         // to prevent build/flicker loops.
-        if (user.uid != _lastUserId) {
+        final bool anonymityChanged = context.read<SettingsController>().isGuest != isGuest;
+        if (user.uid != _lastUserId || anonymityChanged) {
           _lastUserId = user.uid;
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (mounted) {
               context.read<SettingsController>().loadSettings(
-                    isGuest: user.isAnonymous,
+                    isGuest: isGuest,
                   );
             }
           });

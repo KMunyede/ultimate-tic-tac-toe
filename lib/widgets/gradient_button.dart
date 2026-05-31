@@ -5,6 +5,7 @@ class GradientButton extends StatelessWidget {
   final Gradient gradient;
   final Widget child;
   final Color textColor;
+  final EdgeInsetsGeometry? padding;
 
   const GradientButton({
     super.key,
@@ -12,6 +13,7 @@ class GradientButton extends StatelessWidget {
     required this.gradient,
     required this.child,
     required this.textColor,
+    this.padding,
   });
 
   @override
@@ -35,7 +37,7 @@ class GradientButton extends StatelessWidget {
             borderRadius: BorderRadius.circular(12),
           ),
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
+            padding: padding ?? const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
             constraints: const BoxConstraints(minHeight: 36),
             alignment: Alignment.center,
             child: DefaultTextStyle(

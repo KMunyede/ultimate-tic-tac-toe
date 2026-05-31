@@ -5,6 +5,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 import '../core/theme/app_theme.dart';
 import '../features/game/logic/game_controller.dart';
@@ -1774,47 +1775,52 @@ class TacticalTelemetryBadge extends StatelessWidget {
     final isCandy = currentTheme.name.contains('Candy Meadow');
     final isWood = currentTheme.name.contains('Woodville Carve');
 
+    final user = FirebaseAuth.instance.currentUser;
+    final isGuest = user == null || user.isAnonymous;
+
     // Dynamic Level & XP values
     final currentStats = statsService.stats;
-    final int totalXp = currentStats.totalXp;
+    final int totalXp = isGuest ? 0 : currentStats.totalXp;
     
     // Simple level calculation: 1 level per 500 XP baseline
-    final int level = (totalXp / 500).floor() + 1;
-    final int xpInLevel = totalXp % 500;
-    final double xpProgress = (xpInLevel / 500.0).clamp(0.0, 1.0);
+    final int level = isGuest ? 1 : ((totalXp / 500).floor() + 1);
+    final int xpInLevel = isGuest ? 0 : (totalXp % 500);
+    final double xpProgress = isGuest ? 0.0 : ((xpInLevel / 500.0).clamp(0.0, 1.0));
 
     // Exciting warm alert/suggestion ticker based on current board state
-    String suggestion = "ANALYZE GRID • READY PLAYER ONE";
-    Color telemetryColor = isLight ? const Color(0xFFE65100) : const Color(0xFFFFB300);
+    String suggestion = isGuest ? "SIGN UP TO SAVE YOUR LEVEL & STATS" : "READY PLAYER ONE • PLAN YOUR NEXT MOVE";
+    Color telemetryColor = isGuest
+        ? (isLight ? const Color(0xFFD84315) : const Color(0xFFFF7043))
+        : (isLight ? const Color(0xFFE65100) : const Color(0xFFFFB300));
 
     if (game.isOverallGameOver) {
-      suggestion = "MATCH CONCLUDED • SYSTEM SECURED";
+      suggestion = "GAME OVER • GREAT MATCH!";
       telemetryColor = isLight ? Colors.green.shade700 : Colors.greenAccent;
     } else if (game.isAiThinking) {
-      suggestion = "AI OVERLORD CALCULATING DEVIATION";
+      suggestion = "THE COMPUTER IS PLANNING A MOVE...";
       telemetryColor = isLight ? Colors.purple.shade700 : Colors.purpleAccent;
     } else if (game.currentPlayer == Player.O) {
-      suggestion = "WARNING • OPPONENT MOVE IMMINENT";
+      suggestion = "WAITING FOR OPPONENT'S TURN...";
       telemetryColor = isLight ? Colors.red.shade700 : Colors.redAccent;
-    } else {
+    } else if (!isGuest) {
       // Analyze current board status for threats
       bool boardThreat = false;
       int forcedIdx = game.forcedBoardIndex ?? -1;
       if (forcedIdx != -1 && forcedIdx < game.boards.length && !game.boards[forcedIdx].isGameOver) {
         if (game.boards[forcedIdx].hasThreat(Player.O)) {
-          suggestion = "ALERT • CRITICAL THREAT IN BOARD ${forcedIdx + 1}";
+          suggestion = "CAREFUL • OPPONENT MIGHT WIN BOARD ${forcedIdx + 1}!";
           telemetryColor = isLight ? Colors.red.shade700 : Colors.redAccent;
           boardThreat = true;
         }
       }
       if (!boardThreat) {
         if (settings.ruleSet == GameRuleSet.ultimate && forcedIdx != -1) {
-          suggestion = "LOCKDOWN • MATCH PLAY CONFINED TO SECTOR ${forcedIdx + 1}";
+          suggestion = "NOTICE • YOU MUST PLAY ON BOARD ${forcedIdx + 1}";
         } else if (settings.ruleSet == GameRuleSet.chaos && (game.shieldCardsX > 0 || game.eraserCardsX > 0)) {
-          suggestion = "TACTICAL • DISPATCH SHIELD/ERASER CARD NOW";
+          suggestion = "POWER-UP AVAILABLE • USE A CARD NOW!";
           telemetryColor = isLight ? Colors.blue.shade700 : Colors.cyanAccent;
         } else {
-          suggestion = "GRID ANALYSIS • INJECT COMMAND INTO EMPTY TILE";
+          suggestion = "YOUR TURN • TAP ANY OPEN CELL TO PLAY!";
         }
       }
     }
@@ -1884,13 +1890,15 @@ class TacticalTelemetryBadge extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    'LVL $level PROGRESSION',
+                    isGuest ? 'GUEST MODE (STATS LOCKED)' : 'LVL $level PROGRESSION',
                     style: TextStyle(
                       fontSize: titleFontSize,
                       fontWeight: FontWeight.w900,
-                      color: isCandy
-                          ? const Color(0xFF5D4037)
-                          : (isWood ? const Color(0xFFFFB74D) : currentTheme.textColor.withValues(alpha: 0.7)),
+                      color: isGuest
+                          ? (isLight ? const Color(0xFFD84315) : const Color(0xFFFF7043))
+                          : (isCandy
+                              ? const Color(0xFF5D4037)
+                              : (isWood ? const Color(0xFFFFB74D) : currentTheme.textColor.withValues(alpha: 0.7))),
                     ),
                   ),
                   Text(

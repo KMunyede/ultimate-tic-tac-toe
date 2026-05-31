@@ -17,6 +17,9 @@ class PlayerStats {
   final int lossesLocalPvp;
   final int drawsLocalPvp;
 
+  final int currentStreak;
+  final int maxStreak;
+
   const PlayerStats({
     this.totalXp = 0,
     this.winsVsAiEasy = 0,
@@ -31,6 +34,8 @@ class PlayerStats {
     this.winsLocalPvp = 0,
     this.lossesLocalPvp = 0,
     this.drawsLocalPvp = 0,
+    this.currentStreak = 0,
+    this.maxStreak = 0,
   });
 
   /// Level calculation: each level requires exactly 500 XP
@@ -62,6 +67,8 @@ class PlayerStats {
     int? winsLocalPvp,
     int? lossesLocalPvp,
     int? drawsLocalPvp,
+    int? currentStreak,
+    int? maxStreak,
   }) {
     return PlayerStats(
       totalXp: totalXp ?? this.totalXp,
@@ -77,6 +84,8 @@ class PlayerStats {
       winsLocalPvp: winsLocalPvp ?? this.winsLocalPvp,
       lossesLocalPvp: lossesLocalPvp ?? this.lossesLocalPvp,
       drawsLocalPvp: drawsLocalPvp ?? this.drawsLocalPvp,
+      currentStreak: currentStreak ?? this.currentStreak,
+      maxStreak: maxStreak ?? this.maxStreak,
     );
   }
 
@@ -95,6 +104,8 @@ class PlayerStats {
       'winsLocalPvp': winsLocalPvp,
       'lossesLocalPvp': lossesLocalPvp,
       'drawsLocalPvp': drawsLocalPvp,
+      'currentStreak': currentStreak,
+      'maxStreak': maxStreak,
     };
   }
 
@@ -113,6 +124,8 @@ class PlayerStats {
       winsLocalPvp: json['winsLocalPvp'] ?? 0,
       lossesLocalPvp: json['lossesLocalPvp'] ?? 0,
       drawsLocalPvp: json['drawsLocalPvp'] ?? 0,
+      currentStreak: json['currentStreak'] ?? 0,
+      maxStreak: json['maxStreak'] ?? 0,
     );
   }
 }

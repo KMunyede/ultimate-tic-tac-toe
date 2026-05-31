@@ -10,7 +10,17 @@ class AuthService {
     // Required initialization for version 7.2.0+
     // Note: Scopes are no longer passed here in 7.2.0;
     // they are passed to authenticate() or authorizeScopes() instead.
-    _googleSignIn.initialize();
+    _initializeGoogleSignInSafe();
+  }
+
+  void _initializeGoogleSignInSafe() async {
+    try {
+      await _googleSignIn.initialize();
+    } catch (e) {
+      if (kDebugMode) {
+        print("Safely caught Google Sign-In initialization error: $e");
+      }
+    }
   }
 
   Stream<User?> get user => _auth.authStateChanges();
