@@ -45,9 +45,9 @@ class MultiBoardView extends StatelessWidget {
                 builder: (context, constraints) {
                   final EdgeInsets safePadding = responsive.screenPadding;
                   final double rawAvailW =
-                      constraints.maxWidth - safePadding.horizontal;
+                      max(0.0, constraints.maxWidth - safePadding.horizontal);
                   final double rawAvailH =
-                      constraints.maxHeight - safePadding.vertical;
+                      max(0.0, constraints.maxHeight - safePadding.vertical);
 
                   double availW = rawAvailW;
                   double availH = rawAvailH;

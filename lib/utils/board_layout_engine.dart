@@ -39,6 +39,13 @@ class BoardLayoutEngine {
     for (int iter = 0; iter < 24; iter++) {
       double mid = (low + high) / 2;
       final double effectiveSize = (mid * visualScaleFactor) + visualFixedPadding;
+
+      // SAFETY: If the board at this size can't physically fit with its visual buffers, it's invalid
+      if (effectiveSize > availW || effectiveSize > availH) {
+        high = mid;
+        continue;
+      }
+
       final double minGap = mid * (gapFactor - 1.0);
 
       // Generate candidate centers based on normalized layout positions

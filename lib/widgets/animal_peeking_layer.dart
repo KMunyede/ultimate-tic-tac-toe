@@ -2,6 +2,7 @@
 import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../features/settings/logic/settings_controller.dart';
@@ -90,16 +91,23 @@ class _AnimalPeekingLayerState extends State<AnimalPeekingLayer> with TickerProv
     _slideController.forward().then((_) {
       // Keep animal in view for 8 seconds, then slide out
       _hideTimer = Timer(const Duration(seconds: 8), () {
-        if (mounted) {
-          _slideController.reverse().then((_) {
-            if (mounted) {
-              setState(() {
-                _isPeeking = false;
-              });
-            }
-          });
-        }
+        _dismissAnimal();
       });
+    });
+  }
+
+  void _dismissAnimal() {
+    if (!mounted || !_isPeeking) return;
+    if (_slideController.status == AnimationStatus.reverse) return;
+
+    HapticFeedback.lightImpact();
+    _hideTimer?.cancel();
+    _slideController.reverse().then((_) {
+      if (mounted) {
+        setState(() {
+          _isPeeking = false;
+        });
+      }
     });
   }
 
@@ -183,16 +191,26 @@ class _AnimalPeekingLayerState extends State<AnimalPeekingLayer> with TickerProv
       right: alignment.x > 0 ? 0 : null,
       top: alignment.y < 0 ? 0 : (alignment.y == 0 ? h * 0.45 : null),
       bottom: alignment.y > 0 ? 0 : null,
-      child: Transform.translate(
-        offset: Offset(px, py),
-        child: SizedBox(
-          width: animalSize,
-          height: animalSize,
-          child: CustomPaint(
-            painter: AnimalPainter(
-              animalIndex: _activeAnimalIndex,
-              pulse: pulse,
-              sizeFactor: animalSize,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: _dismissAnimal,
+        onPanEnd: (details) {
+          // If swipe velocity is high enough, dismiss
+          if (details.velocity.pixelsPerSecond.distance > 200) {
+            _dismissAnimal();
+          }
+        },
+        child: Transform.translate(
+          offset: Offset(px, py),
+          child: SizedBox(
+            width: animalSize,
+            height: animalSize,
+            child: CustomPaint(
+              painter: AnimalPainter(
+                animalIndex: _activeAnimalIndex,
+                pulse: pulse,
+                sizeFactor: animalSize,
+              ),
             ),
           ),
         ),
@@ -237,11 +255,19 @@ class _AnimalPeekingLayerState extends State<AnimalPeekingLayer> with TickerProv
     return Positioned(
       left: bubbleLeft,
       top: bubbleTop,
-      child: Opacity(
-        opacity: ((slide - 0.25) / 0.75).clamp(0.0, 1.0),
-        child: Transform.scale(
-          scale: 0.5 + 0.5 * slide,
-          child: Container(
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: _dismissAnimal,
+        onPanEnd: (details) {
+          if (details.velocity.pixelsPerSecond.distance > 200) {
+            _dismissAnimal();
+          }
+        },
+        child: Opacity(
+          opacity: ((slide - 0.25) / 0.75).clamp(0.0, 1.0),
+          child: Transform.scale(
+            scale: 0.5 + 0.5 * slide,
+            child: Container(
             width: bubbleWidth,
             padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 10.0),
             decoration: BoxDecoration(
@@ -271,8 +297,9 @@ class _AnimalPeekingLayerState extends State<AnimalPeekingLayer> with TickerProv
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }
 
 class AnimalPainter extends CustomPainter {
