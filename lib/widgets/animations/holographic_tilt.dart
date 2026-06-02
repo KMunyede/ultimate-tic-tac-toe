@@ -48,6 +48,7 @@ class _InteractiveHolographicTiltState extends State<InteractiveHolographicTilt>
           onHover: (event) => _onPointerMove(event.localPosition, size),
           onExit: (_) => _onPointerExit(),
           child: GestureDetector(
+            behavior: HitTestBehavior.translucent,
             onPanUpdate: (details) => _onPointerMove(details.localPosition, size),
             onPanEnd: (_) => _onPointerExit(),
             onPanCancel: () => _onPointerExit(),

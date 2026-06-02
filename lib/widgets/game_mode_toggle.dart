@@ -200,6 +200,7 @@ class _CustomTabButton extends StatelessWidget {
     final themeName = currentTheme.name;
     final isCandy = themeName.contains('Candy Meadow');
     final isWood = themeName.contains('Woodville Carve');
+    final isJungle = themeName.contains('Amazon Jungle');
 
     Color buttonBg;
     Color buttonBorder;
@@ -232,6 +233,18 @@ class _CustomTabButton extends StatelessWidget {
             blurRadius: 6,
           )
         ];
+      } else if (isJungle) {
+        // Amazon Jungle: polished gold-bordered canopy green capsule
+        buttonBg = currentTheme.mainColor.withValues(alpha: 0.30); // moss green glow
+        buttonBorder = currentTheme.accentGlow; // sunray gold border
+        textColor = const Color(0xFFFFF9C4); // highly legible pale yellow/cream text
+        iconColor = currentTheme.accentGlow;
+        buttonShadow = [
+          BoxShadow(
+            color: currentTheme.accentGlow.withValues(alpha: 0.20),
+            blurRadius: 6,
+          )
+        ];
       } else {
         // Neon Cyberpulse: glowing cyber capsule
         buttonBg = currentTheme.mainColor.withValues(alpha: 0.20);
@@ -256,6 +269,11 @@ class _CustomTabButton extends StatelessWidget {
       textColor = isLight 
           ? currentTheme.textColor.withValues(alpha: 0.75) 
           : Colors.white.withValues(alpha: 0.65);
+
+      if (isJungle) {
+        iconColor = const Color(0xFFFFFDF4).withValues(alpha: 0.60);
+        textColor = const Color(0xFFFFFDF4).withValues(alpha: 0.70);
+      }
     }
 
     return AnimatedContainer(

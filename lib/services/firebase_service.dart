@@ -152,7 +152,7 @@ class FirebaseService {
     try {
       final callable = _functions.httpsCallable(
         'getAiMove',
-        options: HttpsCallableOptions(timeout: const Duration(seconds: 15)),
+        options: HttpsCallableOptions(timeout: const Duration(seconds: 3)),
       );
 
       final response = await callable.call(request.toJson());
@@ -187,7 +187,7 @@ class FirebaseService {
               'data': request.toJson(),
             }),
           )
-          .timeout(const Duration(seconds: 15));
+          .timeout(const Duration(seconds: 3));
 
       if (response.statusCode == 200) {
         final decoded = jsonDecode(response.body) as Map<String, dynamic>;

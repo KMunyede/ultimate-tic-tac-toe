@@ -13,6 +13,7 @@ import '../../../services/ai_service.dart';
 import '../../../services/stats_service.dart';
 import '../../settings/logic/settings_controller.dart';
 import '../../../core/audio/sound_manager.dart';
+import 'ai_strategy_engine.dart';
 
 class GameController with ChangeNotifier {
   final SoundManager _soundManager;
@@ -20,6 +21,7 @@ class GameController with ChangeNotifier {
   final StatsService _statsService;
   late SettingsController _settings;
   late final AiService _aiService;
+  late final AiStrategyEngine _aiEngine;
   final Random _random = Random();
 
   MatchSession? _session;
@@ -33,6 +35,7 @@ class GameController with ChangeNotifier {
   String? _lastAuthUserId;
   String? _liveBannerText;
   String? get liveBannerText => _liveBannerText;
+  Timer? _bannerTimer;
 
   int? _lastPlayedBoardIndex;
   int? _lastPlayedCellIndex;
@@ -70,13 +73,22 @@ class GameController with ChangeNotifier {
   int get eraserCardsO => _session?.eraserCardsO ?? 0;
   int get hackerCardsO => _session?.hackerCardsO ?? 0;
 
+  String? _getCurrentUserId() {
+    try {
+      return FirebaseAuth.instance.currentUser?.uid;
+    } catch (_) {
+      return null;
+    }
+  }
+
   GameController(
     this._soundManager,
     this._settings,
     this._firebaseService,
     this._statsService,
   ) : _aiService = AiService(_firebaseService) {
-    _lastAuthUserId = FirebaseAuth.instance.currentUser?.uid;
+    _aiEngine = AiStrategyEngine(_aiService);
+    _lastAuthUserId = _getCurrentUserId();
     _initGameFromCloud();
   }
 
@@ -241,7 +253,7 @@ class GameController with ChangeNotifier {
   void updateDependencies(SettingsController settings) {
     _settings = settings;
 
-    final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+    final currentUserId = _getCurrentUserId();
     if (currentUserId != _lastAuthUserId) {
       _lastAuthUserId = currentUserId;
       if (!_settings.isGuest && currentUserId != null) {
@@ -310,6 +322,7 @@ class GameController with ChangeNotifier {
     _isAiThinking = false;
     _shakeCounter = 0;
     _isPaused = false;
+    _bannerTimer?.cancel();
     _liveBannerText = null;
     _lastPlayedBoardIndex = null;
     _lastPlayedCellIndex = null;
@@ -369,7 +382,8 @@ class GameController with ChangeNotifier {
 
     if (success) {
       // 1. Play sound immediately
-      _soundManager.playMoveSound();
+      final justMoved = _session!.boards[boardIndex].cells[cellIndex];
+      _soundManager.playMoveSound(player: justMoved);
 
       // Record last played move coordinates
       _lastPlayedBoardIndex = boardIndex;
@@ -390,7 +404,8 @@ class GameController with ChangeNotifier {
       // 3. Handle Game Over sounds/stats
       if (!wasMatchOverBefore && isOverallGameOver) {
         if (matchWinner != null) {
-          _soundManager.playWinSound();
+          final bool isLoss = _settings.gameMode == GameMode.playerVsAi && matchWinner == Player.O;
+          _soundManager.playWinSound(isLoss: isLoss);
           _shakeCounter++;
           
           // Persist Game Win for ALL users (Guest and Registered)
@@ -432,83 +447,40 @@ class GameController with ChangeNotifier {
     _isAiThinking = true;
     notifyListeners();
 
-    // Suspenseful visual delay to let Player 1's drawing completely finish and provide calm breathing room
     await Future.delayed(const Duration(milliseconds: 1800));
 
     if (_matchId != currentMatchId || isOverallGameOver || _session == null) {
-      return;
-    }
-    if (_settings.gameMode != GameMode.playerVsAi || currentPlayer != Player.O) {
       _isAiThinking = false;
       notifyListeners();
       return;
     }
 
     try {
-      PowerUpType? selectedAiPowerUp;
-      int selectedBoardIdx = -1;
-      int selectedCellIdx = -1;
+      final aiDecision = await _aiEngine.getBestMove(
+        boards: boards,
+        currentPlayer: currentPlayer,
+        ruleSet: _settings.ruleSet,
+        difficulty: _settings.aiDifficulty,
+        boardCount: _settings.boardCount,
+        useOnlineAi: _settings.useOnlineAi,
+        forcedBoardIndex: forcedBoardIndex,
+        hackerCards: hackerCardsO,
+        eraserCards: eraserCardsO,
+        shieldCards: shieldCardsO,
+      ).timeout(const Duration(seconds: 6));
 
-      // Smart AI Heuristic for Chaos Mode (AI is O)
-      if (_settings.ruleSet == GameRuleSet.chaos && forcedBoardIndex != null) {
-        final forcedIdx = forcedBoardIndex!;
-        if (!boards[forcedIdx].isGameOver) {
-          final board = boards[forcedIdx];
-          
-          // Heuristic 1: If opponent (X) is about to win the sub-board, Hacker/Erase it
-          if (board.hasThreat(Player.X)) {
-            int threatCellIdx = _findThreatCellIndex(board, Player.X);
-            if (threatCellIdx != -1 && !board.shields[threatCellIdx]) {
-              if (hackerCardsO > 0 && _random.nextDouble() < 0.45) {
-                selectedAiPowerUp = PowerUpType.hacker;
-                selectedBoardIdx = forcedIdx;
-                selectedCellIdx = threatCellIdx;
-              } else if (eraserCardsO > 0 && _random.nextDouble() < 0.35) {
-                selectedAiPowerUp = PowerUpType.eraser;
-                selectedBoardIdx = forcedIdx;
-                selectedCellIdx = threatCellIdx;
-              }
-            }
-          }
-          
-          // Heuristic 2: If AI itself is close to a sub-board win, protect the board or shield key marks
-          if (selectedAiPowerUp == null && board.hasThreat(Player.O) && shieldCardsO > 0) {
-            int emptyThreatCellIdx = _findThreatCellIndex(board, Player.O);
-            if (emptyThreatCellIdx != -1 && !board.shields[emptyThreatCellIdx] && _random.nextDouble() < 0.35) {
-              selectedAiPowerUp = PowerUpType.shield;
-              selectedBoardIdx = forcedIdx;
-              selectedCellIdx = emptyThreatCellIdx;
-            }
-          }
-        }
-      }
-
-      if (selectedAiPowerUp != null) {
-        await makeMove(selectedBoardIdx, selectedCellIdx, isAiMove: true, aiPowerUp: selectedAiPowerUp);
+      if (aiDecision != null) {
+        await makeMove(
+          aiDecision['boardIndex'] as int,
+          aiDecision['cellIndex'] as int,
+          isAiMove: true,
+          aiPowerUp: aiDecision['powerUp'] as PowerUpType?,
+        );
       } else {
-        // Calibrated snappy 4-second timeout for AI move call (online and offline)
-        final aiMove = await _aiService.getBestMove(
-          boards: boards,
-          aiPlayer: currentPlayer,
-          difficulty: _settings.aiDifficulty,
-          boardCount: _settings.boardCount,
-          ruleSet: _settings.ruleSet,
-          useOnlineAi: _settings.useOnlineAi,
-          forcedBoardIndex: forcedBoardIndex,
-        ).timeout(const Duration(seconds: 4));
-
-        if (aiMove != null) {
-          await makeMove(aiMove.boardIndex, aiMove.cellIndex, isAiMove: true);
-        } else {
-          // Attempt failsafe move injection
-          await _executeFailsafeMove("BestMove returned null");
-        }
+        await _executeFailsafeMove("Engine returned null");
       }
     } catch (e) {
-      // Mute noisy error dialogs and trigger local failsafe move immediately
-      if (kDebugMode) {
-        print("AI move failed, executing failsafe: $e");
-      }
+      if (kDebugMode) print("AI move failed: $e");
       await _executeFailsafeMove("Exception: $e");
     } finally {
       _isAiThinking = false;
@@ -517,85 +489,40 @@ class GameController with ChangeNotifier {
   }
 
   Future<void> _executeFailsafeMove(String reason) async {
-    final failsafeMove = _calculateFailsafeMove();
+    final failsafeMove = _aiEngine.calculateFailsafeMove(boards, forcedBoardIndex);
     if (failsafeMove != null) {
       await makeMove(failsafeMove.boardIndex, failsafeMove.cellIndex, isAiMove: true);
     } else {
-      // Board is completely locked - last resort
-      _handleAiFailure("Failsafe move failed: No valid empty cells available. Reason: $reason");
+      _handleAiFailure("Game locked: No valid moves. Reason: $reason");
     }
-  }
-
-  AiMove? _calculateFailsafeMove() {
-    // 1. Try forced board first
-    if (forcedBoardIndex != null && forcedBoardIndex! < boards.length) {
-      final forcedIdx = forcedBoardIndex!;
-      if (!boards[forcedIdx].isGameOver) {
-        for (int i = 0; i < 9; i++) {
-          if (boards[forcedIdx].cells[i] == Player.none) {
-            return AiMove(forcedIdx, i);
-          }
-        }
-      }
-    }
-    // 2. Try any non-won board
-    for (int b = 0; b < boards.length; b++) {
-      if (!boards[b].isGameOver) {
-        for (int c = 0; c < 9; c++) {
-          if (boards[b].cells[c] == Player.none) {
-            return AiMove(b, c);
-          }
-        }
-      }
-    }
-    // 3. Last resort fallback
-    for (int b = 0; b < boards.length; b++) {
-      for (int c = 0; c < 9; c++) {
-        if (boards[b].cells[c] == Player.none) {
-          return AiMove(b, c);
-        }
-      }
-    }
-    return null;
   }
 
   void _triggerBoardConqueredBanner(int boardIdx, String winner) {
-    final messages = [
-      "captured Sector ${boardIdx + 1}!",
-      "claimed Sector ${boardIdx + 1} with a nice move!",
-      "secured Sector ${boardIdx + 1}!",
-      "wins Sector ${boardIdx + 1}!",
-    ];
-    _liveBannerText = "🎉 Player $winner ${messages[_random.nextInt(messages.length)]}";
+    final List<String> messages;
+    if (_settings.currentTheme.name == 'Amazon Jungle') {
+      messages = [
+        "🌴 Splendid! The Toucan sings in celebration of conquering Sector ${boardIdx + 1}!",
+        "🐒 Cheeky! Monkey is amazed by Player $winner's capture of Sector ${boardIdx + 1}!",
+        "🐸 Incredible! Tree Frog croaks with joy for Sector ${boardIdx + 1}!",
+        "🐆 Magnificent! The Jaguar roars as Player $winner claims Sector ${boardIdx + 1}!"
+      ];
+      _liveBannerText = messages[_random.nextInt(messages.length)];
+    } else {
+      messages = [
+        "captured Sector ${boardIdx + 1}!",
+        "claimed Sector ${boardIdx + 1} with a nice move!",
+        "secured Sector ${boardIdx + 1}!",
+        "wins Sector ${boardIdx + 1}!",
+      ];
+      _liveBannerText = "🎉 Player $winner ${messages[_random.nextInt(messages.length)]}";
+    }
     notifyListeners();
     // Auto dismiss after 5 seconds
-    Future.delayed(const Duration(seconds: 5), () {
+    _bannerTimer?.cancel();
+    _bannerTimer = Timer(const Duration(seconds: 5), () {
       _liveBannerText = null;
       notifyListeners();
     });
-  }
-
-  int _findThreatCellIndex(GameBoard board, Player player) {
-    const List<List<int>> winningCombos = [
-      [0, 1, 2], [3, 4, 5], [6, 7, 8],
-      [0, 3, 6], [1, 4, 7], [2, 5, 8],
-      [0, 4, 8], [2, 4, 6],
-    ];
-    for (final combo in winningCombos) {
-      int count = 0;
-      int emptyIdx = -1;
-      for (int idx in combo) {
-        if (board.cells[idx] == player) {
-          count++;
-        } else if (board.cells[idx] == Player.none) {
-          emptyIdx = idx;
-        }
-      }
-      if (count == 2 && emptyIdx != -1) {
-        return emptyIdx;
-      }
-    }
-    return -1;
   }
 
   void _handleAiFailure(String reason) {
@@ -604,6 +531,7 @@ class GameController with ChangeNotifier {
 
   @override
   void dispose() {
+    _bannerTimer?.cancel();
     _aiErrorController.close();
     super.dispose();
   }

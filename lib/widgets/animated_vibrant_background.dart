@@ -608,6 +608,207 @@ class BackgroundMeshPainter extends CustomPainter {
         canvas.drawPath(path, wispPaintFaded);
       }
     }
+
+    // 8. Draw Amazon Jungle Animated Features
+    if (theme.name == 'Amazon Jungle' && !lowDetailMode) {
+      _drawGodRays(canvas, size);
+      _drawWaterfall(canvas, size);
+      _drawJungleCanopy(canvas, size);
+      _drawFireflies(canvas, size);
+    }
+  }
+
+  /// Sweeping, semi-transparent golden bands representing sunbeams filtering through the canopy.
+  void _drawGodRays(Canvas canvas, Size size) {
+    final paint = Paint()..style = PaintingStyle.fill;
+    final Offset source = Offset(size.width * 0.48, -50);
+    final double baseAngle = pi / 3.0; // angled down-right
+
+    for (int i = 0; i < 4; i++) {
+      final double sweep = sin(time * 1.2 + i * 1.5) * 0.04;
+      final double angle = baseAngle + (i - 1.5) * 0.18 + sweep;
+      final double length = size.height * 1.6;
+      final double width1 = 12.0 + i * 4.0;
+      final double width2 = 70.0 + i * 12.0;
+
+      final Offset p1 = Offset(source.dx - width1 * cos(angle + pi / 2), source.dy - width1 * sin(angle + pi / 2));
+      final Offset p2 = Offset(source.dx + width1 * cos(angle + pi / 2), source.dy + width1 * sin(angle + pi / 2));
+      final Offset p3 = Offset(source.dx + cos(angle) * length + width2 * cos(angle + pi / 2), source.dy + sin(angle) * length + width2 * sin(angle + pi / 2));
+      final Offset p4 = Offset(source.dx + cos(angle) * length - width2 * cos(angle + pi / 2), source.dy + sin(angle) * length - width2 * sin(angle + pi / 2));
+
+      final path = Path()
+        ..moveTo(p1.dx, p1.dy)
+        ..lineTo(p2.dx, p2.dy)
+        ..lineTo(p3.dx, p3.dy)
+        ..lineTo(p4.dx, p4.dy)
+        ..close();
+
+      paint.shader = LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [
+          const Color(0xFFFFFDE7).withValues(alpha: 0.10),
+          const Color(0xFFFFF59D).withValues(alpha: 0.03),
+          const Color(0xFFFFF59D).withValues(alpha: 0.0),
+        ],
+      ).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
+
+      canvas.drawPath(path, paint);
+    }
+  }
+
+  /// Cascading vertical stream with sliding foam highlights and mist clouds at the bottom.
+  void _drawWaterfall(Canvas canvas, Size size) {
+    final double waterfallWidth = (size.width * 0.12).clamp(45.0, 95.0);
+    final rect = Rect.fromLTWH(0, 0, waterfallWidth, size.height);
+
+    // Deep backing rocky shadow
+    final paintRock = Paint()
+      ..color = const Color(0xFF0B140A).withValues(alpha: 0.85)
+      ..style = PaintingStyle.fill;
+    canvas.drawRect(rect, paintRock);
+
+    // Cascading streams wiggling vertically
+    final random = Random(101);
+    for (int i = 0; i < 5; i++) {
+      final double streamX = (i + 0.5) * (waterfallWidth / 5.0);
+      final path = Path();
+      path.moveTo(streamX, 0);
+
+      for (double y = 0; y <= size.height; y += 15.0) {
+        final double scroll = y * 0.06 - time * 32.0;
+        final double wobble = sin(scroll + i * 2.5) * 2.8 + cos(scroll * 0.6) * 1.2;
+        path.lineTo(streamX + wobble, y);
+      }
+
+      final paintStream = Paint()
+        ..color = const Color(0xFFB3E5FC).withValues(alpha: 0.15 + (i % 3) * 0.05)
+        ..strokeWidth = 2.0 + random.nextDouble() * 3.0
+        ..style = PaintingStyle.stroke
+        ..strokeCap = StrokeCap.round
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 1.8);
+
+      canvas.drawPath(path, paintStream);
+    }
+
+    // Specular falling foam highlights
+    for (int i = 0; i < 4; i++) {
+      final double foamY = ((time * 260.0 + i * 140.0) % (size.height + 80)) - 40;
+      final double foamX = random.nextDouble() * waterfallWidth;
+
+      final paintFoam = Paint()
+        ..color = Colors.white.withValues(alpha: 0.48)
+        ..style = PaintingStyle.fill
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2.5);
+
+      canvas.drawCircle(Offset(foamX, foamY), 6.0 + random.nextDouble() * 5.0, paintFoam);
+    }
+
+    // Mist clouds at the bottom splash
+    for (int i = 0; i < 3; i++) {
+      final double pulse = sin(time * 5.0 + i * 1.5) * 6.0;
+      final paintMist = Paint()
+        ..color = const Color(0xFFE0F7FA).withValues(alpha: 0.18)
+        ..style = PaintingStyle.fill
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10.0);
+
+      canvas.drawCircle(Offset(waterfallWidth * 0.5 + i * 6.0, size.height - 12.0), 30.0 + pulse, paintMist);
+    }
+  }
+
+  /// Drooping vines and leaves from top-left and top-right decorated with glowing flowers.
+  void _drawJungleCanopy(Canvas canvas, Size size) {
+    final Color vineColor = const Color(0xFF142B11);
+    final Color leafColor = const Color(0xFF1B5E20);
+    final Color flowerColor = const Color(0xFFE91E63);
+    final Color highlightColor = const Color(0xFF8BC34A);
+
+    // 1. Draped Vine from top-left to top-right
+    final pathVine1 = Path();
+    pathVine1.moveTo(0, 0);
+    final double sway1 = sin(time * pi) * 10.0;
+    pathVine1.quadraticBezierTo(size.width * 0.28, size.height * 0.08 + sway1, size.width * 0.52, 0);
+
+    final paintVine = Paint()
+      ..color = vineColor
+      ..strokeWidth = 3.0
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+    canvas.drawPath(pathVine1, paintVine);
+
+    // Populate foliage along Vine 1
+    final pathMetric1 = pathVine1.computeMetrics().first;
+    for (double d = 20.0; d < pathMetric1.length - 20.0; d += 40.0) {
+      final tangent = pathMetric1.getTangentForOffset(d);
+      if (tangent != null) {
+        final Offset pos = tangent.position;
+        final double angle = tangent.angle;
+
+        drawBambooLeaf(canvas, pos, angle + pi / 3.0, 1.8, leafColor, isDualTone: true, outlineColor: highlightColor);
+        drawBambooLeaf(canvas, pos, angle - pi / 3.0, 1.3, leafColor.withValues(alpha: 0.7), isDualTone: true, outlineColor: highlightColor);
+
+        // Draw tropical magenta flowers
+        if (d.toInt() % 80 == 0) {
+          final paintFlower = Paint()..color = flowerColor;
+          canvas.drawCircle(Offset(pos.dx, pos.dy + 3.0), 5.5, paintFlower);
+          canvas.drawCircle(Offset(pos.dx - 3.5, pos.dy), 4.5, paintFlower);
+          canvas.drawCircle(Offset(pos.dx + 3.5, pos.dy), 4.5, paintFlower);
+          canvas.drawCircle(Offset(pos.dx, pos.dy), 3.5, Paint()..color = const Color(0xFFFFEB3B));
+        }
+      }
+    }
+
+    // 2. Vertical Vine hanging on the right edge
+    final pathVine2 = Path();
+    pathVine2.moveTo(size.width - 15.0, 0);
+    final double sway2 = cos(time * 0.8 * pi) * 8.0;
+    pathVine2.quadraticBezierTo(size.width - 50.0 + sway2, size.height * 0.25, size.width - 12.0, size.height * 0.48 + sway2 * 0.5);
+    canvas.drawPath(pathVine2, paintVine);
+
+    final pathMetric2 = pathVine2.computeMetrics().first;
+    for (double d = 20.0; d < pathMetric2.length - 15.0; d += 30.0) {
+      final tangent = pathMetric2.getTangentForOffset(d);
+      if (tangent != null) {
+        final Offset pos = tangent.position;
+        final double angle = tangent.angle;
+
+        drawBambooLeaf(canvas, pos, angle + pi / 2.5, 1.5, leafColor, isDualTone: true, outlineColor: highlightColor);
+      }
+    }
+  }
+
+  /// Breathing glowing gold fireflies floating slowly across the jungle.
+  void _drawFireflies(Canvas canvas, Size size) {
+    final random = Random(88);
+    for (int i = 0; i < 12; i++) {
+      final double startX = random.nextDouble();
+      final double startY = random.nextDouble();
+      final double scale = 0.5 + random.nextDouble() * 0.6;
+      final double swaySpeed = 0.7 + random.nextDouble() * 1.0;
+      final double swayAmp = 6.0 + random.nextDouble() * 10.0;
+
+      final double t = time;
+      final double xFraction = (startX - t * 0.04) % 1.2 - 0.1;
+      final double yFraction = (startY - t * 0.02) % 1.2 - 0.1;
+
+      final double px = xFraction * size.width + sin(time * swaySpeed * 2 * pi + startX) * swayAmp;
+      final double py = yFraction * size.height;
+
+      // Glow breathing
+      final double pulse = 0.25 + (sin(time * 3.5 * pi + i * 1.8) + 1.0) / 2.0 * 0.75;
+
+      final glowPaint = Paint()
+        ..color = const Color(0xFFFFF59D).withValues(alpha: 0.16 * pulse)
+        ..style = PaintingStyle.fill
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 7.0);
+
+      final corePaint = Paint()
+        ..color = const Color(0xFFFFFF8D).withValues(alpha: 0.82 * pulse)
+        ..style = PaintingStyle.fill;
+
+      canvas.drawCircle(Offset(px, py), 10.0 * scale, glowPaint);
+      canvas.drawCircle(Offset(px, py), 2.2 * scale, corePaint);
+    }
   }
 
   @override

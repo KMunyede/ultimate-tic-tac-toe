@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 
 class FlyInWrapper extends StatefulWidget {
@@ -16,6 +17,7 @@ class _FlyInWrapperState extends State<FlyInWrapper>
   late Animation<Offset> _slideAnimation;
   late Animation<double> _fadeAnimation;
   late Animation<double> _scaleAnimation;
+  Timer? _delayTimer;
 
   @override
   void initState() {
@@ -37,13 +39,14 @@ class _FlyInWrapperState extends State<FlyInWrapper>
     );
 
     // Shortened initial delay to reduce flicker gap
-    Future.delayed(Duration(milliseconds: widget.index * 25), () {
+    _delayTimer = Timer(Duration(milliseconds: widget.index * 25), () {
       if (mounted) _controller.forward();
     });
   }
 
   @override
   void dispose() {
+    _delayTimer?.cancel();
     _controller.dispose();
     super.dispose();
   }

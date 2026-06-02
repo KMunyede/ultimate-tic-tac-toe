@@ -3,6 +3,8 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart';
 
 import '../../features/settings/logic/settings_controller.dart';
+import '../../models/player.dart';
+import 'jungle_sound_synthesizer.dart';
 
 /// A service for managing and playing sound effects.
 ///
@@ -14,7 +16,7 @@ class SoundManager {
   final Random _random = Random();
 
   // Pre-allocated circular audio player pool for rapid simultaneous overlapping sounds
-  static const int _poolSize = 4;
+  static const int _poolSize = 10;
   final List<AudioPlayer> _pool = List.generate(_poolSize, (_) => AudioPlayer());
   int _currentPoolIndex = 0;
 
@@ -34,7 +36,7 @@ class SoundManager {
   }
 
   /// A private helper to play a sound from assets, respecting sound settings.
-  Future<void> _playSound(String soundPath, {double? playbackRate}) async {
+  Future<void> _playSound(String soundPath, {double? playbackRate, String? jungleSoundType}) async {
     if (_settingsController.isSoundOn) {
       try {
         final player = _pool[_currentPoolIndex];
@@ -49,30 +51,85 @@ class SoundManager {
           await player.setPlaybackRate(1.0); // Reset to standard speed
         }
 
-        await player.play(AssetSource(soundPath));
+        if (jungleSoundType != null && _settingsController.currentTheme.name == 'Amazon Jungle') {
+          final file = await JungleSoundSynthesizer.getSound(jungleSoundType);
+          await player.play(DeviceFileSource(file.path));
+        } else {
+          await player.play(AssetSource(soundPath));
+        }
       } catch (e) {
         if (kDebugMode) {
-          print("Error playing sound ($soundPath): $e");
+          print("Error playing sound ($soundPath / $jungleSoundType): $e");
         }
       }
     }
   }
 
   /// Plays the standard move sound with micro pitch modulation.
-  Future<void> playMoveSound() async {
-    // Generate speed/pitch between 0.94 and 1.06 (micro pitch variation of +/- 6%)
-    final double pitchMultiplier = 0.94 + _random.nextDouble() * 0.12;
-    await _playSound(_moveSoundPath, playbackRate: pitchMultiplier);
+  /// If player is provided and theme is Amazon Jungle, plays animal-specific calls.
+  Future<void> playMoveSound({Player? player}) async {
+    if (_settingsController.currentTheme.name == 'Amazon Jungle') {
+      if (player == Player.X) {
+        await _playSound('', jungleSoundType: 'toucan_chirp');
+      } else if (player == Player.O) {
+        await _playSound('', jungleSoundType: 'monkey_chatter');
+      } else {
+        // Fallback or generic menu click
+        final double pitchMultiplier = 0.94 + _random.nextDouble() * 0.12;
+        await _playSound('', playbackRate: pitchMultiplier, jungleSoundType: 'toucan_chirp');
+      }
+    } else {
+      // Generate speed/pitch between 0.94 and 1.06 (micro pitch variation of +/- 6%)
+      final double pitchMultiplier = 0.94 + _random.nextDouble() * 0.12;
+      await _playSound(_moveSoundPath, playbackRate: pitchMultiplier);
+    }
   }
 
-  /// Plays the win sound.
-  Future<void> playWinSound() async {
-    await _playSound(_winSoundPath);
+  /// Plays the win sound or tribal/owl call.
+  Future<void> playWinSound({bool isLoss = false}) async {
+    if (_settingsController.currentTheme.name == 'Amazon Jungle') {
+      if (isLoss) {
+        await _playSound('', jungleSoundType: 'owl_loss');
+      } else {
+        await _playSound('', jungleSoundType: 'tribal_drum');
+      }
+    } else {
+      await _playSound(isLoss ? _drawSoundPath : _winSoundPath);
+    }
   }
 
-  /// Plays the draw sound.
+  /// Plays the draw sound or cricket chirp.
   Future<void> playDrawSound() async {
-    await _playSound(_drawSoundPath);
+    if (_settingsController.currentTheme.name == 'Amazon Jungle') {
+      await _playSound('', jungleSoundType: 'cricket_draw');
+    } else {
+      await _playSound(_drawSoundPath);
+    }
+  }
+
+  /// Plays a synthesized animal peek sound when they slide into view.
+  Future<void> playAnimalPeekSound(int animalIndex) async {
+    if (_settingsController.currentTheme.name == 'Amazon Jungle') {
+      final String soundType = _getAnimalPeekSoundType(animalIndex);
+      await _playSound('', jungleSoundType: soundType);
+    }
+  }
+
+  String _getAnimalPeekSoundType(int index) {
+    switch (index) {
+      case 0:
+        return 'toucan_peek';
+      case 1:
+        return 'snake_peek';
+      case 2:
+        return 'frog_peek';
+      case 3:
+        return 'tiger_peek';
+      case 4:
+        return 'lion_peek';
+      default:
+        return 'toucan_peek';
+    }
   }
 
   /// Stops any currently playing sound on all players in the pool.

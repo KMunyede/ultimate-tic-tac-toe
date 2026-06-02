@@ -8,7 +8,7 @@ import '../../../core/audio/sound_manager.dart';
 import '../../../widgets/gradient_button.dart';
 import '../../../widgets/help_dialog.dart';
 import '../../game/screens/animation_demo_screen.dart';
-import '../../../widgets/board_widget.dart';
+import '../../../widgets/board/clay_bevel_painter.dart';
 
 class SettingsMenu extends StatefulWidget {
   final bool isPersistent;
@@ -63,6 +63,15 @@ class _SettingsMenuState extends State<SettingsMenu> {
         onPressed: () => Navigator.of(context).pop(),
         style: TextButton.styleFrom(
           foregroundColor: theme.textColor,
+          textStyle: const TextStyle(fontWeight: FontWeight.bold),
+        ),
+        child: const Text('DONE'),
+      );
+    } else if (theme.name == 'Amazon Jungle') {
+      doneBtn = TextButton(
+        onPressed: () => Navigator.of(context).pop(),
+        style: TextButton.styleFrom(
+          foregroundColor: theme.accentGlow, // Bright golden Done button!
           textStyle: const TextStyle(fontWeight: FontWeight.bold),
         ),
         child: const Text('DONE'),
@@ -164,18 +173,18 @@ class _SettingsMenuState extends State<SettingsMenu> {
           child: dialogContent,
         ),
       );
-    } else if (theme.name == 'Floating Feather') {
-      dialogRadius = BorderRadius.circular(16);
+    } else if (theme.name == 'Amazon Jungle') {
+      dialogRadius = BorderRadius.circular(18);
       dialogFrame = Container(
         decoration: BoxDecoration(
-          color: theme.scaffoldBg,
+          color: theme.boardBg, // Mahogany wood bark
           borderRadius: dialogRadius,
-          border: Border.all(color: const Color(0xFFB5937E).withValues(alpha: 0.3), width: 1.0),
+          border: Border.all(color: theme.accentGlow.withValues(alpha: 0.45), width: 1.8), // Gold trim
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFFB5937E).withValues(alpha: 0.08),
-              offset: const Offset(0, 6),
-              blurRadius: 16,
+              color: Colors.black.withValues(alpha: 0.4),
+              offset: const Offset(0, 8),
+              blurRadius: 20,
             ),
           ],
         ),

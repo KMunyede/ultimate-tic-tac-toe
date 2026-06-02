@@ -39,30 +39,43 @@ class AiMoveResponse {
 
   AiMoveResponse({this.boardIndex, required this.cellIndex});
 
+  static int? _safeInt(dynamic val) {
+    if (val == null) return null;
+    if (val is num) return val.toInt();
+    if (val is String) {
+      return int.tryParse(val);
+    }
+    return null;
+  }
+
   factory AiMoveResponse.fromJson(dynamic json) {
     if (json is Map) {
-      if (json.containsKey('boardIndex') && json.containsKey('cellIndex')) {
-        return AiMoveResponse(
-          boardIndex: (json['boardIndex'] as num).toInt(),
-          cellIndex: (json['cellIndex'] as num).toInt(),
-        );
+      int? boardIdx;
+      if (json.containsKey('boardIndex') && json['boardIndex'] != null) {
+        boardIdx = _safeInt(json['boardIndex']);
       }
 
-      if (json.containsKey('move')) {
+      int cellIdx = 0;
+      if (json.containsKey('cellIndex') && json['cellIndex'] != null) {
+        cellIdx = _safeInt(json['cellIndex']) ?? 0;
+      } else if (json.containsKey('move')) {
         final move = json['move'];
         if (move is Map) {
-          return AiMoveResponse(
-            boardIndex: (move['boardIndex'] as num?)?.toInt(),
-            cellIndex: (move['cellIndex'] as num?)?.toInt() ?? 0,
-          );
-        }
-        if (move is num) {
-          return AiMoveResponse(boardIndex: null, cellIndex: move.toInt());
+          boardIdx = _safeInt(move['boardIndex']);
+          cellIdx = _safeInt(move['cellIndex']) ?? 0;
+        } else if (move is num) {
+          cellIdx = move.toInt();
+        } else if (move is String) {
+          cellIdx = int.tryParse(move) ?? 0;
         }
       }
+      return AiMoveResponse(boardIndex: boardIdx, cellIndex: cellIdx);
     }
     if (json is num) {
       return AiMoveResponse(boardIndex: null, cellIndex: json.toInt());
+    }
+    if (json is String) {
+      return AiMoveResponse(boardIndex: null, cellIndex: int.tryParse(json) ?? 0);
     }
     throw FormatException("Invalid AI response format: $json");
   }

@@ -45,6 +45,8 @@ class AiService {
           if (boardIdx != -1 && 
               boardIdx < boards.length && 
               !boards[boardIdx].isGameOver &&
+              response.cellIndex >= 0 &&
+              response.cellIndex < 9 &&
               boards[boardIdx].cells[response.cellIndex] == Player.none) {
             return AiMove(boardIdx, response.cellIndex);
           }

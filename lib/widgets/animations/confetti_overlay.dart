@@ -97,13 +97,14 @@ class _ConfettiOverlayState extends State<ConfettiOverlay>
         const Color(0xFFF0F4F8), // Soft wisp
         Colors.white,
       ];
-    } else if (theme.name == 'Floating Feather') {
+    } else if (theme.name == 'Amazon Jungle') {
       colors = [
-        theme.mainColor, // Peach
-        theme.accentGlow, // Sand
-        theme.textColor, // Muted cocoa
-        const Color(0xFFFFE3D6), // Soft cream rose
-        const Color(0xFFFAF2ED), // Soft white down
+        theme.mainColor, // Lush Canopy Green
+        theme.accentGlow, // Sunray Gold
+        const Color(0xFF8BC34A), // Lime Green
+        const Color(0xFFFFEB3B), // Bright Yellow
+        const Color(0xFFE91E63), // Tropical Magenta Pink
+        const Color(0xFFFFFDE7), // Soft White Down
       ];
     } else {
       colors = [

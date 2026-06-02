@@ -40,14 +40,14 @@ final List<AppTheme> appThemes = [
     bgGradient: [Color(0xFFC3CEC2), Color(0xFFBAC7B8), Color(0xFFB0BEAE)],
   ),
   const AppTheme(
-    name: 'Floating Feather',
-    brightness: Brightness.light,
-    mainColor: Color(0xFFD37E65), // Soft Peach Blossom / Terracotta
-    scaffoldBg: Color(0xFFFDF6F0), // Creamy Apricot Blush
-    boardBg: Color(0xFFF3E4D9), // Powdery Silk Card
-    accentGlow: Color(0xFFB5937E), // Soft Clay Rose
-    textColor: Color(0xFF5E4B43), // Gentle Deep Earth
-    bgGradient: [Color(0xFFFEF8F5), Color(0xFFF8EEE4), Color(0xFFF3E4D9)],
+    name: 'Amazon Jungle',
+    brightness: Brightness.dark,
+    mainColor: Color(0xFF4CAF50), // Bright Sun-Dappled Canopy Green
+    scaffoldBg: Color(0xFF1B3B17), // Rich mossy deep jungle green
+    boardBg: Color(0xFF4E342E), // Rich warm mahogany wood
+    accentGlow: Color(0xFFFFB300), // Glowing Sunray Honey Gold
+    textColor: Color(0xFFFFFDF4), // High-contrast Light Ivory / Jungle Mist
+    bgGradient: [Color(0xFF163213), Color(0xFF388E3C), Color(0xFF1A3816)], // Vibrant sun-dappled canopy
   ),
   const AppTheme(
     name: 'Rising Moon',
@@ -131,6 +131,9 @@ ThemeData generateTheme(AppTheme theme) {
 
 class NeumorphicColors {
   static Color getLightShadow(Color baseColor) {
+    if (baseColor == const Color(0xFF3E2723) || baseColor == const Color(0xFF4E342E)) {
+      return const Color(0xFF6D4C41).withValues(alpha: 0.85); // Amazon Jungle - Mahogany warm edge highlight
+    }
     if (baseColor == const Color(0xFF323D2E)) {
       return const Color(0xFF43523F).withValues(alpha: 0.85); // Rushing Wind - Soft lightened sage highlight
     }
@@ -146,8 +149,8 @@ class NeumorphicColors {
       return const Color(0xFF1B2219).withValues(alpha: 0.85); // Rushing Wind - Soft lightened deep forest shadow
     } else if (baseColor == const Color(0xFFE4E1DA)) {
       return const Color(0xFFC4C1B6).withValues(alpha: 0.55); // Rushing Wind - Deeper shadow (Midpoint)
-    } else if (baseColor == const Color(0xFFF3E4D9)) {
-      return const Color(0xFFCBB6A6).withValues(alpha: 0.55); // Floating Feather
+    } else if (baseColor == const Color(0xFF3E2723) || baseColor == const Color(0xFF4E342E)) {
+      return const Color(0xFF27120E).withValues(alpha: 0.85); // Amazon Jungle - Mahogany rich deep shadow
     } else if (baseColor == const Color(0xFFE7E2EE)) {
       return const Color(0xFFC0B6CA).withValues(alpha: 0.55); // Rising Moon
     } else if (baseColor == const Color(0xFFE3ECEF)) {

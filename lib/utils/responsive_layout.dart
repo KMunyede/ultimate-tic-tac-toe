@@ -52,18 +52,18 @@ class ResponsiveLayout {
     return 18.0;
   }
 
-  // Padding based on exact diagonal categories
+  // Padding based on exact diagonal categories (Increased for 3D tilt safety)
   EdgeInsets get screenPadding {
     if (isLessThan7Inch) {
-      return const EdgeInsets.symmetric(horizontal: 10.0, vertical: 6.0);
+      return const EdgeInsets.symmetric(horizontal: 14.0, vertical: 10.0);
     }
     if (is7To8Inch) {
-      return const EdgeInsets.symmetric(horizontal: 14.0, vertical: 8.0);
+      return const EdgeInsets.symmetric(horizontal: 18.0, vertical: 12.0);
     }
     if (is8To10Inch) {
-      return const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0);
+      return const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0);
     }
-    return const EdgeInsets.symmetric(horizontal: 28.0, vertical: 16.0);
+    return const EdgeInsets.symmetric(horizontal: 32.0, vertical: 20.0);
   }
 
   // Font sizes based on exact diagonal categories
