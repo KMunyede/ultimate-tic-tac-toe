@@ -21,14 +21,13 @@ class BoardLayoutEngine {
     required double availW,
     required double availH,
   }) {
-    // 1. Dynamic Safety Gap Factor
-    double gapFactor = 1.16;
-    if (count == 5) {
-      gapFactor = 1.10;
-    } else if (count == 6) {
+    double gapFactor = 1.12; // Base gap for small counts
+    if (count == 4) {
       gapFactor = 1.08;
-    } else if (count >= 7) {
+    } else if (count == 5 || count == 6) {
       gapFactor = 1.06;
+    } else if (count >= 7) {
+      gapFactor = 1.03; // Extremely tight gap for 7-9 boards to maximize size
     }
 
     // 2. Physics-Aware Binary Search Sizing Engine

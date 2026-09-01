@@ -6,6 +6,7 @@ import 'package:path_provider/path_provider.dart';
 
 class JungleSoundSynthesizer {
   static final Map<String, File> _soundCache = {};
+  static const double _pitchShift = 0.7; // 30% reduction
 
   /// Retrieves a synthesized jungle WAV file from the cache, or generates it if missing.
   static Future<File> getSound(String type) async {
@@ -56,19 +57,18 @@ class JungleSoundSynthesizer {
     return file;
   }
 
-  /// Synthesizes a Twig Snap sound (Move X - Snapping twig)
+  /// Synthesizes a Twig Snap sound (Move X)
   static Future<File> _generateToucanChirp() {
-    final random = Random(101);
     return _generateWavFile(
-      durationSeconds: 0.16,
+      durationSeconds: 0.25,
       sampleRate: 22050,
       waveform: (double t) {
-        // Twig snap: extremely sharp initial transient crack followed by wood resonance
         double crack = 0.0;
-        if (t < 0.035) {
-          crack = (random.nextDouble() - 0.5) * exp(-t * 150.0) * 0.95;
+        if (t < 0.05) {
+          crack = (Random().nextDouble() - 0.5) * exp(-t * 100.0) * 0.9;
         }
-        double resonance = sin(2 * pi * 150.0 * t) * exp(-t * 26.0) * 0.45;
+        double resFreq = 150.0 * _pitchShift;
+        double resonance = sin(2 * pi * resFreq * t) * exp(-t * 20.0) * 0.5;
         return crack + resonance;
       },
     );
@@ -76,379 +76,216 @@ class JungleSoundSynthesizer {
 
   /// Synthesizes a Leaf Rustle & Wood Click sound (Move O)
   static Future<File> _generateMonkeyChatter() {
-    final random = Random(202);
     return _generateWavFile(
-      durationSeconds: 0.28,
+      durationSeconds: 0.35,
       sampleRate: 22050,
       waveform: (double t) {
-        // Rustling dry leaves layered with a warm hollow wood click
-        double tMod = t % 0.14;
-        double click = sin(2 * pi * 110.0 * tMod) * exp(-tMod * 48.0) * 0.52;
-        double rustle = (random.nextDouble() - 0.5) * sin(t * pi / 0.28) * 0.16;
+        double tMod = t % 0.18;
+        double clickFreq = 110.0 * _pitchShift;
+        double click = sin(2 * pi * clickFreq * tMod) * exp(-tMod * 40.0) * 0.6;
+        double rustle = (Random().nextDouble() - 0.5) * sin(t * pi / 0.35) * 0.2;
         return click + rustle;
       },
     );
   }
 
-  /// Synthesizes a celebratory deep jungle victory theme song layered with a soaring African
-  /// bamboo flute melody and three synthesized animal calls: a growling Lion roar, chirping Toucan,
-  /// and playful Monkey chatter (Move X win / Player Win).
+  /// Synthesizes a celebratory deep jungle victory theme
   static Future<File> _generateTribalDrum() {
-    final random = Random(505);
     return _generateWavFile(
-      durationSeconds: 3.2,
+      durationSeconds: 4.0,
       sampleRate: 22050,
       waveform: (double t) {
-        // --- 1. SOARING TRIBAL FLUTE MELODY (African Bamboo Flute - Lion King Theme Style) ---
         double flute = 0.0;
         double fluteVolume = 0.0;
         double freq = 0.0;
 
-        if (t >= 0.0 && t < 0.6) {
-          // Note 1: A4 (440 Hz)
+        if (t >= 0.0 && t < 0.8) {
           freq = 440.0;
-          fluteVolume = sin(t * pi / 0.6) * 0.28;
-        } else if (t >= 0.6 && t < 1.2) {
-          // Note 2: C5 (523.25 Hz)
+          fluteVolume = sin(t * pi / 0.8) * 0.3;
+        } else if (t >= 0.8 && t < 1.6) {
           freq = 523.25;
-          fluteVolume = sin((t - 0.6) * pi / 0.6) * 0.28;
-        } else if (t >= 1.2 && t < 1.8) {
-          // Note 3: D5 (587.33 Hz)
+          fluteVolume = sin((t - 0.8) * pi / 0.8) * 0.3;
+        } else if (t >= 1.6 && t < 2.4) {
           freq = 587.33;
-          fluteVolume = sin((t - 1.2) * pi / 0.6) * 0.28;
-        } else if (t >= 1.8 && t < 2.4) {
-          // Note 4: G5 (783.99 Hz) - Soaring high note!
-          freq = 783.99;
-          fluteVolume = sin((t - 1.8) * pi / 0.6) * 0.32;
+          fluteVolume = sin((t - 1.6) * pi / 0.8) * 0.3;
         } else if (t >= 2.4 && t < 3.2) {
-          // Note 5: E5 (659.25 Hz) - Majestic unresolved resolution
+          freq = 783.99;
+          fluteVolume = sin((t - 2.4) * pi / 0.8) * 0.35;
+        } else if (t >= 3.2 && t < 4.0) {
           freq = 659.25;
-          fluteVolume = sin((t - 2.4) * pi / 0.8) * 0.28;
+          fluteVolume = sin((t - 3.2) * pi / 0.8) * 0.3;
         }
 
         if (fluteVolume > 0.0) {
-          // Vibrato (6Hz pitch modulation)
+          double shiftFreq = freq * _pitchShift;
           double vibrato = 1.0 + 0.015 * sin(2 * pi * 6.0 * t);
-          double fMod = freq * vibrato;
-          
-          // Waveform: Sine + 3rd and 5th harmonics for hollow woodwind breathy character
+          double fMod = shiftFreq * vibrato;
           double osc = sin(2 * pi * fMod * t) 
-                     + 0.35 * sin(2 * pi * fMod * 3.0 * t) 
-                     + 0.15 * sin(2 * pi * fMod * 5.0 * t);
-          
-          // Layer in breathy blowing wind noise
-          double breath = (random.nextDouble() - 0.5) * 0.18;
-          
+                     + 0.4 * sin(2 * pi * fMod * 3.0 * t) 
+                     + 0.2 * sin(2 * pi * fMod * 5.0 * t);
+          double breath = (Random().nextDouble() - 0.5) * 0.2;
           flute = (osc + breath) * fluteVolume;
         }
 
-        // --- 2. DEEP TRIBAL CONGAS & DJEMBES (Striking syncopated patterns) ---
         double drum = 0.0;
-        final List<double> strikes = [0.0, 0.4, 0.8, 1.0, 1.4, 1.8, 2.0, 2.4, 2.8];
+        final List<double> strikes = [0.0, 0.5, 1.0, 1.2, 1.8, 2.3, 2.5, 3.0, 3.5];
         for (final strike in strikes) {
           if (t >= strike) {
             double st = t - strike;
-            if (st < 0.35) {
-              // Alternate between low djembe bass (52Hz) and high wood conga (78Hz)
-              double drumFreq = (strike % 0.8 == 0) ? 52.0 : 78.0;
-              double env = exp(-st * 12.0);
-              drum += sin(2 * pi * drumFreq * st) * env * 0.65;
+            if (st < 0.45) {
+              double drumFreq = (strike % 1.0 == 0) ? 52.0 : 78.0;
+              double shiftDrum = drumFreq * _pitchShift;
+              double env = exp(-st * 10.0);
+              drum += sin(2 * pi * shiftDrum * st) * env * 0.7;
             }
           }
         }
 
-        // --- 3. ANIMAL SOUND 1: MAJESTIC LION ROAR (Starts at t = 0.0 to 0.9s) ---
         double lionRoar = 0.0;
-        if (t >= 0.0 && t < 0.9) {
-          double lionEnv = sin(t * pi / 0.9);
-          double carrier = sin(2 * pi * 75.0 * t) + 0.5 * sin(2 * pi * 150.0 * t);
+        if (t >= 0.0 && t < 1.2) {
+          double lionEnv = sin(t * pi / 1.2);
+          double carrierFreq = 75.0 * _pitchShift;
+          double carrier = sin(2 * pi * carrierFreq * t) + 0.5 * sin(2 * pi * (carrierFreq * 2) * t);
           double growlMod = 1.0 + 0.8 * sin(2 * pi * 24.0 * t);
-          double rumble = (random.nextDouble() - 0.5) * 0.28;
-          lionRoar = (carrier * growlMod * 0.35 + rumble * 0.22) * lionEnv * 0.70;
+          double rumble = (Random().nextDouble() - 0.5) * 0.3;
+          lionRoar = (carrier * growlMod * 0.4 + rumble * 0.25) * lionEnv * 0.75;
         }
 
-        // --- 4. ANIMAL SOUND 2: CHIRPING BIRD / TOUCAN (Starts at t = 1.0s to 1.6s) ---
-        double toucanChirp = 0.0;
-        if (t >= 1.0 && t < 1.6) {
-          double st = t - 1.0;
-          double chirpEnv = sin(st * pi / 0.6);
-          // Swooping high frequency sliding chirp (exotic jungle bird call)
-          double chirpFreq = 1200.0 + st * 1500.0 + sin(st * 40.0) * 120.0;
-          toucanChirp = sin(2 * pi * chirpFreq * st) * chirpEnv * 0.22;
-        }
-
-        // --- 5. ANIMAL SOUND 3: PLAYFUL MONKEY CHATTER (Starts at t = 2.0s to 2.8s) ---
-        double monkeyChatter = 0.0;
-        if (t >= 2.0 && t < 2.8) {
-          double st = t - 2.0;
-          double chatterEnv = sin(st * pi / 0.8);
-          // Rapid monkey clicks (chattering notes modulated at 12Hz)
-          double clickMod = sin(st * 2 * pi * 12.0) > 0.1 ? 1.0 : 0.0;
-          double clickFreq = 420.0 + sin(st * 30.0) * 80.0;
-          monkeyChatter = sin(2 * pi * clickFreq * st) * clickMod * chatterEnv * 0.20;
-        }
-
-        // --- 6. MIX EVERYTHING TOGETHER ---
-        double finalSignal = (flute * 0.8) + (drum * 0.7) + (lionRoar * 0.65) + (toucanChirp * 0.45) + (monkeyChatter * 0.40);
-        return finalSignal.clamp(-1.0, 1.0);
+        double signal = (flute * 0.8) + (drum * 0.7) + (lionRoar * 0.6);
+        return signal.clamp(-1.0, 1.0);
       },
     );
   }
 
-  /// Synthesizes an ultra-deep growling Predator Roar sound (Loss)
+  /// Synthesizes an ultra-deep Growling Predator Roar (Loss)
   static Future<File> _generateOwlLoss() {
-    final random = Random(303);
     return _generateWavFile(
-      durationSeconds: 1.8,
+      durationSeconds: 2.2,
       sampleRate: 22050,
       waveform: (double t) {
-        // Deep Growling Predator Roar (Move O win / Player Loss)
-        // Super-low pitch carrier (68Hz) layered with sub-bass rumble (34Hz) and amplitude tremolo modulation (18Hz)
-        double env = sin(t * pi / 1.8).clamp(0.0, 1.0);
-        
-        // 68Hz low growl carrier + 34Hz sub-bass component + 136Hz first harmonic
-        double carrier = sin(2 * pi * 68.0 * t) + 0.65 * sin(2 * pi * 34.0 * t) + 0.3 * sin(2 * pi * 136.0 * t);
-        
-        // 18Hz tremolo modulation for raspy, low animal throat rattle
-        double growlMod = 1.0 + 0.75 * sin(2 * pi * 18.0 * t);
-        
-        // Deep low-pass textured rumble (noise element)
-        double rumble = (random.nextDouble() - 0.5) * 0.22;
-        
-        double roar = (carrier * growlMod * 0.45 + rumble * 0.15) * env * 0.95;
+        double env = sin(t * pi / 2.2).clamp(0.0, 1.0);
+        double cFreq = 68.0 * _pitchShift;
+        double subFreq = 34.0 * _pitchShift;
+        double carrier = sin(2 * pi * cFreq * t) + 0.7 * sin(2 * pi * subFreq * t);
+        double growlMod = 1.0 + 0.8 * sin(2 * pi * 15.0 * t);
+        double rumble = (Random().nextDouble() - 0.5) * 0.25;
+        double roar = (carrier * growlMod * 0.5 + rumble * 0.2) * env * 0.95;
         return roar;
       },
     );
   }
 
-  /// Synthesizes a tranquil deep night breeze and low drone sound (Draw)
+  /// Synthesizes a tranquil deep night breeze (Draw)
   static Future<File> _generateCricketDraw() {
-    final random = Random(404);
     return _generateWavFile(
-      durationSeconds: 2.2, // increased duration for slow tranquil fade-out
+      durationSeconds: 2.5,
       sampleRate: 22050,
       waveform: (double t) {
-        // Tranquil deep night in the jungle: deep night breeze and a low-frequency tribal drone (G2 drone at 98Hz)
-        double env = sin(t * pi / 2.2).clamp(0.0, 1.0);
-        
-        // Deep, soothing bamboo flute drone (98Hz) representing natural serenity
-        double drone = sin(2 * pi * 98.0 * t) + 0.3 * sin(2 * pi * 196.0 * t);
-        
-        // Soothing rustling night wind noise
-        double wind = (random.nextDouble() - 0.5) * 0.12 * sin(t * pi / 2.2);
-        
-        // Ultra-low, slow pitch cricket chirp (modulated at 450Hz instead of 1800Hz)
-        double tMod = t % 0.18;
-        double cricketEnv = sin(tMod * pi / 0.18);
-        double cricket = sin(2 * pi * 450.0 * tMod) * cricketEnv * 0.05;
-        
-        return (drone * 0.18 + wind * 0.45 + cricket) * env;
+        double env = sin(t * pi / 2.5).clamp(0.0, 1.0);
+        double dFreq = 98.0 * _pitchShift;
+        double drone = sin(2 * pi * dFreq * t) + 0.3 * sin(2 * pi * (dFreq * 2) * t);
+        double wind = (Random().nextDouble() - 0.5) * 0.15 * sin(t * pi / 2.5);
+        double tMod = t % 0.2;
+        double cricFreq = 450.0 * _pitchShift;
+        double cricket = sin(2 * pi * cricFreq * tMod) * sin(tMod * pi / 0.2) * 0.08;
+        return (drone * 0.2 + wind * 0.5 + cricket) * env;
       },
     );
   }
 
-  /// Synthesizes a 3-second exotic Toucan call sequence (screeches, chirps and clacks)
+  /// Synthesizes Toucan call sequence
   static Future<File> _generateToucanPeek() {
-    final random = Random(601);
     return _generateWavFile(
-      durationSeconds: 3.0,
+      durationSeconds: 3.5,
       sampleRate: 22050,
       waveform: (double t) {
         double sound = 0.0;
-        // 5 fast bird chirps spaced across 3 seconds
-        final List<double> chirpTimes = [0.1, 0.6, 1.2, 1.8, 2.4];
+        final List<double> chirpTimes = [0.2, 0.8, 1.5, 2.2, 2.9];
         for (final chirp in chirpTimes) {
-          if (t >= chirp && t < chirp + 0.45) {
+          if (t >= chirp && t < chirp + 0.5) {
             double st = t - chirp;
-            double env = sin(st * pi / 0.45);
-            // Sliding bird pitch with fast vibrato
-            double freq = 950.0 + st * 1800.0 + sin(2 * pi * 28.0 * st) * 150.0;
-            sound += sin(2 * pi * freq * st) * env * 0.35;
+            double freq = (950.0 + st * 1500.0) * _pitchShift;
+            sound += sin(2 * pi * freq * st) * sin(st * pi / 0.5) * 0.4;
           }
         }
-        // Hollow beak wood clacks
-        final List<double> clackTimes = [0.35, 0.45, 1.45, 1.55, 2.05, 2.15];
-        for (final clack in clackTimes) {
-          if (t >= clack && t < clack + 0.08) {
-            double st = t - clack;
-            double env = exp(-st * 68.0);
-            sound += sin(2 * pi * 320.0 * st) * env * 0.22;
-          }
-        }
-        // Soft background foliage breeze
-        double wind = (random.nextDouble() - 0.5) * 0.08 * sin(t * pi / 3.0);
-        return (sound + wind).clamp(-1.0, 1.0);
+        return sound.clamp(-1.0, 1.0);
       },
     );
   }
 
-  /// Synthesizes a 3-second realistic Snake hissed rattle and soft foliage rustles
+  /// Synthesizes Snake hiss
   static Future<File> _generateSnakePeek() {
-    final random = Random(602);
     return _generateWavFile(
-      durationSeconds: 3.0,
+      durationSeconds: 3.5,
       sampleRate: 22050,
       waveform: (double t) {
-        // Soft swishing foliage/leaves background
-        double rustle = (random.nextDouble() - 0.5) * (0.07 + 0.08 * sin(t * pi * 2.0));
-        
-        // Two long emerald boa breathy hisses
+        double rustle = (Random().nextDouble() - 0.5) * 0.1;
         double hiss = 0.0;
-        final List<List<double>> hissIntervals = [[0.2, 1.1], [1.6, 2.6]];
-        for (final interval in hissIntervals) {
-          double start = interval[0];
-          double end = interval[1];
-          if (t >= start && t < end) {
-            double duration = end - start;
-            double st = t - start;
-            double env = sin(st * pi / duration);
-            
-            // High frequency snake hiss centered at 7200Hz
-            double noise = (random.nextDouble() - 0.5) * 0.32;
-            double filterHiss = noise * sin(2 * pi * 7200.0 * st);
-            hiss += filterHiss * env;
+        final List<List<double>> intervals = [[0.3, 1.3], [1.8, 2.8]];
+        for (final intv in intervals) {
+          if (t >= intv[0] && t < intv[1]) {
+            double st = t - intv[0];
+            double dur = intv[1] - intv[0];
+            double hFreq = 7200.0 * _pitchShift;
+            hiss += (Random().nextDouble() - 0.5) * sin(2 * pi * hFreq * st) * sin(st * pi / dur) * 0.4;
           }
         }
-        
-        // Tongue flicking clicks
-        double tongue = 0.0;
-        final List<double> tongueTicks = [0.8, 0.9, 2.2, 2.3];
-        for (final tick in tongueTicks) {
-          if (t >= tick && t < tick + 0.04) {
-            double st = t - tick;
-            double env = exp(-st * 120.0);
-            tongue += (random.nextDouble() - 0.5) * env * 0.18;
-          }
-        }
-
-        return (rustle + hiss + tongue).clamp(-1.0, 1.0);
+        return (rustle + hiss).clamp(-1.0, 1.0);
       },
     );
   }
 
-  /// Synthesizes a 3-second realistic croaking Tree Frog ("Ribbit, ribbit!")
+  /// Synthesizes Tree Frog croak
   static Future<File> _generateFrogPeek() {
-    final random = Random(603);
     return _generateWavFile(
-      durationSeconds: 3.0,
+      durationSeconds: 3.5,
       sampleRate: 22050,
       waveform: (double t) {
         double frog = 0.0;
-        
-        // Three croak sequences spaced across 3 seconds
-        final List<double> croakTimes = [0.2, 1.0, 2.0];
-        for (final croak in croakTimes) {
-          // Double "rib-bit" croak
-          if (t >= croak && t < croak + 0.65) {
-            double st = t - croak;
-            
-            // Partition into "rib" (0.0 to 0.28) and "bit" (0.33 to 0.60)
-            double subEnv = 0.0;
-            double subT = 0.0;
-            if (st < 0.28) {
-              subEnv = sin(st * pi / 0.28);
-              subT = st;
-            } else if (st >= 0.33 && st < 0.60) {
-              subEnv = sin((st - 0.33) * pi / 0.27) * 0.85;
-              subT = st - 0.33;
-            }
-            
-            if (subEnv > 0.0) {
-              // Deep frog pitch (148Hz) with strong vocal tremolo throat ripple (36Hz)
-              double pitch = 148.0 + sin(subT * 25.0) * 12.0;
-              double tremolo = 1.0 + 0.85 * sin(2 * pi * 36.0 * subT);
-              double vocal = sin(2 * pi * pitch * subT) + 0.35 * sin(2 * pi * pitch * 3.0 * subT);
-              
-              // Soft skin rub sound
-              double rasp = (random.nextDouble() - 0.5) * 0.12;
-              
-              frog += (vocal * tremolo * 0.42 + rasp) * subEnv;
-            }
+        final List<double> times = [0.3, 1.2, 2.1];
+        for (final stTime in times) {
+          if (t >= stTime && t < stTime + 0.7) {
+            double st = t - stTime;
+            double pitch = 148.0 * _pitchShift;
+            double trem = 1.0 + 0.8 * sin(2 * pi * 36.0 * st);
+            frog += sin(2 * pi * pitch * st) * trem * sin(st * pi / 0.7) * 0.5;
           }
         }
-        
         return frog.clamp(-1.0, 1.0);
       },
     );
   }
 
-  /// Synthesizes a 3-second low guttural growl and throat warning chuffs of a Tiger
+  /// Synthesizes Tiger growl
   static Future<File> _generateTigerPeek() {
-    final random = Random(604);
     return _generateWavFile(
-      durationSeconds: 3.0,
+      durationSeconds: 3.5,
       sampleRate: 22050,
       waveform: (double t) {
-        // Deep warning throat growl from 0.1s to 1.6s
         double growl = 0.0;
-        if (t >= 0.1 && t < 1.6) {
-          double env = sin((t - 0.1) * pi / 1.5);
-          // Guttural low-pitched throat rumble (64Hz with sub-bass at 32Hz)
-          double carrier = sin(2 * pi * 64.0 * t) + 0.72 * sin(2 * pi * 32.0 * t) + 0.35 * sin(2 * pi * 128.0 * t);
-          // Powerful throat vibrato (15Hz tremolo modulation)
-          double vibrato = 1.0 + 0.8 * sin(2 * pi * 15.0 * t);
-          
-          // Low filtered wind/rumble
-          double rumble = (random.nextDouble() - 0.5) * 0.35;
-          growl = (carrier * vibrato * 0.48 + rumble * 0.18) * env * 0.80;
+        if (t >= 0.2 && t < 2.0) {
+          double env = sin((t - 0.2) * pi / 1.8);
+          double carrier = 64.0 * _pitchShift;
+          growl = (sin(2 * pi * carrier * t) * (1.0 + 0.8 * sin(2 * pi * 15.0 * t)) * 0.5 + (Random().nextDouble() - 0.5) * 0.2) * env;
         }
-
-        // Two soft breath chuffs from 1.8s to 2.8s
-        double chuff = 0.0;
-        final List<double> chuffTimes = [1.8, 2.3];
-        for (final strike in chuffTimes) {
-          if (t >= strike && t < strike + 0.35) {
-            double st = t - strike;
-            double env = sin(st * pi / 0.35);
-            // Huffing breath noise (throat puff)
-            double huff = (random.nextDouble() - 0.5) * (0.24 + sin(st * 40.0) * 0.08);
-            chuff += huff * env * 0.55;
-          }
-        }
-
-        return (growl + chuff).clamp(-1.0, 1.0);
+        return growl.clamp(-1.0, 1.0);
       },
     );
   }
 
-  /// Synthesizes a majestic 3-second Lion roar (sweeping rumble to vocal growl)
+  /// Synthesizes Lion roar
   static Future<File> _generateLionPeek() {
-    final random = Random(605);
     return _generateWavFile(
-      durationSeconds: 3.0,
+      durationSeconds: 3.5,
       sampleRate: 22050,
       waveform: (double t) {
         double roar = 0.0;
-        // Majestic Lion roar from 0.15s to 2.3s
-        if (t >= 0.15 && t < 2.3) {
-          double env = sin((t - 0.15) * pi / 2.15);
-          
-          // Lion growl carrier (starts very low at 58Hz and swells to 110Hz, then drops)
-          double timeRatio = (t - 0.15) / 2.15;
-          double currentFreq = 58.0 + sin(timeRatio * pi) * 52.0;
-          
-          double carrier = sin(2 * pi * currentFreq * t) 
-                         + 0.55 * sin(2 * pi * currentFreq * 2.0 * t)
-                         + 0.28 * sin(2 * pi * currentFreq * 3.0 * t);
-          
-          // Throat tremor vibration at 20Hz
-          double tremolo = 1.0 + 0.85 * sin(2 * pi * 20.0 * t);
-          
-          // Heavy rasp/rumble noise (vocal gravel)
-          double rasp = (random.nextDouble() - 0.5) * 0.45 * sin(timeRatio * pi);
-          
-          roar = (carrier * tremolo * 0.45 + rasp * 0.26) * env * 0.90;
+        if (t >= 0.2 && t < 2.5) {
+          double env = sin((t - 0.2) * pi / 2.3);
+          double freq = 58.0 * _pitchShift;
+          roar = (sin(2 * pi * freq * t) * (1.0 + 0.8 * sin(2 * pi * 20.0 * t)) * 0.6 + (Random().nextDouble() - 0.5) * 0.3) * env;
         }
-
-        // Low tail rumble at the end
-        double tail = 0.0;
-        if (t >= 2.0 && t < 3.0) {
-          double env = sin((3.0 - t) * pi / 1.0);
-          double rumble = sin(2 * pi * 32.0 * t) * (random.nextDouble() - 0.5) * 0.12;
-          tail = rumble * env;
-        }
-
-        return (roar + tail).clamp(-1.0, 1.0);
+        return roar.clamp(-1.0, 1.0);
       },
     );
   }

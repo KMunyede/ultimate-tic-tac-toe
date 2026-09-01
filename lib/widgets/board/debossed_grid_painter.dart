@@ -21,7 +21,7 @@ class DebossedGridPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     if (themeName != 'Rushing Wind' &&
         themeName != 'Amazon Jungle' &&
-        themeName != 'Rising Moon' &&
+        themeName != 'Pacific Waves' &&
         themeName != 'Drifting Cloud' &&
         themeName != 'Crimson Leaf') {
       return; // only draw for nature themes!
@@ -30,77 +30,93 @@ class DebossedGridPainter extends CustomPainter {
     final double w = size.width;
     final double h = size.height;
 
-    // Grid coordinates (exact cell boundaries)
-    final double x1 = w / 3;
-    final double x2 = 2 * w / 3;
-    final double y1 = h / 3;
-    final double y2 = 2 * h / 3;
-
-    // Lines start slightly into the outer padding area to give the elegant carved cap look from the design mockup
-    final double lineStart = -padding * 0.55;
-    final double lineEndW = w + (padding * 0.55);
-    final double lineEndH = h + (padding * 0.55);
-
     // Calculate a normalized scaling factor based on standard 240px board widths
     final double scale = w / 240.0;
-    final double baseStrokeWidth = (5.2 * scale).clamp(1.2, 8.0);
-    final double darkStrokeWidth = (2.0 * scale).clamp(0.6, 3.5);
-    final double lightStrokeWidth = (1.6 * scale).clamp(0.5, 3.0);
-    final double blurRadius = (1.2 * scale).clamp(0.3, 2.5);
+    
+    // Gap between the 9 recessed squares
+    final double gap = w * 0.035;
+    
+    // Cell dimension
+    final double cellW = (w - (gap * 2)) / 3;
+    final double radius = cellW * 0.2; // rounded corners for the debossed cells
+
+    final double darkStrokeWidth = (4.5 * scale).clamp(2.0, 6.0);
+    final double lightStrokeWidth = (4.0 * scale).clamp(1.5, 5.0);
+    final double blurRadius = (3.5 * scale).clamp(1.0, 5.0);
 
     // REACTIVE LIGHTING: Shift crease offsets based on tilt
-    final double shiftX = tiltY * 4.0;
-    final double shiftY = -tiltX * 4.0;
+    final double shiftX = tiltY * 3.0;
+    final double shiftY = -tiltX * 3.0;
 
-    // Carved groove styling:
-    // 1. Dark shadow crease (base layer to ground the groove depth)
-    final paintBase = Paint()
-      ..color = NeumorphicColors.getDarkShadow(baseColor).withValues(alpha: 0.45) // Deepened crease
-      ..strokeWidth = baseStrokeWidth
-      ..strokeCap = StrokeCap.round
-      ..style = PaintingStyle.stroke
-      ..maskFilter = MaskFilter.blur(BlurStyle.normal, blurRadius); // Tighter blur for deeper look
-
-    // 2. Dark inner shadow (inset top-left shadow)
+    // 1. Dark inner shadow (inset top-left shadow)
     final paintDark = Paint()
-      ..color = NeumorphicColors.getDarkShadow(baseColor).withValues(alpha: 0.75) // Sharp dark inner shadow
+      ..color = NeumorphicColors.getDarkShadow(baseColor).withValues(alpha: 0.95) // Maximize opacity
       ..strokeWidth = darkStrokeWidth
       ..strokeCap = StrokeCap.round
+      ..maskFilter = MaskFilter.blur(BlurStyle.normal, blurRadius)
       ..style = PaintingStyle.stroke;
 
-    // 3. Bright inner light catcher (inset bottom-right highlight)
+    // 2. Bright inner light catcher (inset bottom-right highlight)
     final paintLight = Paint()
-      ..color = NeumorphicColors.getLightShadow(baseColor).withValues(alpha: 0.45) // Softer nature highlight blend
+      ..color = NeumorphicColors.getLightShadow(baseColor).withValues(alpha: 0.95)
       ..strokeWidth = lightStrokeWidth
       ..strokeCap = StrokeCap.round
+      ..maskFilter = MaskFilter.blur(BlurStyle.normal, blurRadius)
       ..style = PaintingStyle.stroke;
 
-    void drawCarvedLine(Offset p1, Offset p2) {
-      // Draw base dark crease
-      canvas.drawLine(p1, p2, paintBase);
+    // 3. Recessed fill
+    final paintFill = Paint()
+      ..color = (themeName == 'Pacific Waves' ? Colors.black : NeumorphicColors.getDarkShadow(baseColor)).withValues(alpha: 0.15)
+      ..style = PaintingStyle.fill;
 
-      // Draw dark shadow line (offset top-left, shifted by tilt)
-      canvas.drawLine(
-        Offset(p1.dx - 0.7 + shiftX, p1.dy - 0.7 + shiftY),
-        Offset(p2.dx - 0.7 + shiftX, p2.dy - 0.7 + shiftY),
-        paintDark,
-      );
+    // 4. Subtle flat border to ensure visibility even if shadows fail
+    final paintBorder = Paint()
+      ..color = NeumorphicColors.getDarkShadow(baseColor).withValues(alpha: 0.3)
+      ..strokeWidth = 1.0
+      ..style = PaintingStyle.stroke;
 
-      // Draw light catching line (offset bottom-right, shifted opposite to tilt)
-      canvas.drawLine(
-        Offset(p1.dx + 0.7 - shiftX, p1.dy + 0.7 - shiftY),
-        Offset(p2.dx + 0.7 - shiftX, p2.dy + 0.7 - shiftY),
-        paintLight,
-      );
+    for (int row = 0; row < 3; row++) {
+      for (int col = 0; col < 3; col++) {
+        // Tap area for this cell is exactly (w/3) by (h/3)
+        // We inset the drawn rectangle by gap/2 on all sides so it perfectly centers in the tap area
+        final double left = col * (w / 3) + gap / 2;
+        final double top = row * (h / 3) + gap / 2;
+        final double drawnCellW = (w / 3) - gap;
+        final double drawnCellH = (h / 3) - gap;
+        
+        final rect = Rect.fromLTWH(left, top, drawnCellW, drawnCellH);
+        final rrect = RRect.fromRectAndRadius(rect, Radius.circular(radius));
+
+        // Draw recessed background
+        canvas.drawRRect(rrect, paintFill);
+        
+        // Draw hard border
+        canvas.drawRRect(rrect, paintBorder);
+
+        canvas.save();
+        canvas.clipRRect(rrect);
+
+        // Draw top-left dark inner shadow
+        // We shift the rect slightly down-right and draw it with stroke, so its top-left edge falls inside the clip
+        final Path darkPath = Path()
+          ..addRRect(RRect.fromRectAndRadius(
+            rect.translate(darkStrokeWidth * 0.5 + shiftX, darkStrokeWidth * 0.5 + shiftY), 
+            Radius.circular(radius)
+          ));
+        canvas.drawPath(darkPath, paintDark);
+
+        // Draw bottom-right light inner shadow
+        // We shift the rect slightly up-left so its bottom-right edge falls inside the clip
+        final Path lightPath = Path()
+          ..addRRect(RRect.fromRectAndRadius(
+            rect.translate(-lightStrokeWidth * 0.5 - shiftX, -lightStrokeWidth * 0.5 - shiftY), 
+            Radius.circular(radius)
+          ));
+        canvas.drawPath(lightPath, paintLight);
+
+        canvas.restore();
+      }
     }
-
-    // Horizontal lines
-    drawCarvedLine(Offset(lineStart, y1), Offset(lineEndW, y1));
-    drawCarvedLine(Offset(lineStart, y2), Offset(lineEndW, y2));
-
-    // Vertical lines
-    drawCarvedLine(Offset(x1, lineStart), Offset(x1, lineEndH));
-    drawCarvedLine(Offset(x2, lineStart), Offset(x2, lineEndH));
   }
 
   @override

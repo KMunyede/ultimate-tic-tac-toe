@@ -1,0 +1,265 @@
+
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Fredoka+One&display=swap');
+*{box-sizing:border-box;margin:0;padding:0}
+.scene{width:100%;min-height:640px;background:#1a3a5c;border-radius:16px;overflow:hidden;position:relative;display:flex;flex-direction:column;align-items:center;padding:20px 16px 20px}
+.sky-bg{position:absolute;top:0;left:0;right:0;height:44%;background:#1c3f6e}
+.horizon-glow{position:absolute;top:36%;left:0;right:0;height:28px;background:#c47a2a;opacity:0.2}
+.ocean-base{position:absolute;bottom:0;left:0;right:0;height:52%;background:#1a4f7a}
+.wave-a{position:absolute;bottom:34%;left:-10px;right:-10px;height:36px;background:#2a6fa0;border-radius:50% 50% 0 0/14px 14px 0 0;opacity:0.55}
+.wave-b{position:absolute;bottom:26%;left:-20px;right:-20px;height:44px;background:#1e5c8a;border-radius:50% 50% 0 0/18px 18px 0 0;opacity:0.72}
+.sand-base{position:absolute;bottom:0;left:0;right:0;height:26%;background:#c8a86a}
+.sand-rim{position:absolute;bottom:24.5%;left:0;right:0;height:14px;background:#d4b47a;border-radius:50% 50% 0 0/5px 5px 0 0}
+.sun-orb{position:absolute;top:26px;left:50%;transform:translateX(-50%);width:44px;height:44px;border-radius:50%;background:#f5c842;opacity:0.82}
+
+.player-card{background:rgba(18,42,70,0.9);border:1.5px solid #3a6fa0;border-radius:10px;padding:7px 16px;display:flex;flex-direction:column;align-items:center;gap:2px;min-width:118px}
+.player-card.active{border-color:#e8a830}
+.p-name{font-family:'Fredoka One',cursive;font-size:15px;color:#ddeeff}
+.p-turn{font-family:'Fredoka One',cursive;font-size:11px;color:#e8a830}
+.p-turn.off{visibility:hidden}
+.score-row{display:flex;gap:14px;margin-bottom:8px}
+.pill{background:rgba(14,28,48,0.7);border:0.5px solid #2a4e70;border-radius:20px;padding:3px 13px;font-family:'Fredoka One',cursive;font-size:12px;color:#8ab4d4;display:flex;align-items:center;gap:5px}
+.pill span{color:#ddeeff;font-size:13px}
+.game-title{font-family:'Fredoka One',cursive;font-size:28px;color:#f0e0b0;letter-spacing:0.07em;position:relative;z-index:10;margin:6px 0 10px;text-align:center}
+.btn-row{display:flex;gap:12px;margin-top:10px;position:relative;z-index:10}
+.btn{background:rgba(18,42,70,0.92);border:1.5px solid #3a6fa0;border-radius:8px;padding:9px 20px;font-family:'Fredoka One',cursive;font-size:14px;color:#ddeeff;cursor:pointer;display:flex;align-items:center;gap:7px}
+.btn:hover{background:rgba(28,60,100,0.95)}
+.btn.warm{background:rgba(65,32,8,0.92);border-color:#9a601c;color:#f0d0a0}
+.btn.warm:hover{background:rgba(82,42,10,0.95)}
+
+@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
+@keyframes sunpulse{0%,100%{opacity:0.82}50%{opacity:0.65}}
+</style>
+
+<h2 class="sr-only">Pacific Waves Tic-Tac-Toe with a vertical bamboo-stalk board bound by horizontal rope rows forming the grid, starfish X pieces and clamshell O pieces</h2>
+
+<div class="scene">
+  <div class="sky-bg"></div>
+  <div class="horizon-glow"></div>
+  <div class="sun-orb" style="animation:sunpulse 4s ease-in-out infinite"></div>
+  <div class="ocean-base"></div>
+  <div class="wave-a"></div>
+  <div class="wave-b"></div>
+  <div class="sand-base"></div>
+  <div class="sand-rim"></div>
+
+  <div style="position:relative;z-index:10;display:flex;justify-content:space-between;width:100%;max-width:360px;margin-bottom:10px">
+    <div class="player-card active">
+      <div style="width:28px;height:28px;display:flex;align-items:center;justify-content:center">
+        <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+          <path d="M14 2L16.2 9.8L24.2 9.8L17.8 14.6L20 22.4L14 17.6L8 22.4L10.2 14.6L3.8 9.8L11.8 9.8Z" fill="#f5a030" stroke="#c07010" stroke-width="1.2"/>
+          <circle cx="14" cy="14" r="3" fill="#f0c060"/>
+        </svg>
+      </div>
+      <div class="p-name">Player 1</div>
+      <div class="p-turn">Your turn</div>
+    </div>
+    <div class="player-card">
+      <div style="width:28px;height:24px;display:flex;align-items:center;justify-content:center">
+        <svg width="28" height="22" viewBox="0 0 28 22" fill="none">
+          <ellipse cx="14" cy="13" rx="13" ry="8" fill="#e8d8b0" stroke="#b0906a" stroke-width="1.5"/>
+          <path d="M2 13 Q8 5 14 13 Q20 21 26 13" stroke="#b0906a" stroke-width="1.2" fill="none"/>
+          <path d="M2 13 Q8 21 14 13 Q20 5 26 13" stroke="#b0906a" stroke-width="1" fill="none" opacity="0.5"/>
+          <ellipse cx="14" cy="4" rx="6" ry="4" fill="#d4c090" stroke="#b0906a" stroke-width="1.2"/>
+          <line x1="14" y1="1" x2="14" y2="8" stroke="#b0906a" stroke-width="1" opacity="0.6"/>
+        </svg>
+      </div>
+      <div class="p-name">Player 2</div>
+      <div class="p-turn off">Your turn</div>
+    </div>
+  </div>
+
+  <div class="score-row">
+    <div class="pill">star <span>2</span></div>
+    <div class="pill">draws <span>1</span></div>
+    <div class="pill">shell <span>1</span></div>
+  </div>
+
+  <div style="position:relative;z-index:10">
+    <svg width="360" height="370" viewBox="0 0 360 370" xmlns="http://www.w3.org/2000/svg">
+
+      <defs>
+        <pattern id="bamtex" patternUnits="userSpaceOnUse" width="6" height="40">
+          <rect width="6" height="40" fill="#8a6a28"/>
+          <line x1="0" y1="0" x2="6" y2="0" stroke="#6a4a10" stroke-width="0.4" opacity="0.6"/>
+          <line x1="1" y1="0" x2="1" y2="40" stroke="#a07830" stroke-width="0.5" opacity="0.35"/>
+          <line x1="4" y1="0" x2="4" y2="40" stroke="#6a4a10" stroke-width="0.4" opacity="0.3"/>
+        </pattern>
+        <pattern id="bamtex2" patternUnits="userSpaceOnUse" width="6" height="40" x="2">
+          <rect width="6" height="40" fill="#7a5a20"/>
+          <line x1="1" y1="0" x2="1" y2="40" stroke="#9a7228" stroke-width="0.5" opacity="0.4"/>
+          <line x1="4" y1="0" x2="4" y2="40" stroke="#5a3a0a" stroke-width="0.4" opacity="0.3"/>
+        </pattern>
+        <pattern id="bamtex3" patternUnits="userSpaceOnUse" width="6" height="40" x="4">
+          <rect width="6" height="40" fill="#9a7232"/>
+          <line x1="1" y1="0" x2="1" y2="40" stroke="#b08a40" stroke-width="0.5" opacity="0.35"/>
+          <line x1="4" y1="0" x2="4" y2="40" stroke="#7a5218" stroke-width="0.4" opacity="0.3"/>
+        </pattern>
+      </defs>
+
+      <rect x="2" y="2" width="356" height="366" rx="8" fill="#3a2408" opacity="0.6"/>
+
+      <rect x="4"   y="4" width="26" height="362" rx="4" fill="url(#bamtex)"/>
+      <rect x="32"  y="4" width="26" height="362" rx="4" fill="url(#bamtex2)"/>
+      <rect x="60"  y="4" width="26" height="362" rx="4" fill="url(#bamtex3)"/>
+      <rect x="88"  y="4" width="26" height="362" rx="4" fill="url(#bamtex)"/>
+      <rect x="116" y="4" width="26" height="362" rx="4" fill="url(#bamtex2)"/>
+      <rect x="144" y="4" width="26" height="362" rx="4" fill="url(#bamtex3)"/>
+      <rect x="172" y="4" width="26" height="362" rx="4" fill="url(#bamtex)"/>
+      <rect x="200" y="4" width="26" height="362" rx="4" fill="url(#bamtex2)"/>
+      <rect x="228" y="4" width="26" height="362" rx="4" fill="url(#bamtex3)"/>
+      <rect x="256" y="4" width="26" height="362" rx="4" fill="url(#bamtex)"/>
+      <rect x="284" y="4" width="26" height="362" rx="4" fill="url(#bamtex2)"/>
+      <rect x="312" y="4" width="26" height="362" rx="4" fill="url(#bamtex3)"/>
+      <rect x="340" y="4" width="16" height="362" rx="4" fill="url(#bamtex)"/>
+
+      <rect x="4" y="8"   width="352" height="7" rx="2" fill="#c8a060" opacity="0.25"/>
+      <rect x="4" y="360" width="352" height="7" rx="2" fill="#c8a060" opacity="0.25"/>
+
+      <rect x="4" y="116" width="352" height="12" rx="3" fill="#7a5218"/>
+      <rect x="4" y="116" width="352" height="3"  rx="1" fill="#c8a060" opacity="0.5"/>
+      <rect x="4" y="125" width="352" height="3"  rx="1" fill="#4a2e08" opacity="0.6"/>
+      <rect x="4" y="234" width="352" height="12" rx="3" fill="#7a5218"/>
+      <rect x="4" y="234" width="352" height="3"  rx="1" fill="#c8a060" opacity="0.5"/>
+      <rect x="4" y="243" width="352" height="3"  rx="1" fill="#4a2e08" opacity="0.6"/>
+
+      <rect x="4" y="6"   width="352" height="6" rx="2" fill="#9a7230" opacity="0.4"/>
+      <rect x="4" y="355" width="352" height="6" rx="2" fill="#9a7230" opacity="0.4"/>
+      <rect x="4" y="113" width="352" height="5" rx="2" fill="#b08840" opacity="0.35"/>
+      <rect x="4" y="231" width="352" height="5" rx="2" fill="#b08840" opacity="0.35"/>
+      <rect x="4" y="349" width="352" height="5" rx="2" fill="#b08840" opacity="0.35"/>
+
+      <g opacity="0.75">
+        <ellipse cx="21" cy="116" rx="5" ry="8" fill="#8a6020" stroke="#c8a060" stroke-width="1"/>
+        <ellipse cx="21" cy="122" rx="5" ry="6" fill="#7a5018" stroke="#c8a060" stroke-width="0.8"/>
+        <ellipse cx="49" cy="116" rx="5" ry="8" fill="#8a6020" stroke="#c8a060" stroke-width="1"/>
+        <ellipse cx="49" cy="122" rx="5" ry="6" fill="#7a5018" stroke="#c8a060" stroke-width="0.8"/>
+        <ellipse cx="77" cy="116" rx="5" ry="8" fill="#8a6020" stroke="#c8a060" stroke-width="1"/>
+        <ellipse cx="77" cy="122" rx="5" ry="6" fill="#7a5018" stroke="#c8a060" stroke-width="0.8"/>
+        <ellipse cx="105" cy="116" rx="5" ry="8" fill="#8a6020" stroke="#c8a060" stroke-width="1"/>
+        <ellipse cx="133" cy="116" rx="5" ry="8" fill="#8a6020" stroke="#c8a060" stroke-width="1"/>
+        <ellipse cx="161" cy="116" rx="5" ry="8" fill="#8a6020" stroke="#c8a060" stroke-width="1"/>
+        <ellipse cx="189" cy="116" rx="5" ry="8" fill="#8a6020" stroke="#c8a060" stroke-width="1"/>
+        <ellipse cx="217" cy="116" rx="5" ry="8" fill="#8a6020" stroke="#c8a060" stroke-width="1"/>
+        <ellipse cx="245" cy="116" rx="5" ry="8" fill="#8a6020" stroke="#c8a060" stroke-width="1"/>
+        <ellipse cx="273" cy="116" rx="5" ry="8" fill="#8a6020" stroke="#c8a060" stroke-width="1"/>
+        <ellipse cx="301" cy="116" rx="5" ry="8" fill="#8a6020" stroke="#c8a060" stroke-width="1"/>
+        <ellipse cx="329" cy="116" rx="5" ry="8" fill="#8a6020" stroke="#c8a060" stroke-width="1"/>
+        <ellipse cx="349" cy="116" rx="4" ry="8" fill="#8a6020" stroke="#c8a060" stroke-width="1"/>
+
+        <ellipse cx="21" cy="234" rx="5" ry="8" fill="#8a6020" stroke="#c8a060" stroke-width="1"/>
+        <ellipse cx="21" cy="240" rx="5" ry="6" fill="#7a5018" stroke="#c8a060" stroke-width="0.8"/>
+        <ellipse cx="49" cy="234" rx="5" ry="8" fill="#8a6020" stroke="#c8a060" stroke-width="1"/>
+        <ellipse cx="49" cy="240" rx="5" ry="6" fill="#7a5018" stroke="#c8a060" stroke-width="0.8"/>
+        <ellipse cx="77" cy="234" rx="5" ry="8" fill="#8a6020" stroke="#c8a060" stroke-width="1"/>
+        <ellipse cx="77" cy="240" rx="5" ry="6" fill="#7a5018" stroke="#c8a060" stroke-width="0.8"/>
+        <ellipse cx="105" cy="234" rx="5" ry="8" fill="#8a6020" stroke="#c8a060" stroke-width="1"/>
+        <ellipse cx="133" cy="234" rx="5" ry="8" fill="#8a6020" stroke="#c8a060" stroke-width="1"/>
+        <ellipse cx="161" cy="234" rx="5" ry="8" fill="#8a6020" stroke="#c8a060" stroke-width="1"/>
+        <ellipse cx="189" cy="234" rx="5" ry="8" fill="#8a6020" stroke="#c8a060" stroke-width="1"/>
+        <ellipse cx="217" cy="234" rx="5" ry="8" fill="#8a6020" stroke="#c8a060" stroke-width="1"/>
+        <ellipse cx="245" cy="234" rx="5" ry="8" fill="#8a6020" stroke="#c8a060" stroke-width="1"/>
+        <ellipse cx="273" cy="234" rx="5" ry="8" fill="#8a6020" stroke="#c8a060" stroke-width="1"/>
+        <ellipse cx="301" cy="234" rx="5" ry="8" fill="#8a6020" stroke="#c8a060" stroke-width="1"/>
+        <ellipse cx="329" cy="234" rx="5" ry="8" fill="#8a6020" stroke="#c8a060" stroke-width="1"/>
+        <ellipse cx="349" cy="234" rx="4" ry="8" fill="#8a6020" stroke="#c8a060" stroke-width="1"/>
+      </g>
+
+      <g opacity="0.6">
+        <line x1="4" y1="14" x2="356" y2="14" stroke="#c8a060" stroke-width="1.5" stroke-dasharray="4,22"/>
+        <line x1="4" y1="361" x2="356" y2="361" stroke="#c8a060" stroke-width="1.5" stroke-dasharray="4,22"/>
+        <line x1="4" y1="120" x2="356" y2="120" stroke="#c8a060" stroke-width="1.5" stroke-dasharray="4,22"/>
+        <line x1="4" y1="238" x2="356" y2="238" stroke="#c8a060" stroke-width="1.5" stroke-dasharray="4,22"/>
+      </g>
+
+      <g style="animation:bob 2.8s ease-in-out infinite">
+        <path d="M62 62 L65.5 74 L78 70 L70 80 L80 86 L68 87 L65 99 L59 89 L47 92 L54 82 L44 76 L56 75 Z" fill="#f5a030" stroke="#c07010" stroke-width="1.5"/>
+        <circle cx="62" cy="80" r="6" fill="#f0c060" stroke="#c07010" stroke-width="1.2"/>
+        <circle cx="62" cy="80" r="3" fill="#e8a020"/>
+      </g>
+
+      <g style="animation:bob 3s 0.2s ease-in-out infinite">
+        <ellipse cx="180" cy="66" rx="28" ry="19" fill="#e8d8b0" stroke="#b0906a" stroke-width="1.8"/>
+        <path d="M153 66 Q166 48 180 66 Q194 84 207 66" stroke="#b0906a" stroke-width="1.5" fill="none"/>
+        <path d="M153 66 Q166 84 180 66 Q194 48 207 66" stroke="#b0906a" stroke-width="1" fill="none" opacity="0.45"/>
+        <path d="M159 66 Q169 52 180 66 Q191 80 201 66" stroke="#c0a070" stroke-width="0.9" fill="none" opacity="0.35"/>
+        <ellipse cx="180" cy="48" rx="12" ry="8" fill="#d4c090" stroke="#b0906a" stroke-width="1.5"/>
+        <line x1="180" y1="41" x2="180" y2="56" stroke="#b0906a" stroke-width="1.1" opacity="0.6"/>
+        <line x1="171" y1="43" x2="175" y2="52" stroke="#b0906a" stroke-width="0.9" opacity="0.45"/>
+        <line x1="189" y1="43" x2="185" y2="52" stroke="#b0906a" stroke-width="0.9" opacity="0.45"/>
+      </g>
+
+      <g style="animation:bob 2.6s 0.5s ease-in-out infinite">
+        <ellipse cx="298" cy="66" rx="28" ry="19" fill="#e8d8b0" stroke="#b0906a" stroke-width="1.8"/>
+        <path d="M271 66 Q284 48 298 66 Q312 84 325 66" stroke="#b0906a" stroke-width="1.5" fill="none"/>
+        <path d="M271 66 Q284 84 298 66 Q312 48 325 66" stroke="#b0906a" stroke-width="1" fill="none" opacity="0.45"/>
+        <ellipse cx="298" cy="48" rx="12" ry="8" fill="#d4c090" stroke="#b0906a" stroke-width="1.5"/>
+        <line x1="298" y1="41" x2="298" y2="56" stroke="#b0906a" stroke-width="1.1" opacity="0.6"/>
+      </g>
+
+      <g style="animation:bob 3.1s 0.3s ease-in-out infinite">
+        <path d="M62 180 L65.5 192 L78 188 L70 198 L80 204 L68 205 L65 217 L59 207 L47 210 L54 200 L44 194 L56 193 Z" fill="#e89020" stroke="#b06808" stroke-width="1.5"/>
+        <circle cx="62" cy="198" r="6" fill="#f0b840" stroke="#b06808" stroke-width="1.2"/>
+        <circle cx="62" cy="198" r="3" fill="#d88018"/>
+      </g>
+
+      <g style="animation:bob 2.9s 0.6s ease-in-out infinite">
+        <ellipse cx="180" cy="184" rx="28" ry="19" fill="#e8d8b0" stroke="#b0906a" stroke-width="1.8"/>
+        <path d="M153 184 Q166 166 180 184 Q194 202 207 184" stroke="#b0906a" stroke-width="1.5" fill="none"/>
+        <path d="M153 184 Q166 202 180 184 Q194 166 207 184" stroke="#b0906a" stroke-width="1" fill="none" opacity="0.45"/>
+        <path d="M159 184 Q169 170 180 184 Q191 198 201 184" stroke="#c0a070" stroke-width="0.9" fill="none" opacity="0.35"/>
+        <ellipse cx="180" cy="166" rx="12" ry="8" fill="#d4c090" stroke="#b0906a" stroke-width="1.5"/>
+        <line x1="180" y1="159" x2="180" y2="174" stroke="#b0906a" stroke-width="1.1" opacity="0.6"/>
+        <line x1="171" y1="161" x2="175" y2="170" stroke="#b0906a" stroke-width="0.9" opacity="0.45"/>
+        <line x1="189" y1="161" x2="185" y2="170" stroke="#b0906a" stroke-width="0.9" opacity="0.45"/>
+      </g>
+
+      <g style="animation:bob 2.7s 0.8s ease-in-out infinite">
+        <path d="M298 180 L301.5 192 L314 188 L306 198 L316 204 L304 205 L301 217 L295 207 L283 210 L290 200 L280 194 L292 193 Z" fill="#f5a030" stroke="#c07010" stroke-width="1.5"/>
+        <circle cx="298" cy="198" r="6" fill="#f0c060" stroke="#c07010" stroke-width="1.2"/>
+        <circle cx="298" cy="198" r="3" fill="#e8a020"/>
+      </g>
+
+      <g style="animation:bob 3.2s 0.1s ease-in-out infinite">
+        <path d="M62 298 L65.5 310 L78 306 L70 316 L80 322 L68 323 L65 335 L59 325 L47 328 L54 318 L44 312 L56 311 Z" fill="#f5a030" stroke="#c07010" stroke-width="1.5"/>
+        <circle cx="62" cy="316" r="6" fill="#f0c060" stroke="#c07010" stroke-width="1.2"/>
+        <circle cx="62" cy="316" r="3" fill="#e8a020"/>
+      </g>
+
+      <g>
+        <rect x="142" y="262" width="76" height="52" rx="6" fill="#5a3a10" opacity="0.3"/>
+      </g>
+
+      <g style="animation:bob 2.5s 0.7s ease-in-out infinite">
+        <ellipse cx="298" cy="302" rx="28" ry="19" fill="#e8d8b0" stroke="#b0906a" stroke-width="1.8"/>
+        <path d="M271 302 Q284 284 298 302 Q312 320 325 302" stroke="#b0906a" stroke-width="1.5" fill="none"/>
+        <path d="M271 302 Q284 320 298 302 Q312 284 325 302" stroke="#b0906a" stroke-width="1" fill="none" opacity="0.45"/>
+        <ellipse cx="298" cy="284" rx="12" ry="8" fill="#d4c090" stroke="#b0906a" stroke-width="1.5"/>
+        <line x1="298" y1="277" x2="298" y2="292" stroke="#b0906a" stroke-width="1.1" opacity="0.6"/>
+      </g>
+
+      <line x1="28" y1="330" x2="328" y2="48" stroke="#e8c840" stroke-width="4.5" stroke-linecap="round" opacity="0.88"/>
+      <circle cx="28"  cy="330" r="7" fill="#e8c840" opacity="0.88"/>
+      <circle cx="328" cy="48"  r="7" fill="#e8c840" opacity="0.88"/>
+
+    </svg>
+  </div>
+
+  <div class="game-title">Tic-Tac-Toe</div>
+
+  <div class="btn-row">
+    <button class="btn" onclick="sendPrompt('Build this bamboo rope board Tic-Tac-Toe fully playable with starfish vs clamshell and an AI opponent')">
+      <i class="ti ti-waves" aria-hidden="true" style="font-size:16px"></i> Play again
+    </button>
+    <button class="btn warm" onclick="sendPrompt('Show the main menu for bamboo Pacific Waves Tic-Tac-Toe with 1v1 and vs AI options')">
+      <i class="ti ti-home" aria-hidden="true" style="font-size:16px"></i> Main menu
+    </button>
+  </div>
+</div>
+
+<script>
+const d=document.querySelector('.scene');
+const style=document.createElement('style');
+style.textContent='@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}';
+d.appendChild(style);
+</script>

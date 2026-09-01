@@ -1,109 +1,62 @@
-import 'dart:io';
-
-import 'package:firebase_core/firebase_core.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart'; // Added Import
 import 'package:provider/provider.dart';
-import 'package:window_manager/window_manager.dart';
 
-import 'firebase_options.dart'; // [FIX] Required for multi-platform configuration
-import 'services/firebase_service.dart'; // Updated Path
+import 'core/bootstrap/app_initializer.dart';
 import 'features/game/logic/game_controller.dart';
 import 'features/game/screens/game_screen.dart';
 import 'features/settings/logic/settings_controller.dart';
 import 'core/audio/sound_manager.dart';
-import 'core/window/window_setup.dart';
 
 import 'features/auth/services/auth_service.dart';
+import 'features/game/repositories/game_repository.dart';
+import 'features/game/repositories/ai_repository.dart';
 import 'services/stats_service.dart';
 import 'features/auth/widgets/auth_gate.dart';
 
-void main(List<String> args) async {
-  WidgetsFlutterBinding.ensureInitialized();
+void main() async {
+  // 1. Run all critical async bootstrap logic (dotenv, Firebase, Window constraints)
+  final bool isPrimaryInstance = await AppInitializer.init();
 
-  // 1. Safe DotEnv Load
-  try {
-    await dotenv.load(fileName: ".env");
-  } catch (e) {
-    // Silently ignore or handle error
-  }
-
-  // 2. Safe Firebase Init
-  try {
-    if (Firebase.apps.isEmpty) {
-      await Firebase.initializeApp(
-        options: DefaultFirebaseOptions.currentPlatform,
-      );
-    } else {
-      Firebase.app();
-    }
-    FirebaseFirestore.instance.settings = const Settings(
-      persistenceEnabled: true,
-    );
-  } catch (e) {
-    // Silently ignore or handle error
-  }
-
-  // 3. Platform Specifics
-  bool isPrimaryInstance = true;
-  if (!kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS)) {
-    try {
-      await windowManager.ensureInitialized();
-      if (kReleaseMode) {
-        WindowOptions windowOptions = const WindowOptions(size: Size(800, 600));
-        windowManager.waitUntilReadyToShow(windowOptions, () async {
-          await windowManager.setPreventClose(true);
-        });
-      }
-      await configureWindow(isPrimaryInstance: isPrimaryInstance);
-    } catch (e) {
-      // Silently ignore or handle error
-    }
-  }
-
-  // 4. Controller Init
+  // 2. Initialize Core Controllers
   final settingsController = SettingsController();
   try {
     await settingsController.loadSettings();
-  } catch (e) {
-    // Silently ignore or handle error
-  }
+  } catch (_) {}
 
   final soundManager = SoundManager(settingsController);
   await soundManager.init();
 
-  final firebaseService = FirebaseService();
+  // 3. Initialize Services and Repositories
+  final gameRepo = GameRepository();
+  final aiRepo = AiRepository();
   final authService = AuthService();
   final statsService = StatsService();
 
+  // 4. Run App with minimal Provider tree
   runApp(
     MultiProvider(
       providers: [
         ChangeNotifierProvider.value(value: settingsController),
-        Provider<SoundManager>(
-          create: (_) => soundManager,
-          dispose: (_, manager) => manager.dispose(),
-        ),
-        Provider<FirebaseService>.value(value: firebaseService),
+        Provider<SoundManager>.value(value: soundManager),
+        Provider<GameRepository>.value(value: gameRepo),
+        Provider<AiRepository>.value(value: aiRepo),
         Provider<AuthService>.value(value: authService),
         ChangeNotifierProvider.value(value: statsService),
         ChangeNotifierProxyProvider<SettingsController, GameController>(
           create: (context) => GameController(
             context.read<SoundManager>(),
             context.read<SettingsController>(),
-            context.read<FirebaseService>(),
+            context.read<GameRepository>(),
+            context.read<AiRepository>(),
             context.read<StatsService>(),
           ),
           update: (context, settings, previousGameController) {
-            // Re-create the GameController if settings that affect game logic change
-            // Or just update dependencies. Here we handle the logic to potentially reset.
             final controller = previousGameController ??
                 GameController(
                   context.read<SoundManager>(),
                   settings,
-                  context.read<FirebaseService>(),
+                  context.read<GameRepository>(),
+                  context.read<AiRepository>(),
                   context.read<StatsService>(),
                 );
 

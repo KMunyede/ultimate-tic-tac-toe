@@ -9,9 +9,12 @@ import 'package:tictactoe/features/game/screens/game_screen.dart';
 import 'package:tictactoe/features/settings/logic/settings_controller.dart';
 import 'package:tictactoe/core/audio/sound_manager.dart';
 import 'package:tictactoe/features/auth/services/auth_service.dart';
-import 'package:tictactoe/services/firebase_service.dart';
+import 'package:tictactoe/features/game/repositories/game_repository.dart';
+import 'package:tictactoe/features/game/repositories/ai_repository.dart';
+import 'package:tictactoe/models/ai_models.dart';
 import 'package:tictactoe/services/stats_service.dart';
 import 'package:tictactoe/models/player.dart';
+import 'package:tictactoe/models/game_board.dart';
 import 'package:tictactoe/models/match_session.dart';
 import 'package:tictactoe/widgets/board_widget.dart';
 import 'package:tictactoe/widgets/board/neumorphic_cell.dart';
@@ -48,7 +51,7 @@ class FakeSoundManager extends Fake implements SoundManager {
   @override
   Future<void> init() async {}
   @override
-  Future<void> playMoveSound({Player? player}) async {}
+  Future<void> playMoveSound({Player? player, int filledCellCount = 0}) async {}
   @override
   Future<void> playWinSound({bool isLoss = false}) async {}
   @override
@@ -57,12 +60,24 @@ class FakeSoundManager extends Fake implements SoundManager {
   void dispose() {}
 }
 
-class FakeFirebaseService extends Fake implements FirebaseService {
+class FakeGameRepository extends Fake implements GameRepository {
   @override
   Future<void> saveGameState(MatchSession session) async {}
 
   @override
   Future<MatchSession?> loadGameState() async => null;
+}
+
+class FakeAiRepository extends Fake implements AiRepository {
+  @override
+  Future<AiMoveResponse?> getAiMove({
+    required List<GameBoard> boards,
+    required Player player,
+    required AiDifficulty difficulty,
+    required GameRuleSet ruleSet,
+    required int boardCount,
+    int? forcedBoardIndex,
+  }) async => null;
 }
 
 class FakeAuthService extends Fake implements AuthService {
@@ -85,14 +100,16 @@ void main() {
   group('Tic-Tac-Toe Game Tests', () {
     late FakeSettingsController settingsController;
     late FakeSoundManager soundManager;
-    late FakeFirebaseService firebaseService;
+    late FakeGameRepository gameRepository;
+    late FakeAiRepository aiRepository;
     late FakeAuthService authService;
     late FakeStatsService statsService;
 
     setUp(() {
       settingsController = FakeSettingsController();
       soundManager = FakeSoundManager();
-      firebaseService = FakeFirebaseService();
+      gameRepository = FakeGameRepository();
+      aiRepository = FakeAiRepository();
       authService = FakeAuthService();
       statsService = FakeStatsService();
     });
@@ -102,7 +119,8 @@ void main() {
         providers: [
           ChangeNotifierProvider<SettingsController>.value(value: settingsController),
           Provider<SoundManager>.value(value: soundManager),
-          Provider<FirebaseService>.value(value: firebaseService),
+          Provider<GameRepository>.value(value: gameRepository),
+          Provider<AiRepository>.value(value: aiRepository),
           Provider<AuthService>.value(value: authService),
           ChangeNotifierProvider<StatsService>.value(value: statsService),
           ChangeNotifierProxyProvider<SettingsController, GameController>(
@@ -112,14 +130,16 @@ void main() {
                   GameController(
                     soundManager,
                     settings,
-                    firebaseService,
+                    gameRepository,
+                    aiRepository,
                     statsService,
                   );
             },
             create: (context) => GameController(
               soundManager,
               settingsController,
-              firebaseService,
+              gameRepository,
+              aiRepository,
               statsService,
             ),
           ),
@@ -138,7 +158,7 @@ void main() {
 
       await tester.pumpWidget(createTestWidget());
       await tester.pump();
-      await tester.pump(const Duration(milliseconds: 500));
+      await tester.pump(const Duration(seconds: 3));
 
       expect(find.textContaining("X's Turn"), findsOneWidget);
       
@@ -147,25 +167,25 @@ void main() {
 
       await tester.tap(cells.at(4)); // X
       await tester.pump();
-      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pump(const Duration(seconds: 1));
 
       expect(find.textContaining("O's Turn"), findsOneWidget);
 
       await tester.tap(cells.at(0)); // O
       await tester.pump();
-      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pump(const Duration(seconds: 1));
       expect(find.textContaining("X's Turn"), findsOneWidget);
 
       await tester.tap(cells.at(3)); // X
       await tester.pump();
-      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pump(const Duration(seconds: 1));
       await tester.tap(cells.at(1)); // O
       await tester.pump();
-      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pump(const Duration(seconds: 1));
       
       await tester.tap(cells.at(5)); // X wins (row 3,4,5)
       await tester.pump();
-      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pump(const Duration(seconds: 1));
       await tester.pump(const Duration(seconds: 4));
 
       // Check if one of the victory hook keywords is found
@@ -182,7 +202,7 @@ void main() {
 
       await tester.tap(newGameButton.first);
       await tester.pump();
-      await tester.pump(const Duration(milliseconds: 500));
+      await tester.pump(const Duration(seconds: 2));
 
       expect(find.textContaining("X's Turn"), findsOneWidget);
     });
@@ -197,7 +217,7 @@ void main() {
 
       await tester.pumpWidget(createTestWidget());
       await tester.pump();
-      await tester.pump(const Duration(milliseconds: 500));
+      await tester.pump(const Duration(seconds: 3));
 
       // Verify all 9 boards are rendered
       expect(find.byType(BoardWidget), findsNWidgets(9));

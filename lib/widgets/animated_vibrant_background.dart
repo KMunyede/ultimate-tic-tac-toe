@@ -1,6 +1,7 @@
 // lib/widgets/animated_vibrant_background.dart
 
 import 'dart:math';
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../features/settings/logic/settings_controller.dart';
@@ -19,6 +20,9 @@ class _AnimatedVibrantBackgroundState extends State<AnimatedVibrantBackground>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
   late final Stopwatch _stopwatch;
+  ui.Picture? _cachedTexture;
+  Size? _lastSize;
+  AppTheme? _lastTheme;
 
   @override
   void initState() {
@@ -33,256 +37,18 @@ class _AnimatedVibrantBackgroundState extends State<AnimatedVibrantBackground>
   @override
   void dispose() {
     _controller.dispose();
+    _cachedTexture?.dispose();
     super.dispose();
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final settings = context.watch<SettingsController>();
-    final theme = settings.currentTheme;
+  void _updateCache(Size size, AppTheme theme) {
+    if (_cachedTexture != null && _lastSize == size && _lastTheme == theme) return;
 
-    if (settings.lowDetailMode) {
-      return CustomPaint(
-        painter: BackgroundMeshPainter(
-          time: 0.0,
-          theme: theme,
-          lowDetailMode: true,
-        ),
-        child: widget.child,
-      );
-    }
-
-    return AnimatedBuilder(
-      animation: _controller,
-      builder: (context, child) {
-        final double elapsedSeconds = _stopwatch.elapsedMicroseconds / Duration.microsecondsPerSecond;
-        // Pass scaled continuous time so sways, drifts and waves flow infinitely without looping snaps
-        return CustomPaint(
-          painter: BackgroundMeshPainter(
-            time: elapsedSeconds / 18.0,
-            theme: theme,
-            lowDetailMode: false,
-          ),
-          child: widget.child,
-        );
-      },
-    );
-  }
-}
-
-class BackgroundMeshPainter extends CustomPainter {
-  final double time;
-  final AppTheme theme;
-  final bool lowDetailMode;
-
-  BackgroundMeshPainter({
-    required this.time,
-    required this.theme,
-    required this.lowDetailMode,
-  });
-
-  void drawBambooLeaf(Canvas canvas, Offset stem, double angle, double scale, Color color, {bool isShadow = false, bool isDualTone = false, Color? outlineColor}) {
-    final paint = Paint()
-      ..color = color
-      ..style = PaintingStyle.fill;
-
-    if (isShadow) {
-      paint.maskFilter = const MaskFilter.blur(BlurStyle.normal, 5.0);
-    }
-
-    canvas.save();
-    canvas.translate(stem.dx, stem.dy);
-    canvas.rotate(angle);
-    canvas.scale(scale);
-
-    // Elegant, rounded drooping bamboo leaf path (from the mockup!)
-    final path = Path()
-      ..moveTo(0, 0)
-      ..quadraticBezierTo(-7, -15, -5, -35)
-      ..quadraticBezierTo(-2.5, -50, 0, -65)  // elegant, rounded tip
-      ..quadraticBezierTo(2.5, -50, 5, -35)
-      ..quadraticBezierTo(7, -15, 0, 0)
-      ..close();
-
-    canvas.drawPath(path, paint);
-
-    if (!isShadow) {
-      final veinColor = isDualTone && outlineColor != null
-          ? outlineColor.withValues(alpha: 0.60)
-          : color.withValues(alpha: color.a * 0.40);
-          
-      final veinPaint = Paint()
-        ..color = veinColor
-        ..strokeWidth = 0.8
-        ..style = PaintingStyle.stroke
-        ..strokeCap = StrokeCap.round;
-
-      // Draw elegant leaf central vein
-      canvas.drawLine(Offset.zero, const Offset(0, -60), veinPaint);
-
-      if (isDualTone && outlineColor != null) {
-        final outlinePaint = Paint()
-          ..color = outlineColor
-          ..strokeWidth = 1.0
-          ..style = PaintingStyle.stroke;
-        canvas.drawPath(path, outlinePaint);
-      }
-    }
-
-    canvas.restore();
-  }
-
-  void drawLeafCluster(Canvas canvas, Offset pos, double angle, double time, Color color, {bool isShadow = false, bool isDualTone = false, Color? outlineColor}) {
-    final double leafSway = sin(time * 2.0 * pi + pos.dx * 0.05) * 0.08;
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder);
     
-    // Leaf 1: Center - Droop straight down with scale 2.6
-    drawBambooLeaf(canvas, pos, angle + leafSway, 2.6, color, isShadow: isShadow, isDualTone: isDualTone, outlineColor: outlineColor);
-    
-    // Leaf 2: Left - Widely separated and angled out, scale 2.1
-    final Offset stemOffsetL = Offset(cos(angle - pi / 2) * -28, sin(angle - pi / 2) * -28);
-    drawBambooLeaf(canvas, pos + stemOffsetL, angle - 0.80 + leafSway * 0.7, 2.1, color, isShadow: isShadow, isDualTone: isDualTone, outlineColor: outlineColor);
-    
-    // Leaf 3: Right - Widely separated and angled out, scale 2.2
-    final Offset stemOffsetR = Offset(cos(angle + pi / 2) * 28, sin(angle + pi / 2) * 28);
-    drawBambooLeaf(canvas, pos + stemOffsetR, angle + 0.80 + leafSway * 1.1, 2.2, color, isShadow: isShadow, isDualTone: isDualTone, outlineColor: outlineColor);
-  }
-
-  void drawBambooBranch(Canvas canvas, Offset origin, double baseAngle, double scale, double time, Color color, {bool isShadow = false, bool isDualTone = false, Color? outlineColor}) {
-    // Overload/delegate to drawOrganicCanopy for seamless integration
-    drawOrganicCanopy(canvas, origin, baseAngle, scale, time, color, isShadow: isShadow);
-  }
-
-  void drawMapleLeaf(Canvas canvas, Offset stem, double angle, double scale, Color color, {bool isShadow = false, bool isDualTone = false, Color? outlineColor}) {
-    // Delegate to drawBambooLeaf for drifting leaf compatibility
-    drawBambooLeaf(canvas, stem, angle, scale, color, isShadow: isShadow, isDualTone: isDualTone, outlineColor: outlineColor);
-  }
-
-
-  void drawTreeTrunk(Canvas canvas, Offset start, Offset control, Offset end, double startWidth, double endWidth, Color color, {bool isShadow = false}) {
-    final paint = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round;
-
-    if (isShadow) {
-      paint.maskFilter = const MaskFilter.blur(BlurStyle.normal, 5.0);
-    }
-
-    const int segments = 20;
-    Offset last = start;
-    for (int i = 1; i <= segments; i++) {
-      final double t = i / segments;
-      final double x = (1 - t) * (1 - t) * start.dx + 2 * (1 - t) * t * control.dx + t * t * end.dx;
-      final double y = (1 - t) * (1 - t) * start.dy + 2 * (1 - t) * t * control.dy + t * t * end.dy;
-      final Offset current = Offset(x, y);
-
-      final double w = startWidth + (endWidth - startWidth) * t;
-      paint.strokeWidth = w;
-
-      canvas.drawLine(last, current, paint);
-      last = current;
-    }
-  }
-
-  void drawOrganicCanopy(Canvas canvas, Offset origin, double baseAngle, double scale, double time, Color woodColor, {bool isShadow = false}) {
-    canvas.save();
-    canvas.translate(origin.dx, origin.dy);
-    canvas.rotate(baseAngle);
-    canvas.scale(scale);
-
-    // Main Trunk curves reaching outwards towards the water (perfect quadratic curves)
-    final double s1 = sin(time * 2.0 * pi) * 0.03;
-    final Offset start = Offset.zero;
-    final Offset control = Offset(45, -65 + sin(time * pi) * 3);
-    final Offset end = Offset(85 + sin(time * 2.0 * pi + 0.5) * 5, -125 + cos(time * 2.0 * pi) * 4);
-
-    final shadowColor = Colors.black.withValues(alpha: 0.08);
-    final Color trunkColor = isShadow ? shadowColor : woodColor;
-
-    // Draw Main Trunk
-    drawTreeTrunk(canvas, start, control, end, 16.0, 5.0, trunkColor, isShadow: isShadow);
-
-    // Growing Twigs (curved, tapered branches) off the trunk
-    // Twig 1 (Middle-left branch) - starts at 0.35 along trunk
-    final double sTwig1 = sin(time * 2.0 * pi + 0.8) * 0.04;
-    final Offset twigStart1 = Offset(
-      (1 - 0.35) * (1 - 0.35) * start.dx + 2 * (1 - 0.35) * 0.35 * control.dx + 0.35 * 0.35 * end.dx,
-      (1 - 0.35) * (1 - 0.35) * start.dy + 2 * (1 - 0.35) * 0.35 * control.dy + 0.35 * 0.35 * end.dy,
-    );
-    final Offset twigEnd1 = Offset(twigStart1.dx - 48, twigStart1.dy - 38 + sTwig1 * 10);
-    final Offset twigControl1 = Offset(twigStart1.dx - 25, twigStart1.dy - 15);
-    drawTreeTrunk(canvas, twigStart1, twigControl1, twigEnd1, 5.5, 2.0, trunkColor, isShadow: isShadow);
-
-    // Twig 2 (Middle-right branch) - starts at 0.65 along trunk
-    final double sTwig2 = sin(time * 2.0 * pi + 1.4) * 0.04;
-    final Offset twigStart2 = Offset(
-      (1 - 0.65) * (1 - 0.65) * start.dx + 2 * (1 - 0.65) * 0.65 * control.dx + 0.65 * 0.65 * end.dx,
-      (1 - 0.65) * (1 - 0.65) * start.dy + 2 * (1 - 0.65) * 0.65 * control.dy + 0.65 * 0.65 * end.dy,
-    );
-    final Offset twigEnd2 = Offset(twigStart2.dx + 48, twigStart2.dy - 28 + sTwig2 * 10);
-    final Offset twigControl2 = Offset(twigStart2.dx + 25, twigStart2.dy - 10);
-    drawTreeTrunk(canvas, twigStart2, twigControl2, twigEnd2, 4.5, 1.8, trunkColor, isShadow: isShadow);
-
-    // Twig 3 (Sub-branch near the tip) - starts at 0.82 along trunk
-    final double sTwig3 = sin(time * 2.0 * pi + 2.0) * 0.04;
-    final Offset twigStart3 = Offset(
-      (1 - 0.82) * (1 - 0.82) * start.dx + 2 * (1 - 0.82) * 0.82 * control.dx + 0.82 * 0.82 * end.dx,
-      (1 - 0.82) * (1 - 0.82) * start.dy + 2 * (1 - 0.82) * 0.82 * control.dy + 0.82 * 0.82 * end.dy,
-    );
-    final Offset twigEnd3 = Offset(twigStart3.dx - 22, twigStart3.dy - 38 + sTwig3 * 8);
-    final Offset twigControl3 = Offset(twigStart3.dx - 10, twigStart3.dy - 20);
-    drawTreeTrunk(canvas, twigStart3, twigControl3, twigEnd3, 3.5, 1.5, trunkColor, isShadow: isShadow);
-
-    // Draw foliage leaves at the tips
-    if (!isShadow) {
-      final Color leafColor = const Color(0xFF5C6F56); // organic sage green leaf body
-      final Color leafOutline = const Color(0xFF86997F); // organic lighter green highlights
-      
-      // Tip cluster (Main canopy head)
-      drawLeafCluster(canvas, end, s1, time, leafColor, isShadow: false, isDualTone: true, outlineColor: leafOutline);
-      
-      // Twig 1 cluster (Drooping left)
-      drawLeafCluster(canvas, twigEnd1, sTwig1 - pi / 3.5, time, leafColor, isShadow: false, isDualTone: true, outlineColor: leafOutline);
-
-      // Twig 2 cluster (Drooping right)
-      drawLeafCluster(canvas, twigEnd2, sTwig2 + pi / 3.5, time, leafColor, isShadow: false, isDualTone: true, outlineColor: leafOutline);
-
-      // Twig 3 cluster (Extra leafy top-left)
-      drawLeafCluster(canvas, twigEnd3, sTwig3 - pi / 4.5, time, leafColor, isShadow: false, isDualTone: true, outlineColor: leafOutline);
-    } else {
-      final Color shadowColorL = Colors.black.withValues(alpha: 0.05);
-      drawLeafCluster(canvas, end, s1, time, shadowColorL, isShadow: true);
-      drawLeafCluster(canvas, twigEnd1, sTwig1 - pi / 3.5, time, shadowColorL, isShadow: true);
-      drawLeafCluster(canvas, twigEnd2, sTwig2 + pi / 3.5, time, shadowColorL, isShadow: true);
-      drawLeafCluster(canvas, twigEnd3, sTwig3 - pi / 4.5, time, shadowColorL, isShadow: true);
-    }
-
-    canvas.restore();
-  }
-
-  void drawMapleBranch(Canvas canvas, Offset origin, double baseAngle, double scale, double time, Color woodColor, {bool isShadow = false}) {
-    // Delegate to drawOrganicCanopy for visual consistency
-    drawOrganicCanopy(canvas, origin, baseAngle, scale, time, woodColor, isShadow: isShadow);
-  }
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final rect = Rect.fromLTWH(0, 0, size.width, size.height);
-
-    // 1. Draw solid premium diagonal background mist gradient
-    final paintBg = Paint()
-      ..shader = LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: theme.bgGradient,
-      ).createShader(rect);
-    canvas.drawRect(rect, paintBg);
-
-    // 2. Draw Realistic Rice-Paper / Stipple Texture (specifically for Rushing Wind)
-    if (theme.name == 'Rushing Wind' && !lowDetailMode) {
-      final rand = Random(42); // Deterministic seed so texture is perfectly static!
-      
-      // Paint 1800+ microscopic stipple dots representing fine powdery grain
+    if (theme.name == 'Rushing Wind') {
+      final rand = Random(42);
       final stipplePaint = Paint()..style = PaintingStyle.fill;
       for (int i = 0; i < 1800; i++) {
         final double rx = rand.nextDouble() * size.width;
@@ -290,7 +56,6 @@ class BackgroundMeshPainter extends CustomPainter {
         final double radius = 0.4 + rand.nextDouble() * 0.7;
         final double opacity = 0.01 + rand.nextDouble() * 0.035;
         
-        // Alternate between soft light-sand and soft dark-sage stipples
         final Color stippleColor = rand.nextBool()
             ? theme.textColor.withValues(alpha: opacity)
             : theme.mainColor.withValues(alpha: opacity * 0.5);
@@ -299,7 +64,6 @@ class BackgroundMeshPainter extends CustomPainter {
         canvas.drawCircle(Offset(rx, ry), radius, stipplePaint);
       }
       
-      // Paint 180+ fine fibrous lines representing hand-made rice-paper fibers
       final fiberPaint = Paint()
         ..style = PaintingStyle.stroke
         ..strokeCap = StrokeCap.round;
@@ -320,7 +84,6 @@ class BackgroundMeshPainter extends CustomPainter {
           ..color = theme.textColor.withValues(alpha: opacity)
           ..strokeWidth = strokeWidth;
           
-        // Paint a wobbly fiber by drawing a two-segment path
         final double midX = (startX + endX) / 2 + (rand.nextDouble() - 0.5) * 1.5;
         final double midY = (startY + endY) / 2 + (rand.nextDouble() - 0.5) * 1.5;
         
@@ -332,482 +95,495 @@ class BackgroundMeshPainter extends CustomPainter {
       }
     }
 
-    if (lowDetailMode) {
-      // Premium static representation
-      final paintStatic = Paint()
-        ..shader = LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            theme.scaffoldBg,
-            theme.boardBg.withValues(alpha: 0.7),
-          ],
-        ).createShader(rect);
-      canvas.drawRect(rect, paintStatic);
-      return;
+    _cachedTexture?.dispose();
+    _cachedTexture = recorder.endRecording();
+    _lastSize = size;
+    _lastTheme = theme;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Optimization: Use select to only rebuild when necessary
+    final settings = context.select<SettingsController, ({AppTheme theme, bool lowDetailMode})>(
+      (s) => (theme: s.currentTheme, lowDetailMode: s.lowDetailMode)
+    );
+    
+    final theme = settings.theme;
+
+    if (settings.lowDetailMode) {
+      return RepaintBoundary(
+        child: CustomPaint(
+          painter: BackgroundMeshPainter(
+            time: 0.0,
+            theme: theme,
+            lowDetailMode: true,
+          ),
+          child: widget.child,
+        ),
+      );
     }
 
-    const int points = 100; // Higher resolution for smooth fluid water
+    return AnimatedBuilder(
+      animation: _controller,
+      child: widget.child,
+      builder: (context, child) {
+        final double elapsedSeconds = _stopwatch.elapsedMicroseconds / Duration.microsecondsPerSecond;
+        return RepaintBoundary(
+          child: CustomPaint(
+            painter: BackgroundMeshPainter(
+              time: elapsedSeconds / 18.0,
+              theme: theme,
+              lowDetailMode: false,
+              textureCache: _cachedTexture,
+              onSizeChanged: (size) => WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) setState(() => _updateCache(size, theme));
+              }),
+            ),
+            child: child,
+          ),
+        );
+      },
+    );
+  }
+}
 
-    // Layered Water Fluid Dynamics
-    // We simulate 8 overlapping wave layers to create physical water depth and caustics
-    for (int layer = 0; layer < 8; layer++) {
-      final double depthAlpha = 1.0 - (layer / 8.0); // Deeper layers are more faint
-      // Smoothened caustics wave speed (slower, gentle sloshing!)
-      final double waveSpeed = theme.name == 'Rushing Wind' ? 0.05 + (layer * 0.015) : 0.3 + (layer * 0.12);
-      // Smoothened wave amplitude
-      final double amplitude = theme.name == 'Rushing Wind' ? 10.0 - (layer * 0.6) : 22.0 - (layer * 1.8);
-      
-      final double frequency = 1.2 + (layer * 0.35);
-      final double verticalOffset = size.height * 0.22 + (layer * size.height * 0.07);
+class BackgroundMeshPainter extends CustomPainter {
+  final double time;
+  final AppTheme theme;
+  final bool lowDetailMode;
+  final ui.Picture? textureCache;
+  final Function(Size)? onSizeChanged;
 
-      final path = Path();
-      path.moveTo(0, size.height);
-      path.lineTo(0, verticalOffset);
+  // Pre-allocated Paint and Path objects to reduce GC pressure and frame skip
+  final Paint _wavePaint = Paint();
+  final Paint _leafPaint = Paint();
+  final Paint _veinPaint = Paint();
+  final Paint _trunkPaint = Paint();
+  final Paint _bgPaint = Paint();
+  final Paint _sunPaint = Paint();
+  final Paint _birdPaint = Paint();
+  final Paint _glitterPaint = Paint();
+  final Path _wavePath = Path();
+  final Path _leafPath = Path();
+  final Path _birdPath = Path();
 
-      for (int i = 0; i <= points; i++) {
-        final double ratio = i / points;
-        final double x = ratio * size.width;
-        
-        // Fluid noise math: mix of two sine waves and a phase shift
-        final double y = verticalOffset +
-            sin(ratio * pi * frequency + time * 2 * pi * waveSpeed) * amplitude +
-            cos(ratio * pi * (frequency * 0.8) - time * pi * (waveSpeed * 0.7)) * (amplitude * 0.5);
-            
-        path.lineTo(x, y);
-      }
-      path.lineTo(size.width, size.height);
-      path.close();
+  BackgroundMeshPainter({
+    required this.time,
+    required this.theme,
+    required this.lowDetailMode,
+    this.textureCache,
+    this.onSizeChanged,
+  });
 
-      // Alternate colors for refractive caustics (introducing different shades of blue and gentle aquamarines)
-      Color waveColor;
-      if (theme.name == 'Rushing Wind') {
-        final List<Color> rushingWindWaveColors = [
-          const Color(0xFF1B365D), // Deep Indigo Blue
-          const Color(0xFF2E5B82), // Slate River Blue
-          const Color(0xFF4A90E2), // Clear Crystalline Blue
-          const Color(0xFF6BA4E8), // Misty Glacier Blue
-          const Color(0xFF5E8B7F), // Luminous Sage Blue
-          const Color(0xFF2C3E50), // Soft Ocean Sapphire
-          const Color(0xFF0F4C5C), // Deep Turquoise
-          const Color(0xFF3B8EA5), // Soft Aquamarine
-        ];
-        waveColor = rushingWindWaveColors[layer % rushingWindWaveColors.length];
-      } else {
-        waveColor = layer % 3 == 0
-            ? theme.mainColor
-            : (layer % 3 == 1 ? theme.accentGlow : Colors.white);
-      }
-
-      final double waveAlphaScale = theme.name == 'Rushing Wind' ? 0.95 : 1.0;
-      final double waveAlpha = (0.22 * depthAlpha * waveAlphaScale).clamp(0.0, 1.0);
-      final double waveBaseAlpha = (0.10 * depthAlpha * waveAlphaScale).clamp(0.0, 1.0);
-
-      final paintWave = Paint()
-        ..shader = LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            waveColor.withValues(alpha: waveAlpha),
-            waveColor.withValues(alpha: 0.02 * depthAlpha),
-          ],
-        ).createShader(rect)
-        ..blendMode = BlendMode.overlay; // Critical for water caustics effect
-
-      // We draw an overlay layer, but some platforms struggle with pure overlay on white, 
-      // so we also draw a very faint normal layer underneath it to anchor the color.
-      final paintWaveBase = Paint()
-        ..shader = LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            waveColor.withValues(alpha: waveBaseAlpha),
-            waveColor.withValues(alpha: 0.0),
-          ],
-        ).createShader(rect);
-
-      canvas.drawPath(path, paintWaveBase);
-      canvas.drawPath(path, paintWave);
-
-      // Add specular sun glints on the crests of the top layers
-      if (layer < 4) {
-        final glintPath = Path();
-        glintPath.moveTo(0, verticalOffset + sin(time * 2 * pi * waveSpeed) * amplitude + cos(-time * pi * (waveSpeed * 0.7)) * (amplitude * 0.5));
-        for (int i = 1; i <= points; i++) {
-          final double ratio = i / points;
-          final double x = ratio * size.width;
-          final double y = verticalOffset +
-              sin(ratio * pi * frequency + time * 2 * pi * waveSpeed) * amplitude +
-              cos(ratio * pi * (frequency * 0.8) - time * pi * (waveSpeed * 0.7)) * (amplitude * 0.5);
-          glintPath.lineTo(x, y);
-        }
-
-        final paintGlint = Paint()
-          ..color = (theme.name == 'Rushing Wind'
-              ? theme.mainColor.withValues(alpha: 0.25 * depthAlpha)
-              : Colors.white.withValues(alpha: 0.45 * depthAlpha))
-          ..strokeWidth = 2.5 - layer * 0.4
-          ..style = PaintingStyle.stroke
-          ..strokeCap = StrokeCap.round
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 1.2)
-          ..blendMode = BlendMode.screen;
-
-        canvas.drawPath(glintPath, paintGlint);
-      }
+  void drawBambooLeaf(Canvas canvas, Offset stem, double angle, double scale, Color color, {bool isShadow = false, bool isDualTone = false, Color? outlineColor}) {
+    _leafPaint
+      ..color = color
+      ..style = PaintingStyle.fill;
+    
+    if (isShadow) {
+      _leafPaint.maskFilter = const MaskFilter.blur(BlurStyle.normal, 5.0);
+    } else {
+      _leafPaint.maskFilter = null;
     }
 
-    // 5. Draw Swaying Organic Curved twig branches (nestled inside all four corners)
-    if (theme.name == 'Rushing Wind') {
-      final Color branchWoodColor = const Color(0xFF7E5B44); // Warm Cedar Twig Mahogany Wood Brown
+    canvas.save();
+    canvas.translate(stem.dx, stem.dy);
+    canvas.rotate(angle);
+    canvas.scale(scale);
+    
+    _leafPath.reset();
+    _leafPath.moveTo(0, 0);
+    _leafPath.quadraticBezierTo(-7, -15, -5, -35);
+    _leafPath.quadraticBezierTo(-2.5, -50, 0, -65);
+    _leafPath.quadraticBezierTo(2.5, -50, 5, -35);
+    _leafPath.quadraticBezierTo(7, -15, 0, 0);
+    _leafPath.close();
+    
+    canvas.drawPath(_leafPath, _leafPaint);
 
-      // Top-Left corner maple branch
-      canvas.save();
-      drawMapleBranch(canvas, const Offset(-10, -10) + const Offset(8, 12), 3 * pi / 4, 1.45, time, Colors.black.withValues(alpha: 0.08), isShadow: true);
-      drawMapleBranch(canvas, const Offset(-10, -10), 3 * pi / 4, 1.45, time, branchWoodColor);
-      canvas.restore();
-
-      // Bottom-Right corner maple branch
-      canvas.save();
-      drawMapleBranch(canvas, Offset(size.width + 10, size.height + 10) + const Offset(-8, -12), -pi / 4, 1.50, time, Colors.black.withValues(alpha: 0.08), isShadow: true);
-      drawMapleBranch(canvas, Offset(size.width + 10, size.height + 10), -pi / 4, 1.50, time, branchWoodColor);
-      canvas.restore();
-
-      // Bottom-Left corner maple branch
-      canvas.save();
-      drawMapleBranch(canvas, Offset(-10, size.height + 10) + const Offset(8, -12), pi / 4, 1.35, time, Colors.black.withValues(alpha: 0.08), isShadow: true);
-      drawMapleBranch(canvas, Offset(-10, size.height + 10), pi / 4, 1.35, time, branchWoodColor);
-      canvas.restore();
-
-      // Top-Right corner maple branch - New 4th Corner!
-      canvas.save();
-      drawMapleBranch(canvas, Offset(size.width + 10, -10) + const Offset(-8, 12), -3 * pi / 4, 1.40, time, Colors.black.withValues(alpha: 0.08), isShadow: true);
-      drawMapleBranch(canvas, Offset(size.width + 10, -10), -3 * pi / 4, 1.40, time, branchWoodColor);
-      canvas.restore();
-    }
-
-    // 6. Draw Beautifully Rounded Drifting Leaves falling slowly and smoothly from top to bottom of screen
-    if (theme.name == 'Rushing Wind' && !lowDetailMode) {
-      final Color shadowColor = Colors.black.withValues(alpha: 0.05);
-
-      // Define 6 leaves using biological pigments and ultra-slow weightless velocities
-      final List<Map<String, dynamic>> driftLeaves = [
-        // Leaf 1: Medium-dark sage green
-        {
-          'startX': 0.05, 'startY': -0.1, 'scale': 0.85, 'baseAngle': pi / 6, 'speedX': 0.08, 'speedY': 0.05, 'swaySpeed': 1.6, 'swayAmp': 20.0,
-          'bodyColor': const Color(0xFF5C6F56), 'outlineColor': const Color(0xFF86997F)
-        },
-        // Leaf 2: Lighter misty sage green
-        {
-          'startX': 0.25, 'startY': -0.35, 'scale': 0.75, 'baseAngle': pi / 4, 'speedX': 0.06, 'speedY': 0.04, 'swaySpeed': 2.0, 'swayAmp': 15.0,
-          'bodyColor': const Color(0xFF70806A), 'outlineColor': const Color(0xFFBAC7B8)
-        },
-        // Leaf 3: Deep forest sage green
-        {
-          'startX': 0.45, 'startY': -0.15, 'scale': 0.90, 'baseAngle': -pi / 6, 'speedX': 0.09, 'speedY': 0.06, 'swaySpeed': 1.8, 'swayAmp': 24.0,
-          'bodyColor': const Color(0xFF4F634A), 'outlineColor': const Color(0xFF7D9276)
-        },
-        // Leaf 4: Bright organic bamboo green
-        {
-          'startX': 0.65, 'startY': -0.25, 'scale': 0.70, 'baseAngle': pi / 3, 'speedX': 0.05, 'speedY': 0.035, 'swaySpeed': 2.2, 'swayAmp': 12.0,
-          'bodyColor': const Color(0xFF688A60), 'outlineColor': const Color(0xFF94A88E)
-        },
-        // Leaf 5: Soft mossy green
-        {
-          'startX': 0.85, 'startY': -0.05, 'scale': 0.80, 'baseAngle': pi / 5, 'speedX': 0.07, 'speedY': 0.045, 'swaySpeed': 1.5, 'swayAmp': 18.0,
-          'bodyColor': const Color(0xFF7D9276), 'outlineColor': const Color(0xFFBAC7B8)
-        },
-        // Leaf 6: Pale silvery sage green
-        {
-          'startX': 0.15, 'startY': -0.5, 'scale': 0.72, 'baseAngle': -pi / 4, 'speedX': 0.065, 'speedY': 0.04, 'swaySpeed': 2.4, 'swayAmp': 14.0,
-          'bodyColor': const Color(0xFF94A88E), 'outlineColor': const Color(0xFFC3CFC0)
-        },
-        // Leaf 7: Lush olive green
-        {
-          'startX': 0.35, 'startY': -0.6, 'scale': 0.88, 'baseAngle': pi / 8, 'speedX': 0.08, 'speedY': 0.05, 'swaySpeed': 1.9, 'swayAmp': 22.0,
-          'bodyColor': const Color(0xFF5C6F56), 'outlineColor': const Color(0xFF94A88E)
-        },
-        // Leaf 8: Golden-highlighted sage green
-        {
-          'startX': 0.55, 'startY': -0.4, 'scale': 0.82, 'baseAngle': pi / 3.5, 'speedX': 0.075, 'speedY': 0.048, 'swaySpeed': 2.1, 'swayAmp': 16.0,
-          'bodyColor': const Color(0xFF70806A), 'outlineColor': const Color(0xFFE4E1DA)
-        },
-        // Leaf 9: Delicate young bamboo green
-        {
-          'startX': 0.72, 'startY': -0.55, 'scale': 0.68, 'baseAngle': -pi / 5, 'speedX': 0.055, 'speedY': 0.038, 'swaySpeed': 2.5, 'swayAmp': 13.0,
-          'bodyColor': const Color(0xFF688A60), 'outlineColor': const Color(0xFFBAC7B8)
-        },
-        // Leaf 10: Rich canopy shadow green
-        {
-          'startX': 0.95, 'startY': -0.3, 'scale': 0.86, 'baseAngle': pi / 7, 'speedX': 0.085, 'speedY': 0.052, 'swaySpeed': 1.7, 'swayAmp': 21.0,
-          'bodyColor': const Color(0xFF4F634A), 'outlineColor': const Color(0xFF86997F)
-        },
-      ];
-
-      for (var leaf in driftLeaves) {
-        // Compute displacement based on continuous looping time (0.0 to 1.0)
-        double t = time;
-        double xFraction = (leaf['startX']! + leaf['speedX']! * t * 1.5) % 1.4 - 0.2;
-        double yFraction = (leaf['startY']! + leaf['speedY']! * t * 1.5) % 1.4 - 0.2;
-
-        double px = xFraction * size.width + sin(time * leaf['swaySpeed']! * 2 * pi + leaf['startX']!) * leaf['swayAmp']!;
-        double py = yFraction * size.height;
-        
-        // Combine base angle + slow rotation + minor wiggle sway
-        double angle = leaf['baseAngle']! + time * 1.5 * pi + cos(time * 2 * pi + leaf['startY']!) * 0.15;
-        double scale = leaf['scale']!;
-
-        // Draw Shadow first
-        drawMapleLeaf(canvas, Offset(px + 6.0, py + 8.0), angle, scale, shadowColor, isShadow: true);
-        // Draw Dual-Tone Drifting Leaf in beautiful Autumn Colors
-        drawMapleLeaf(canvas, Offset(px, py), angle, scale, leaf['bodyColor']!, isDualTone: true, outlineColor: leaf['outlineColor']!);
+    if (!isShadow) {
+      final veinColor = isDualTone && outlineColor != null ? outlineColor.withValues(alpha: 0.60) : color.withValues(alpha: color.a * 0.40);
+      _veinPaint
+        ..color = veinColor
+        ..strokeWidth = 0.8
+        ..style = PaintingStyle.stroke
+        ..strokeCap = StrokeCap.round;
+      canvas.drawLine(Offset.zero, const Offset(0, -60), _veinPaint);
+      if (isDualTone && outlineColor != null) {
+        _veinPaint
+          ..color = outlineColor
+          ..strokeWidth = 1.0
+          ..style = PaintingStyle.stroke;
+        canvas.drawPath(_leafPath, _veinPaint);
       }
     }
+    canvas.restore();
+  }
 
-    // 7. Draw Semi-Transparent Whisps of Wind gliding across the screen to make branches sway
-    if (theme.name == 'Rushing Wind' && !lowDetailMode) {
-      // Draw 3 distinct wind wisps
-      for (int w = 0; w < 3; w++) {
-        final double windTime = (time + w * 0.33) % 1.0;
-        final double startX = -200 + windTime * (size.width + 400);
-        final double baseY = size.height * (0.22 + w * 0.28);
+  void drawLeafCluster(Canvas canvas, Offset pos, double angle, double time, Color color, {bool isShadow = false, bool isDualTone = false, Color? outlineColor}) {
+    final double leafSway = sin(time * 2.0 * pi + pos.dx * 0.05) * 0.08;
+    drawBambooLeaf(canvas, pos, angle + leafSway, 2.6, color, isShadow: isShadow, isDualTone: isDualTone, outlineColor: outlineColor);
+    final Offset stemOffsetL = Offset(cos(angle - pi / 2) * -28, sin(angle - pi / 2) * -28);
+    drawBambooLeaf(canvas, pos + stemOffsetL, angle - 0.80 + leafSway * 0.7, 2.1, color, isShadow: isShadow, isDualTone: isDualTone, outlineColor: outlineColor);
+    final Offset stemOffsetR = Offset(cos(angle + pi / 2) * 28, sin(angle + pi / 2) * 28);
+    drawBambooLeaf(canvas, pos + stemOffsetR, angle + 0.80 + leafSway * 1.1, 2.2, color, isShadow: isShadow, isDualTone: isDualTone, outlineColor: outlineColor);
+  }
 
-        final path = Path();
-        
-        // Draw a long, wobbly horizontal wave representing a gust of wind
-        const double wispLength = 300.0;
-        for (double dx = 0; dx <= wispLength; dx += 8.0) {
-          final double ratio = dx / wispLength;
-          final double wx = startX + dx;
-          // Smooth sine wave component + cosine wiggle
-          final double wy = baseY + 
-              sin(ratio * pi * 2 + time * 3 * pi) * 15.0 + 
-              cos(ratio * pi * 4 - time * 1.5 * pi) * 6.0;
-          if (dx == 0) {
-            path.moveTo(wx, wy);
-          } else {
-            path.lineTo(wx, wy);
-          }
-        }
-
-        // Make the wind wisp fade out at the start and end of its path
-        final wispPaintFaded = Paint()
-          ..style = PaintingStyle.stroke
-          ..strokeCap = StrokeCap.round
-          ..strokeWidth = 1.2 + sin(time * pi) * 0.5
-          ..shader = LinearGradient(
-            colors: [
-              theme.textColor.withValues(alpha: 0.0),
-              theme.textColor.withValues(alpha: 0.08),
-              theme.textColor.withValues(alpha: 0.08),
-              theme.textColor.withValues(alpha: 0.0),
-            ],
-            stops: const [0.0, 0.25, 0.75, 1.0],
-          ).createShader(Rect.fromLTWH(startX, baseY - 25, wispLength, 50))
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 1.8);
-
-        canvas.drawPath(path, wispPaintFaded);
-      }
+  void drawTreeTrunk(Canvas canvas, Offset start, Offset control, Offset end, double startWidth, double endWidth, Color color, {bool isShadow = false}) {
+    _trunkPaint
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+    
+    if (isShadow) {
+      _trunkPaint.maskFilter = const MaskFilter.blur(BlurStyle.normal, 5.0);
+    } else {
+      _trunkPaint.maskFilter = null;
     }
 
-    // 8. Draw Amazon Jungle Animated Features
-    if (theme.name == 'Amazon Jungle' && !lowDetailMode) {
-      _drawGodRays(canvas, size);
-      _drawWaterfall(canvas, size);
-      _drawJungleCanopy(canvas, size);
-      _drawFireflies(canvas, size);
+    const int segments = 12; // Optimized: further reduced
+    Offset last = start;
+    for (int i = 1; i <= segments; i++) {
+      final double t = i / segments;
+      final double invT = 1 - t;
+      final double x = invT * invT * start.dx + 2 * invT * t * control.dx + t * t * end.dx;
+      final double y = invT * invT * start.dy + 2 * invT * t * control.dy + t * t * end.dy;
+      final Offset current = Offset(x, y);
+      _trunkPaint.strokeWidth = startWidth + (endWidth - startWidth) * t;
+      canvas.drawLine(last, current, _trunkPaint);
+      last = current;
     }
   }
 
-  /// Sweeping, semi-transparent golden bands representing sunbeams filtering through the canopy.
+  void drawOrganicCanopy(Canvas canvas, Offset origin, double baseAngle, double scale, double time, Color woodColor, {bool isShadow = false}) {
+    canvas.save();
+    canvas.translate(origin.dx, origin.dy);
+    canvas.rotate(baseAngle);
+    canvas.scale(scale);
+    final double s1 = sin(time * 2.0 * pi) * 0.03;
+    final Offset start = Offset.zero;
+    final Offset control = Offset(45, -65 + sin(time * pi) * 3);
+    final Offset end = Offset(85 + sin(time * 2.0 * pi + 0.5) * 5, -125 + cos(time * 2.0 * pi) * 4);
+    final shadowColor = Colors.black.withValues(alpha: 0.08);
+    final Color trunkColor = isShadow ? shadowColor : woodColor;
+    drawTreeTrunk(canvas, start, control, end, 16.0, 5.0, trunkColor, isShadow: isShadow);
+    final double sTwig1 = sin(time * 2.0 * pi + 0.8) * 0.04;
+    final Offset twigStart1 = Offset((1 - 0.35) * (1 - 0.35) * start.dx + 2 * (1 - 0.35) * 0.35 * control.dx + 0.35 * 0.35 * end.dx, (1 - 0.35) * (1 - 0.35) * start.dy + 2 * (1 - 0.35) * 0.35 * control.dy + 0.35 * 0.35 * end.dy);
+    final Offset twigEnd1 = Offset(twigStart1.dx - 48, twigStart1.dy - 38 + sTwig1 * 10);
+    final Offset twigControl1 = Offset(twigStart1.dx - 25, twigStart1.dy - 15);
+    drawTreeTrunk(canvas, twigStart1, twigControl1, twigEnd1, 5.5, 2.0, trunkColor, isShadow: isShadow);
+    final double sTwig2 = sin(time * 2.0 * pi + 1.4) * 0.04;
+    final Offset twigStart2 = Offset((1 - 0.65) * (1 - 0.65) * start.dx + 2 * (1 - 0.65) * 0.65 * control.dx + 0.65 * 0.65 * end.dx, (1 - 0.65) * (1 - 0.65) * start.dy + 2 * (1 - 0.65) * 0.65 * control.dy + 0.65 * 0.65 * end.dy);
+    final Offset twigEnd2 = Offset(twigStart2.dx + 48, twigStart2.dy - 28 + sTwig2 * 10);
+    final Offset twigControl2 = Offset(twigStart2.dx + 25, twigStart2.dy - 10);
+    drawTreeTrunk(canvas, twigStart2, twigControl2, twigEnd2, 4.5, 1.8, trunkColor, isShadow: isShadow);
+    final double sTwig3 = sin(time * 2.0 * pi + 2.0) * 0.04;
+    final Offset twigStart3 = Offset((1 - 0.82) * (1 - 0.82) * start.dx + 2 * (1 - 0.82) * 0.82 * control.dx + 0.82 * 0.82 * end.dx, (1 - 0.82) * (1 - 0.82) * start.dy + 2 * (1 - 0.82) * 0.82 * control.dy + 0.82 * 0.82 * end.dy);
+    final Offset twigEnd3 = Offset(twigStart3.dx - 22, twigStart3.dy - 38 + sTwig3 * 8);
+    final Offset twigControl3 = Offset(twigStart3.dx - 10, twigStart3.dy - 20);
+    drawTreeTrunk(canvas, twigStart3, twigControl3, twigEnd3, 3.5, 1.5, trunkColor, isShadow: isShadow);
+    if (!isShadow) {
+      final Color leafColor = const Color(0xFF5C6F56);
+      final Color leafOutline = const Color(0xFF86997F);
+      drawLeafCluster(canvas, end, s1, time, leafColor, isShadow: false, isDualTone: true, outlineColor: leafOutline);
+      drawLeafCluster(canvas, twigEnd1, sTwig1 - pi / 3.5, time, leafColor, isShadow: false, isDualTone: true, outlineColor: leafOutline);
+      drawLeafCluster(canvas, twigEnd2, sTwig2 + pi / 3.5, time, leafColor, isShadow: false, isDualTone: true, outlineColor: leafOutline);
+      drawLeafCluster(canvas, twigEnd3, sTwig3 - pi / 4.5, time, leafColor, isShadow: false, isDualTone: true, outlineColor: leafOutline);
+    } else {
+      final Color shadowColorL = Colors.black.withValues(alpha: 0.05);
+      drawLeafCluster(canvas, end, s1, time, shadowColorL, isShadow: true);
+      drawLeafCluster(canvas, twigEnd1, sTwig1 - pi / 3.5, time, shadowColorL, isShadow: true);
+      drawLeafCluster(canvas, twigEnd2, sTwig2 + pi / 3.5, time, shadowColorL, isShadow: true);
+      drawLeafCluster(canvas, twigEnd3, sTwig3 - pi / 4.5, time, shadowColorL, isShadow: true);
+    }
+    canvas.restore();
+  }
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (onSizeChanged != null) onSizeChanged!(size);
+    final rect = Rect.fromLTWH(0, 0, size.width, size.height);
+    
+    _bgPaint.shader = LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: theme.bgGradient).createShader(rect);
+    canvas.drawRect(rect, _bgPaint);
+
+    if (textureCache != null) {
+      canvas.drawPicture(textureCache!);
+    }
+
+    if (lowDetailMode) return;
+
+    // Optimization: reduced water layers and points for high-performance waves
+    const int points = 18; // Further reduced from 20
+    for (int layer = 0; layer < 3; layer++) { // Reduced from 4
+      final double depthAlpha = 1.0 - (layer / 4.0);
+      final double waveSpeed = theme.name == 'Rushing Wind' ? 0.05 + (layer * 0.015) : 0.3 + (layer * 0.12);
+      final double amplitude = theme.name == 'Rushing Wind' ? 10.0 - (layer * 0.6) : 22.0 - (layer * 1.8);
+      final double frequency = 1.2 + (layer * 0.35);
+      final double verticalOffset = size.height * 0.22 + (layer * size.height * 0.07);
+      
+      _wavePath.reset();
+      _wavePath.moveTo(0, size.height);
+      _wavePath.lineTo(0, verticalOffset);
+      for (int i = 0; i <= points; i++) {
+        final double ratio = i / points;
+        final double x = ratio * size.width;
+        final double y = verticalOffset + sin(ratio * pi * frequency + time * 2 * pi * waveSpeed) * amplitude + cos(ratio * pi * (frequency * 0.8) - time * pi * (waveSpeed * 0.7)) * (amplitude * 0.5);
+        _wavePath.lineTo(x, y);
+      }
+      _wavePath.lineTo(size.width, size.height);
+      _wavePath.close();
+
+      Color waveColor;
+      if (theme.name == 'Rushing Wind') {
+        const List<Color> colors = [Color(0xFF1B365D), Color(0xFF2E5B82), Color(0xFF4A90E2), Color(0xFF6BA4E8)];
+        waveColor = colors[layer % colors.length];
+      } else {
+        waveColor = layer % 3 == 0 ? theme.mainColor : (layer % 3 == 1 ? theme.accentGlow : Colors.white);
+      }
+      final double waveAlpha = (0.20 * depthAlpha).clamp(0.0, 1.0);
+      
+      _wavePaint
+        ..shader = LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [waveColor.withValues(alpha: waveAlpha), waveColor.withValues(alpha: 0.01 * depthAlpha)]).createShader(rect)
+        ..blendMode = BlendMode.overlay;
+      
+      canvas.drawPath(_wavePath, _wavePaint);
+    }
+
+    if (theme.name == 'Rushing Wind') {
+      final Color branchWoodColor = const Color(0xFF7E5B44);
+      canvas.save();
+      drawOrganicCanopy(canvas, const Offset(-10, -10), 3 * pi / 4, 1.45, time, branchWoodColor);
+      canvas.restore();
+      canvas.save();
+      drawOrganicCanopy(canvas, Offset(size.width + 10, size.height + 10), -pi / 4, 1.50, time, branchWoodColor);
+      canvas.restore();
+      
+      // Drifting leaves optimization: fewer leaves
+      final List<Map<String, dynamic>> driftLeaves = [
+        {'startX': 0.05, 'startY': -0.1, 'scale': 0.85, 'baseAngle': pi / 6, 'speedX': 0.08, 'speedY': 0.05, 'swaySpeed': 1.6, 'swayAmp': 20.0, 'bodyColor': const Color(0xFF5C6F56), 'outlineColor': const Color(0xFF86997F)},
+        {'startX': 0.45, 'startY': -0.15, 'scale': 0.90, 'baseAngle': -pi / 6, 'speedX': 0.09, 'speedY': 0.06, 'swaySpeed': 1.8, 'swayAmp': 24.0, 'bodyColor': const Color(0xFF4F634A), 'outlineColor': const Color(0xFF7D9276)},
+      ];
+      for (var leaf in driftLeaves) {
+        double xFraction = (leaf['startX']! + leaf['speedX']! * time * 1.5) % 1.4 - 0.2;
+        double yFraction = (leaf['startY']! + leaf['speedY']! * time * 1.5) % 1.4 - 0.2;
+        double px = xFraction * size.width + sin(time * leaf['swaySpeed']! * 2 * pi + leaf['startX']!) * leaf['swayAmp']!;
+        double py = yFraction * size.height;
+        double angle = leaf['baseAngle']! + time * 1.5 * pi;
+        drawBambooLeaf(canvas, Offset(px, py), angle, leaf['scale']!, leaf['bodyColor']!, isDualTone: true, outlineColor: leaf['outlineColor']!);
+      }
+    }
+
+    if (theme.name == 'Amazon Jungle') {
+      _drawGodRays(canvas, size);
+      _drawWaterfall(canvas, size);
+      _drawFireflies(canvas, size);
+    }
+
+    if (theme.name == 'Pacific Waves') {
+      _drawPacificSunset(canvas, size);
+      _drawSloshingWaves(canvas, size);
+    }
+
+    if (theme.name == 'River Flow') {
+      _drawRiverSurface(canvas, size);
+    }
+  }
+
+  void _drawPacificSunset(Canvas canvas, Size size) {
+    final rect = Rect.fromLTWH(0, 0, size.width, size.height);
+    // 1. Draw Sun in the background
+    _sunPaint.shader = RadialGradient(
+        center: const Alignment(0, -0.6),
+        radius: 0.8,
+        colors: [
+          const Color(0xFFFFE082).withValues(alpha: 0.6),
+          const Color(0xFFFF9800).withValues(alpha: 0.1),
+          Colors.transparent,
+        ],
+      ).createShader(rect);
+    canvas.drawCircle(Offset(size.width * 0.5, size.height * 0.2), size.width * 0.4, _sunPaint);
+
+    // 2. Distant Birds
+    _birdPaint
+      ..color = Colors.black.withValues(alpha: 0.15)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.2
+      ..strokeCap = StrokeCap.round;
+
+    final random = Random(123);
+    for (int i = 0; i < 3; i++) { // Reduced from 4
+      final double bx = size.width * (0.2 + random.nextDouble() * 0.6);
+      final double by = size.height * (0.1 + random.nextDouble() * 0.15);
+      final double bSize = 6.0 + random.nextDouble() * 4.0;
+      final double wingSway = sin(time * 5.0 + i) * 2.0;
+      
+      _birdPath.reset();
+      _birdPath.moveTo(bx - bSize, by + wingSway);
+      _birdPath.quadraticBezierTo(bx, by - 4, bx + bSize, by + wingSway);
+      canvas.drawPath(_birdPath, _birdPaint);
+    }
+  }
+
+  void _drawSloshingWaves(Canvas canvas, Size size) {
+    const int points = 18; // Reduced from 20
+    final random = Random(456);
+
+    for (int layer = 0; layer < 3; layer++) { // Reduced from 4
+      final double waveSpeed = 0.35 + (layer * 0.12);
+      final double amplitude = 20.0 - (layer * 2.5);
+      final double verticalOffset = size.height * 0.62 + (layer * size.height * 0.075);
+      
+      _wavePath.reset();
+      _wavePath.moveTo(0, size.height);
+      _wavePath.lineTo(0, verticalOffset);
+      
+      for (int i = 0; i <= points; i++) {
+        final double ratio = i / points;
+        final double x = ratio * size.width;
+        final double y = verticalOffset + 
+            sin(ratio * pi * 3.0 + time * 2 * pi * waveSpeed) * amplitude + 
+            cos(ratio * pi * 2.0 - time * pi * (waveSpeed * 0.9)) * (amplitude * 0.5);
+        _wavePath.lineTo(x, y);
+      }
+      _wavePath.lineTo(size.width, size.height);
+      _wavePath.close();
+
+      final Color waveColor = layer % 2 == 0 ? const Color(0xFF00E5FF) : Colors.white;
+      _wavePaint.shader = LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            waveColor.withValues(alpha: 0.3 - (layer * 0.06)),
+            waveColor.withValues(alpha: 0.0),
+          ],
+        ).createShader(Rect.fromLTWH(0, verticalOffset - amplitude, size.width, size.height - verticalOffset + amplitude));
+      
+      canvas.drawPath(_wavePath, _wavePaint);
+
+      // Add "Sun Glitter" on the top layer of waves
+      if (layer == 0) {
+        _glitterPaint.style = PaintingStyle.fill;
+        for (int j = 0; j < 10; j++) { // Reduced from 15
+          final double gx = random.nextDouble() * size.width;
+          final double gy = verticalOffset + (random.nextDouble() - 0.5) * amplitude;
+          final double gPulse = (sin(time * 8.0 + j) + 1.0) * 0.5;
+          _glitterPaint.color = Colors.white.withValues(alpha: 0.4 * gPulse);
+          canvas.drawCircle(Offset(gx, gy), 1.5, _glitterPaint);
+        }
+      }
+    }
+  }
+
   void _drawGodRays(Canvas canvas, Size size) {
     final paint = Paint()..style = PaintingStyle.fill;
     final Offset source = Offset(size.width * 0.48, -50);
-    final double baseAngle = pi / 3.0; // angled down-right
-
-    for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < 2; i++) { // Optimization: reduced from 4
       final double sweep = sin(time * 1.2 + i * 1.5) * 0.04;
-      final double angle = baseAngle + (i - 1.5) * 0.18 + sweep;
+      final double angle = pi / 3.0 + (i - 0.5) * 0.18 + sweep;
       final double length = size.height * 1.6;
-      final double width1 = 12.0 + i * 4.0;
-      final double width2 = 70.0 + i * 12.0;
-
-      final Offset p1 = Offset(source.dx - width1 * cos(angle + pi / 2), source.dy - width1 * sin(angle + pi / 2));
-      final Offset p2 = Offset(source.dx + width1 * cos(angle + pi / 2), source.dy + width1 * sin(angle + pi / 2));
-      final Offset p3 = Offset(source.dx + cos(angle) * length + width2 * cos(angle + pi / 2), source.dy + sin(angle) * length + width2 * sin(angle + pi / 2));
-      final Offset p4 = Offset(source.dx + cos(angle) * length - width2 * cos(angle + pi / 2), source.dy + sin(angle) * length - width2 * sin(angle + pi / 2));
-
-      final path = Path()
-        ..moveTo(p1.dx, p1.dy)
-        ..lineTo(p2.dx, p2.dy)
-        ..lineTo(p3.dx, p3.dy)
-        ..lineTo(p4.dx, p4.dy)
-        ..close();
-
-      paint.shader = LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: [
-          const Color(0xFFFFFDE7).withValues(alpha: 0.10),
-          const Color(0xFFFFF59D).withValues(alpha: 0.03),
-          const Color(0xFFFFF59D).withValues(alpha: 0.0),
-        ],
-      ).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
-
+      final Offset p1 = Offset(source.dx - 12.0 * cos(angle + pi / 2), source.dy - 12.0 * sin(angle + pi / 2));
+      final Offset p2 = Offset(source.dx + 12.0 * cos(angle + pi / 2), source.dy + 12.0 * sin(angle + pi / 2));
+      final Offset p3 = Offset(source.dx + cos(angle) * length + 70.0 * cos(angle + pi / 2), source.dy + sin(angle) * length + 70.0 * sin(angle + pi / 2));
+      final Offset p4 = Offset(source.dx + cos(angle) * length - 70.0 * cos(angle + pi / 2), source.dy + sin(angle) * length - 70.0 * sin(angle + pi / 2));
+      final path = Path()..moveTo(p1.dx, p1.dy)..lineTo(p2.dx, p2.dy)..lineTo(p3.dx, p3.dy)..lineTo(p4.dx, p4.dy)..close();
+      paint.shader = LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [const Color(0xFFFFFDE7).withValues(alpha: 0.10), const Color(0xFFFFF59D).withValues(alpha: 0.0)]).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
       canvas.drawPath(path, paint);
     }
   }
 
-  /// Cascading vertical stream with sliding foam highlights and mist clouds at the bottom.
   void _drawWaterfall(Canvas canvas, Size size) {
     final double waterfallWidth = (size.width * 0.12).clamp(45.0, 95.0);
     final rect = Rect.fromLTWH(0, 0, waterfallWidth, size.height);
-
-    // Deep backing rocky shadow
-    final paintRock = Paint()
-      ..color = const Color(0xFF0B140A).withValues(alpha: 0.85)
-      ..style = PaintingStyle.fill;
-    canvas.drawRect(rect, paintRock);
-
-    // Cascading streams wiggling vertically
-    final random = Random(101);
-    for (int i = 0; i < 5; i++) {
-      final double streamX = (i + 0.5) * (waterfallWidth / 5.0);
-      final path = Path();
-      path.moveTo(streamX, 0);
-
-      for (double y = 0; y <= size.height; y += 15.0) {
-        final double scroll = y * 0.06 - time * 32.0;
-        final double wobble = sin(scroll + i * 2.5) * 2.8 + cos(scroll * 0.6) * 1.2;
-        path.lineTo(streamX + wobble, y);
-      }
-
-      final paintStream = Paint()
-        ..color = const Color(0xFFB3E5FC).withValues(alpha: 0.15 + (i % 3) * 0.05)
-        ..strokeWidth = 2.0 + random.nextDouble() * 3.0
-        ..style = PaintingStyle.stroke
-        ..strokeCap = StrokeCap.round
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 1.8);
-
-      canvas.drawPath(path, paintStream);
-    }
-
-    // Specular falling foam highlights
-    for (int i = 0; i < 4; i++) {
-      final double foamY = ((time * 260.0 + i * 140.0) % (size.height + 80)) - 40;
-      final double foamX = random.nextDouble() * waterfallWidth;
-
-      final paintFoam = Paint()
-        ..color = Colors.white.withValues(alpha: 0.48)
-        ..style = PaintingStyle.fill
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2.5);
-
-      canvas.drawCircle(Offset(foamX, foamY), 6.0 + random.nextDouble() * 5.0, paintFoam);
-    }
-
-    // Mist clouds at the bottom splash
+    canvas.drawRect(rect, Paint()..color = const Color(0xFF0B140A).withValues(alpha: 0.85));
     for (int i = 0; i < 3; i++) {
-      final double pulse = sin(time * 5.0 + i * 1.5) * 6.0;
-      final paintMist = Paint()
-        ..color = const Color(0xFFE0F7FA).withValues(alpha: 0.18)
-        ..style = PaintingStyle.fill
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10.0);
-
-      canvas.drawCircle(Offset(waterfallWidth * 0.5 + i * 6.0, size.height - 12.0), 30.0 + pulse, paintMist);
+      final double streamX = (i + 0.5) * (waterfallWidth / 3.0);
+      final path = Path()..moveTo(streamX, 0);
+      for (double y = 0; y <= size.height; y += 30.0) {
+        path.lineTo(streamX + sin(y * 0.06 - time * 32.0 + i * 2.5) * 2.8, y);
+      }
+      canvas.drawPath(path, Paint()..color = const Color(0xFFB3E5FC).withValues(alpha: 0.15)..strokeWidth = 3.0..style = PaintingStyle.stroke..maskFilter = const MaskFilter.blur(BlurStyle.normal, 1.8));
     }
   }
 
-  /// Drooping vines and leaves from top-left and top-right decorated with glowing flowers.
-  void _drawJungleCanopy(Canvas canvas, Size size) {
-    final Color vineColor = const Color(0xFF142B11);
-    final Color leafColor = const Color(0xFF1B5E20);
-    final Color flowerColor = const Color(0xFFE91E63);
-    final Color highlightColor = const Color(0xFF8BC34A);
-
-    // 1. Draped Vine from top-left to top-right
-    final pathVine1 = Path();
-    pathVine1.moveTo(0, 0);
-    final double sway1 = sin(time * pi) * 10.0;
-    pathVine1.quadraticBezierTo(size.width * 0.28, size.height * 0.08 + sway1, size.width * 0.52, 0);
-
-    final paintVine = Paint()
-      ..color = vineColor
-      ..strokeWidth = 3.0
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round;
-    canvas.drawPath(pathVine1, paintVine);
-
-    // Populate foliage along Vine 1
-    final pathMetric1 = pathVine1.computeMetrics().first;
-    for (double d = 20.0; d < pathMetric1.length - 20.0; d += 40.0) {
-      final tangent = pathMetric1.getTangentForOffset(d);
-      if (tangent != null) {
-        final Offset pos = tangent.position;
-        final double angle = tangent.angle;
-
-        drawBambooLeaf(canvas, pos, angle + pi / 3.0, 1.8, leafColor, isDualTone: true, outlineColor: highlightColor);
-        drawBambooLeaf(canvas, pos, angle - pi / 3.0, 1.3, leafColor.withValues(alpha: 0.7), isDualTone: true, outlineColor: highlightColor);
-
-        // Draw tropical magenta flowers
-        if (d.toInt() % 80 == 0) {
-          final paintFlower = Paint()..color = flowerColor;
-          canvas.drawCircle(Offset(pos.dx, pos.dy + 3.0), 5.5, paintFlower);
-          canvas.drawCircle(Offset(pos.dx - 3.5, pos.dy), 4.5, paintFlower);
-          canvas.drawCircle(Offset(pos.dx + 3.5, pos.dy), 4.5, paintFlower);
-          canvas.drawCircle(Offset(pos.dx, pos.dy), 3.5, Paint()..color = const Color(0xFFFFEB3B));
-        }
-      }
-    }
-
-    // 2. Vertical Vine hanging on the right edge
-    final pathVine2 = Path();
-    pathVine2.moveTo(size.width - 15.0, 0);
-    final double sway2 = cos(time * 0.8 * pi) * 8.0;
-    pathVine2.quadraticBezierTo(size.width - 50.0 + sway2, size.height * 0.25, size.width - 12.0, size.height * 0.48 + sway2 * 0.5);
-    canvas.drawPath(pathVine2, paintVine);
-
-    final pathMetric2 = pathVine2.computeMetrics().first;
-    for (double d = 20.0; d < pathMetric2.length - 15.0; d += 30.0) {
-      final tangent = pathMetric2.getTangentForOffset(d);
-      if (tangent != null) {
-        final Offset pos = tangent.position;
-        final double angle = tangent.angle;
-
-        drawBambooLeaf(canvas, pos, angle + pi / 2.5, 1.5, leafColor, isDualTone: true, outlineColor: highlightColor);
-      }
-    }
-  }
-
-  /// Breathing glowing gold fireflies floating slowly across the jungle.
   void _drawFireflies(Canvas canvas, Size size) {
     final random = Random(88);
-    for (int i = 0; i < 12; i++) {
-      final double startX = random.nextDouble();
-      final double startY = random.nextDouble();
-      final double scale = 0.5 + random.nextDouble() * 0.6;
-      final double swaySpeed = 0.7 + random.nextDouble() * 1.0;
-      final double swayAmp = 6.0 + random.nextDouble() * 10.0;
-
-      final double t = time;
-      final double xFraction = (startX - t * 0.04) % 1.2 - 0.1;
-      final double yFraction = (startY - t * 0.02) % 1.2 - 0.1;
-
-      final double px = xFraction * size.width + sin(time * swaySpeed * 2 * pi + startX) * swayAmp;
-      final double py = yFraction * size.height;
-
-      // Glow breathing
+    for (int i = 0; i < 6; i++) { // Optimization: reduced from 12
+      final double px = (random.nextDouble() * 1.2 - 0.1) * size.width + sin(time * 2 * pi + i) * 10.0;
+      final double py = (random.nextDouble() * 1.2 - 0.1) * size.height;
       final double pulse = 0.25 + (sin(time * 3.5 * pi + i * 1.8) + 1.0) / 2.0 * 0.75;
+      canvas.drawCircle(Offset(px, py), 2.2, Paint()..color = const Color(0xFFFFFF8D).withValues(alpha: 0.82 * pulse));
+    }
+  }
 
-      final glowPaint = Paint()
-        ..color = const Color(0xFFFFF59D).withValues(alpha: 0.16 * pulse)
-        ..style = PaintingStyle.fill
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 7.0);
+  void _drawRiverSurface(Canvas canvas, Size size) {
+    // 1. Dappled Sunlight (God Rays from top canopy)
+    _drawGodRays(canvas, size);
 
-      final corePaint = Paint()
-        ..color = const Color(0xFFFFFF8D).withValues(alpha: 0.82 * pulse)
-        ..style = PaintingStyle.fill;
+    // 2. Fast-flowing river currents
+    const int points = 15;
+    for (int layer = 0; layer < 5; layer++) {
+      final double waveSpeed = 0.5 + (layer * 0.2); // Faster flowing than ocean
+      final double amplitude = 12.0 - (layer * 1.5);
+      final double verticalOffset = size.height * (0.2 + layer * 0.18);
+      
+      _wavePath.reset();
+      _wavePath.moveTo(0, size.height);
+      _wavePath.lineTo(0, verticalOffset);
+      
+      for (int i = 0; i <= points; i++) {
+        final double ratio = i / points;
+        final double x = ratio * size.width;
+        // River waves flow horizontally more than vertically
+        final double y = verticalOffset + 
+            sin(ratio * pi * 4.0 + time * 2 * pi * waveSpeed) * amplitude + 
+            cos(ratio * pi * 2.5 - time * pi * (waveSpeed * 0.8)) * (amplitude * 0.6);
+        _wavePath.lineTo(x, y);
+      }
+      _wavePath.lineTo(size.width, size.height);
+      _wavePath.close();
 
-      canvas.drawCircle(Offset(px, py), 10.0 * scale, glowPaint);
-      canvas.drawCircle(Offset(px, py), 2.2 * scale, corePaint);
+      final Color waveColor = layer % 2 == 0 ? const Color(0xFF00BFA5) : const Color(0xFF80CBC4);
+      _wavePaint.shader = LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            waveColor.withValues(alpha: 0.15 - (layer * 0.02)),
+            waveColor.withValues(alpha: 0.0),
+          ],
+        ).createShader(Rect.fromLTWH(0, verticalOffset - amplitude, size.width, size.height - verticalOffset + amplitude));
+      
+      canvas.drawPath(_wavePath, _wavePaint);
+    }
+
+    // 3. Floating Lily Pads / River Debris
+    final List<Map<String, dynamic>> lilyPads = [
+      {'startX': 0.1, 'startY': 0.3, 'scale': 1.2, 'speed': 0.06, 'color': const Color(0xFF43A047), 'rot': 0.2},
+      {'startX': 0.7, 'startY': 0.6, 'scale': 0.9, 'speed': 0.08, 'color': const Color(0xFF388E3C), 'rot': 1.5},
+      {'startX': 0.4, 'startY': 0.8, 'scale': 1.5, 'speed': 0.05, 'color': const Color(0xFF2E7D32), 'rot': -0.5},
+      {'startX': 0.8, 'startY': 0.1, 'scale': 0.7, 'speed': 0.09, 'color': const Color(0xFF66BB6A), 'rot': 0.8},
+    ];
+
+    for (var pad in lilyPads) {
+      double yFraction = (pad['startY']! + pad['speed']! * time) % 1.2 - 0.1;
+      double xFraction = (pad['startX']! + sin(time * 0.5 + pad['rot']!) * 0.05);
+      
+      double px = xFraction * size.width;
+      double py = yFraction * size.height;
+      
+      final padPaint = Paint()..color = pad['color']!..style = PaintingStyle.fill;
+      
+      canvas.save();
+      canvas.translate(px, py);
+      canvas.rotate(pad['rot']! + time * 0.2); // Slow spin
+      
+      final path = Path()
+        ..addArc(Rect.fromCircle(center: Offset.zero, radius: 15.0 * pad['scale']!), 0.4, 2 * pi - 0.8);
+      path.lineTo(0, 0);
+      path.close();
+      
+      canvas.drawPath(path, padPaint);
+      canvas.restore();
     }
   }
 
@@ -815,5 +591,6 @@ class BackgroundMeshPainter extends CustomPainter {
   bool shouldRepaint(BackgroundMeshPainter oldDelegate) =>
       oldDelegate.lowDetailMode != lowDetailMode ||
       oldDelegate.theme != theme ||
-      (!lowDetailMode && oldDelegate.time != time);
+      (!lowDetailMode && oldDelegate.time != time) ||
+      oldDelegate.textureCache != textureCache;
 }

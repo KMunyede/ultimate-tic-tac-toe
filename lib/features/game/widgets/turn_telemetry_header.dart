@@ -9,7 +9,9 @@ import '../../../models/player.dart';
 import 'mini_turn_board.dart';
 import '../../../widgets/board/clay_bevel_painter.dart';
 
-class TurnTelemetryHeader extends StatelessWidget {
+import 'dart:math';
+
+class TurnTelemetryHeader extends StatefulWidget {
   final GameController game;
   final SettingsController settings;
 
@@ -20,10 +22,32 @@ class TurnTelemetryHeader extends StatelessWidget {
   });
 
   @override
+  State<TurnTelemetryHeader> createState() => _TurnTelemetryHeaderState();
+}
+
+class _TurnTelemetryHeaderState extends State<TurnTelemetryHeader> with SingleTickerProviderStateMixin {
+  late AnimationController _floatController;
+
+  @override
+  void initState() {
+    super.initState();
+    _floatController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 9),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _floatController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final theme = settings.currentTheme;
-    final activePlayer = game.currentPlayer;
-    final isThinking = game.isAiThinking;
+    final theme = widget.settings.currentTheme;
+    final activePlayer = widget.game.currentPlayer;
+    final isThinking = widget.game.isAiThinking;
     
     // Theme-specific styles matching FloatingCloudButton
     BorderRadius headerRadius = BorderRadius.circular(20.0);
@@ -63,20 +87,21 @@ class TurnTelemetryHeader extends StatelessWidget {
           ),
         ],
       );
-    } else if (theme.name == 'Rising Moon') {
+    } else if (theme.name == 'Pacific Waves') {
       headerRadius = BorderRadius.circular(20.0);
       headerDec = BoxDecoration(
-        color: const Color(0xFF453D4D).withValues(alpha: 0.30),
+        color: theme.mainColor.withValues(alpha: 0.25),
         borderRadius: headerRadius,
-        border: Border.all(color: theme.mainColor.withValues(alpha: 0.6), width: 1.2),
+        border: Border.all(color: theme.accentGlow.withValues(alpha: 0.5), width: 1.5),
         boxShadow: [
           BoxShadow(
-            color: theme.mainColor.withValues(alpha: 0.20),
+            color: theme.mainColor.withValues(alpha: 0.3),
             offset: const Offset(0, 4),
-            blurRadius: 10,
+            blurRadius: 12,
           ),
         ],
       );
+      contentColor = theme.textColor;
     } else if (theme.name == 'Drifting Cloud') {
       headerRadius = BorderRadius.circular(8.0);
       headerDec = BoxDecoration(
@@ -151,7 +176,7 @@ class TurnTelemetryHeader extends StatelessWidget {
                 Text(
                   isThinking 
                       ? "Thinking of a clever move..." 
-                      : (settings.gameMode == GameMode.playerVsAi && activePlayer == Player.O
+                      : (widget.settings.gameMode == GameMode.playerVsAi && activePlayer == Player.O
                           ? "AI Turn (O)"
                           : "Player ${activePlayer == Player.X ? "X" : "O"}'s Turn"),
                   style: TextStyle(
@@ -168,7 +193,7 @@ class TurnTelemetryHeader extends StatelessWidget {
       ),
     );
 
-    if (theme.name == 'Rising Moon') {
+    if (theme.name == 'Pacific Waves') {
       headerBody = ClipRRect(
         borderRadius: headerRadius,
         child: BackdropFilter(
@@ -187,6 +212,23 @@ class TurnTelemetryHeader extends StatelessWidget {
       );
     }
 
-    return headerBody;
+    return AnimatedBuilder(
+      animation: _floatController,
+      builder: (context, child) {
+        final double angle = _floatController.value * 2 * pi;
+        final double dx = cos(angle * 0.8) * 6.0;
+        final double dy = sin(angle) * 8.0;
+        final double rotation = sin(angle * 0.4) * 0.015;
+        
+        return Transform.translate(
+          offset: Offset(dx, dy),
+          child: Transform.rotate(
+            angle: rotation,
+            child: child,
+          ),
+        );
+      },
+      child: headerBody,
+    );
   }
 }

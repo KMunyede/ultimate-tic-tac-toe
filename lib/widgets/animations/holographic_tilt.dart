@@ -47,11 +47,11 @@ class _InteractiveHolographicTiltState extends State<InteractiveHolographicTilt>
         return MouseRegion(
           onHover: (event) => _onPointerMove(event.localPosition, size),
           onExit: (_) => _onPointerExit(),
-          child: GestureDetector(
+          child: Listener(
             behavior: HitTestBehavior.translucent,
-            onPanUpdate: (details) => _onPointerMove(details.localPosition, size),
-            onPanEnd: (_) => _onPointerExit(),
-            onPanCancel: () => _onPointerExit(),
+            onPointerMove: (event) => _onPointerMove(event.localPosition, size),
+            onPointerUp: (_) => _onPointerExit(),
+            onPointerCancel: (_) => _onPointerExit(),
             child: TweenAnimationBuilder<Offset>(
               tween: Tween<Offset>(begin: Offset.zero, end: _isTracking ? _tilt : Offset.zero),
               duration: const Duration(milliseconds: 240),

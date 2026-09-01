@@ -28,7 +28,7 @@ class AnticipationHaloPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2.0 + hover * 2.0;
 
-    if (themeName == 'Rising Moon' || themeName == 'Drifting Cloud') {
+    if (themeName == 'Pacific Waves' || themeName == 'Drifting Cloud') {
       canvas.drawCircle(center, radius, paint);
       final innerPaint = Paint()
         ..color = paint.color.withValues(alpha: paint.color.a * 0.5)

@@ -19,31 +19,37 @@ class GradientButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bool isEnabled = onPressed != null;
-    return Opacity(
-      opacity: isEnabled ? 1.0 : 0.5,
-      child: ElevatedButton(
-        onPressed: onPressed,
-        style: ElevatedButton.styleFrom(
-          padding: EdgeInsets.zero,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          elevation: 8,
-          shadowColor: Colors.black.withAlpha(102),
+    final double opacity = isEnabled ? 1.0 : 0.5;
+
+    return ElevatedButton(
+      onPressed: onPressed,
+      style: ElevatedButton.styleFrom(
+        padding: EdgeInsets.zero,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
         ),
-        child: Ink(
-          decoration: BoxDecoration(
-            gradient: gradient,
-            borderRadius: BorderRadius.circular(12),
+        elevation: isEnabled ? 8 : 0,
+        shadowColor: Colors.black.withAlpha(102),
+      ),
+      child: Ink(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: gradient.colors.map((c) => c.withValues(alpha: opacity)).toList(),
+            begin: (gradient as LinearGradient).begin,
+            end: (gradient as LinearGradient).end,
+            stops: (gradient as LinearGradient).stops,
+            tileMode: (gradient as LinearGradient).tileMode,
+            transform: (gradient as LinearGradient).transform,
           ),
-          child: Container(
-            padding: padding ?? const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
-            constraints: const BoxConstraints(minHeight: 36),
-            alignment: Alignment.center,
-            child: DefaultTextStyle(
-              style: TextStyle(color: textColor),
-              child: child,
-            ),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Container(
+          padding: padding ?? const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
+          constraints: const BoxConstraints(minHeight: 36),
+          alignment: Alignment.center,
+          child: DefaultTextStyle(
+            style: TextStyle(color: textColor.withValues(alpha: opacity)),
+            child: child,
           ),
         ),
       ),

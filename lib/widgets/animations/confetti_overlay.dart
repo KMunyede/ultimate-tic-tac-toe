@@ -71,7 +71,7 @@ class _ConfettiOverlayState extends State<ConfettiOverlay>
         const Color(0xFFEDEADF), // Pale cream clay
         const Color(0xFFF9F7F1), // Pure milk white
       ];
-    } else if (theme.name == 'Rising Moon') {
+    } else if (theme.name == 'Pacific Waves') {
       colors = [
         theme.mainColor, // Neon Violet
         theme.accentGlow, // Indigo

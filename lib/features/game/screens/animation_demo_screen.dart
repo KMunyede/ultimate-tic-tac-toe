@@ -13,7 +13,7 @@ class _AnimationDemoScreenState extends State<AnimationDemoScreen> {
   bool _playLottieCelebration = false;
   
   // Rive Controller properties
-  SMIBool? _hoverInput;
+  SMIInput<bool>? _hoverInput;
   SMITrigger? _pressInput;
 
   void _onRiveInit(Artboard artboard) {
@@ -22,7 +22,7 @@ class _AnimationDemoScreenState extends State<AnimationDemoScreen> {
     final controller = StateMachineController.fromArtboard(artboard, 'Button');
     if (controller != null) {
       artboard.addController(controller);
-      _hoverInput = controller.findInput<bool>('Hover') as SMIBool?;
+      _hoverInput = controller.findInput<bool>('Hover');
       _pressInput = controller.findInput<bool>('Press') as SMITrigger?;
     }
   }

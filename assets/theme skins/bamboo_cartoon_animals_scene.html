@@ -1,0 +1,184 @@
+
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Fredoka+One&display=swap');
+*{box-sizing:border-box;margin:0;padding:0}
+.scene{width:100%;height:580px;background:#a8d8ea;overflow:hidden;position:relative;border-radius:16px}
+.sky{position:absolute;top:0;left:0;right:0;height:60%;background:#a8d8ea}
+.ocean-far{position:absolute;bottom:30%;left:0;right:0;height:40px;background:#3a8fbf;border-radius:50% 50% 0 0/10px 10px 0 0;opacity:0.5}
+.ocean-mid{position:absolute;bottom:22%;left:-20px;right:-20px;height:50px;background:#2a7aaa;border-radius:50% 50% 0 0/18px 18px 0 0;opacity:0.7}
+.ocean-near{position:absolute;bottom:14%;left:-30px;right:-30px;height:55px;background:#1a6a96;border-radius:50% 50% 0 0/22px 22px 0 0}
+.ground{position:absolute;bottom:0;left:0;right:0;height:16%;background:#6b4c2a}
+.ground-top{position:absolute;bottom:14%;left:0;right:0;height:20px;background:#8b6040;border-radius:50% 50% 0 0/8px 8px 0 0}
+.sun{position:absolute;top:32px;left:50%;transform:translateX(-50%);width:54px;height:54px;border-radius:50%;background:#f5c842}
+.sun-ray{position:absolute;top:50%;left:50%;width:70px;height:4px;background:#f5c842;transform-origin:0 50%;border-radius:2px;opacity:0.5}
+.cloud{position:absolute;background:#e8f4f8;border-radius:50px}
+
+.bamboo-stalk{position:absolute;bottom:14%;width:18px;background:#7ab840;border-radius:4px 4px 0 0}
+.bamboo-node{position:absolute;width:22px;height:5px;background:#5a9020;border-radius:3px;left:-2px}
+.bamboo-leaf{position:absolute;width:36px;height:14px;background:#6ab030;border-radius:50%;transform-origin:0 50%}
+
+.animal{position:absolute;bottom:14%}
+
+.panda-body{width:52px;height:48px;background:#f5f5f0;border-radius:50% 50% 44% 44%;border:2px solid #ddd;position:relative}
+.panda-ear{width:18px;height:18px;background:#2a2a2a;border-radius:50%;position:absolute;top:-10px}
+.panda-eye-patch{width:14px;height:12px;background:#2a2a2a;border-radius:50%;position:absolute;top:10px}
+.panda-eye{width:6px;height:6px;background:#fff;border-radius:50%;position:absolute}
+.panda-pupil{width:3px;height:3px;background:#111;border-radius:50%;position:absolute}
+.panda-nose{width:8px;height:5px;background:#e8a0a0;border-radius:50%;position:absolute;top:26px;left:21px}
+.panda-leg{width:18px;height:20px;background:#2a2a2a;border-radius:0 0 8px 8px;position:absolute;bottom:-16px}
+
+.turtle-shell{width:54px;height:38px;background:#5a9a30;border-radius:50% 50% 40% 40%;border:2.5px solid #3a7010;position:relative}
+.turtle-head{width:20px;height:18px;background:#7aba48;border-radius:50% 50% 40% 40%;position:absolute;right:-16px;top:6px;border:2px solid #5a9a30}
+.turtle-eye{width:5px;height:5px;background:#222;border-radius:50%;position:absolute;top:5px;right:3px}
+.turtle-leg{width:14px;height:12px;background:#7aba48;border-radius:50%;position:absolute;border:2px solid #5a9a30}
+.shell-hex{position:absolute;border:1.5px solid #3a7010;border-radius:4px}
+
+.crab-body{width:44px;height:28px;background:#e05530;border-radius:50% 50% 40% 40%;border:2px solid #b03010;position:relative}
+.crab-eye-stalk{width:6px;height:12px;background:#e05530;border-radius:3px;position:absolute;top:-12px;border:1.5px solid #b03010}
+.crab-eye-ball{width:9px;height:9px;background:#fff;border-radius:50%;position:absolute;top:-9px;left:-1.5px;border:1.5px solid #b03010}
+.crab-pupil{width:4px;height:4px;background:#111;border-radius:50%;position:absolute;top:2px;left:2px}
+.crab-claw{width:16px;height:14px;background:#e05530;border-radius:50% 50% 8px 8px;border:2px solid #b03010;position:absolute}
+.crab-leg{width:3px;height:16px;background:#e05530;border-radius:2px;position:absolute;border:1px solid #b03010}
+
+@keyframes sway{0%,100%{transform:rotate(-4deg)}50%{transform:rotate(4deg)}}
+@keyframes sway2{0%,100%{transform:rotate(3deg)}50%{transform:rotate(-3deg)}}
+@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+@keyframes bob2{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+@keyframes clawwave{0%,100%{transform:rotate(-15deg)}50%{transform:rotate(15deg)}}
+@keyframes leafsway{0%,100%{transform:rotate(-8deg)}50%{transform:rotate(8deg)}}
+@keyframes eyeblink{0%,90%,100%{transform:scaleY(1)}95%{transform:scaleY(0.1)}}
+@keyframes sunpulse{0%,100%{opacity:0.5}50%{opacity:0.8}}
+@keyframes float{0%,100%{transform:translateX(0)}50%{transform:translateX(8px)}}
+</style>
+
+<h2 class="sr-only">Cartoon bamboo scene with animated panda, turtle, and crab on a Pacific ocean shore</h2>
+
+<div class="scene">
+  <div class="sky"></div>
+
+  <div class="sun" style="animation:sunpulse 3s ease-in-out infinite"></div>
+  <div style="position:absolute;top:59px;left:50%;width:0;height:0">
+    <div class="sun-ray" style="transform:rotate(0deg);animation:sunpulse 3s 0.2s infinite"></div>
+    <div class="sun-ray" style="transform:rotate(45deg);animation:sunpulse 3s 0.4s infinite"></div>
+    <div class="sun-ray" style="transform:rotate(90deg);animation:sunpulse 3s 0.6s infinite"></div>
+    <div class="sun-ray" style="transform:rotate(135deg);animation:sunpulse 3s 0.8s infinite"></div>
+    <div class="sun-ray" style="transform:rotate(180deg);animation:sunpulse 3s 1.0s infinite"></div>
+    <div class="sun-ray" style="transform:rotate(225deg);animation:sunpulse 3s 1.2s infinite"></div>
+    <div class="sun-ray" style="transform:rotate(270deg);animation:sunpulse 3s 1.4s infinite"></div>
+    <div class="sun-ray" style="transform:rotate(315deg);animation:sunpulse 3s 1.6s infinite"></div>
+  </div>
+
+  <div class="cloud" style="width:90px;height:30px;top:50px;left:60px;animation:float 6s ease-in-out infinite"></div>
+  <div class="cloud" style="width:50px;height:22px;top:42px;left:80px;animation:float 6s ease-in-out infinite"></div>
+  <div class="cloud" style="width:40px;height:18px;top:55px;left:116px;animation:float 6s ease-in-out infinite"></div>
+  <div class="cloud" style="width:80px;height:26px;top:70px;right:80px;animation:float 7s 1s ease-in-out infinite"></div>
+  <div class="cloud" style="width:44px;height:20px;top:62px;right:96px;animation:float 7s 1s ease-in-out infinite"></div>
+
+  <div class="ocean-far"></div>
+  <div class="ocean-mid"></div>
+  <div class="ocean-near"></div>
+  <div class="ground"></div>
+  <div class="ground-top"></div>
+
+  <div style="position:absolute;bottom:13%;left:30px;width:18px;height:260px;background:#7ab840;border-radius:4px 4px 0 0;transform-origin:bottom center;animation:sway 3.2s ease-in-out infinite">
+    <div class="bamboo-node" style="bottom:40px"></div>
+    <div class="bamboo-node" style="bottom:90px"></div>
+    <div class="bamboo-node" style="bottom:140px"></div>
+    <div class="bamboo-node" style="bottom:190px"></div>
+    <div class="bamboo-node" style="bottom:236px"></div>
+    <div class="bamboo-leaf" style="top:12px;left:16px;transform-origin:0 50%;animation:leafsway 2.8s 0.2s ease-in-out infinite;background:#6ab030"></div>
+    <div class="bamboo-leaf" style="top:60px;left:-34px;transform:scaleX(-1);animation:leafsway 2.8s 0.5s ease-in-out infinite;background:#5da028"></div>
+    <div class="bamboo-leaf" style="top:110px;left:16px;animation:leafsway 3s 0.1s ease-in-out infinite;background:#7ac840"></div>
+    <div class="bamboo-leaf" style="top:160px;left:-34px;transform:scaleX(-1);animation:leafsway 3s 0.7s ease-in-out infinite;background:#6ab030"></div>
+  </div>
+
+  <div style="position:absolute;bottom:13%;left:68px;width:14px;height:200px;background:#8ac848;border-radius:4px 4px 0 0;transform-origin:bottom center;animation:sway2 2.8s 0.5s ease-in-out infinite">
+    <div class="bamboo-node" style="bottom:36px;width:18px;left:-2px"></div>
+    <div class="bamboo-node" style="bottom:80px;width:18px;left:-2px"></div>
+    <div class="bamboo-node" style="bottom:124px;width:18px;left:-2px"></div>
+    <div class="bamboo-node" style="bottom:168px;width:18px;left:-2px"></div>
+    <div class="bamboo-leaf" style="top:20px;left:12px;animation:leafsway 2.6s ease-in-out infinite;background:#6ab030"></div>
+    <div class="bamboo-leaf" style="top:80px;left:-28px;transform:scaleX(-1);animation:leafsway 2.9s 0.3s ease-in-out infinite;background:#5da028"></div>
+    <div class="bamboo-leaf" style="top:140px;left:12px;animation:leafsway 3.1s 0.6s ease-in-out infinite;background:#7ac840"></div>
+  </div>
+
+  <div style="position:absolute;bottom:13%;right:28px;width:16px;height:230px;background:#7ab840;border-radius:4px 4px 0 0;transform-origin:bottom center;animation:sway 3.5s 0.3s ease-in-out infinite">
+    <div class="bamboo-node" style="bottom:38px"></div>
+    <div class="bamboo-node" style="bottom:86px"></div>
+    <div class="bamboo-node" style="bottom:136px"></div>
+    <div class="bamboo-node" style="bottom:186px"></div>
+    <div class="bamboo-leaf" style="top:16px;left:14px;animation:leafsway 2.7s 0.4s ease-in-out infinite;background:#6ab030"></div>
+    <div class="bamboo-leaf" style="top:70px;left:-30px;transform:scaleX(-1);animation:leafsway 3s 0.2s ease-in-out infinite;background:#5da028"></div>
+    <div class="bamboo-leaf" style="top:124px;left:14px;animation:leafsway 2.9s 0.8s ease-in-out infinite;background:#7ac840"></div>
+    <div class="bamboo-leaf" style="top:178px;left:-30px;transform:scaleX(-1);animation:leafsway 3.2s ease-in-out infinite;background:#6ab030"></div>
+  </div>
+
+  <div style="position:absolute;bottom:13%;right:56px;width:12px;height:170px;background:#8ac848;border-radius:4px 4px 0 0;transform-origin:bottom center;animation:sway2 3s 0.8s ease-in-out infinite">
+    <div class="bamboo-node" style="bottom:32px;width:16px;left:-2px"></div>
+    <div class="bamboo-node" style="bottom:74px;width:16px;left:-2px"></div>
+    <div class="bamboo-node" style="bottom:120px;width:16px;left:-2px"></div>
+    <div class="bamboo-leaf" style="top:30px;left:10px;animation:leafsway 2.8s 0.5s ease-in-out infinite;background:#6ab030"></div>
+    <div class="bamboo-leaf" style="top:90px;left:-26px;transform:scaleX(-1);animation:leafsway 3.1s ease-in-out infinite;background:#5da028"></div>
+  </div>
+
+  <div class="animal" style="left:110px;animation:bob 2.4s ease-in-out infinite">
+    <div style="position:relative;width:52px">
+      <div class="panda-ear" style="left:2px"></div>
+      <div class="panda-ear" style="right:2px;background:#2a2a2a"></div>
+      <div class="panda-body">
+        <div class="panda-eye-patch" style="left:4px"></div>
+        <div class="panda-eye-patch" style="right:4px"></div>
+        <div class="panda-eye" style="top:12px;left:6px;animation:eyeblink 4s ease-in-out infinite"></div>
+        <div class="panda-eye" style="top:12px;right:6px;animation:eyeblink 4s 0.2s ease-in-out infinite"></div>
+        <div class="panda-pupil" style="top:14px;left:7.5px"></div>
+        <div class="panda-pupil" style="top:14px;right:7.5px"></div>
+        <div class="panda-nose"></div>
+        <div style="width:14px;height:5px;background:#e8a0a0;border-radius:50%;position:absolute;top:32px;left:18px"></div>
+      </div>
+      <div class="panda-leg" style="left:4px;background:#2a2a2a"></div>
+      <div class="panda-leg" style="right:4px;background:#2a2a2a"></div>
+      <div style="position:absolute;bottom:-24px;left:0;right:0;text-align:center;font-family:'Fredoka One',cursive;font-size:11px;color:#5a3010">Panda</div>
+    </div>
+  </div>
+
+  <div class="animal" style="left:50%;transform:translateX(-50%);animation:bob2 3s 0.5s ease-in-out infinite">
+    <div style="position:relative;width:74px">
+      <div class="turtle-shell">
+        <div class="shell-hex" style="width:14px;height:12px;top:6px;left:8px"></div>
+        <div class="shell-hex" style="width:14px;height:12px;top:6px;left:26px"></div>
+        <div class="shell-hex" style="width:14px;height:12px;top:18px;left:17px"></div>
+        <div class="turtle-head">
+          <div class="turtle-eye" style="animation:eyeblink 5s 1s ease-in-out infinite"></div>
+          <div style="width:6px;height:3px;background:#3a7010;border-radius:50%;position:absolute;top:11px;right:2px"></div>
+        </div>
+        <div class="turtle-leg" style="bottom:-8px;left:4px;width:14px;height:12px;transform:rotate(10deg)"></div>
+        <div class="turtle-leg" style="bottom:-8px;right:20px;width:14px;height:12px;transform:rotate(-10deg)"></div>
+      </div>
+      <div style="position:absolute;bottom:-24px;left:0;right:0;text-align:center;font-family:'Fredoka One',cursive;font-size:11px;color:#5a3010">Turtle</div>
+    </div>
+  </div>
+
+  <div class="animal" style="right:110px;bottom:15%">
+    <div style="position:relative;width:44px">
+      <div style="position:absolute;top:-10px;left:12px;display:flex;gap:10px">
+        <div class="crab-eye-stalk">
+          <div class="crab-eye-ball"><div class="crab-pupil"></div></div>
+        </div>
+        <div class="crab-eye-stalk">
+          <div class="crab-eye-ball"><div class="crab-pupil"></div></div>
+        </div>
+      </div>
+      <div class="crab-body">
+        <div style="width:20px;height:5px;background:#e8a080;border-radius:3px;position:absolute;top:12px;left:11px"></div>
+        <div class="crab-leg" style="left:4px;top:6px;transform:rotate(30deg);animation:clawwave 1.5s ease-in-out infinite"></div>
+        <div class="crab-leg" style="left:10px;top:4px;transform:rotate(15deg);animation:clawwave 1.5s 0.2s ease-in-out infinite"></div>
+        <div class="crab-leg" style="right:10px;top:4px;transform:rotate(-15deg);animation:clawwave 1.5s 0.1s ease-in-out infinite"></div>
+        <div class="crab-leg" style="right:4px;top:6px;transform:rotate(-30deg);animation:clawwave 1.5s 0.3s ease-in-out infinite"></div>
+        <div class="crab-claw" style="left:-18px;top:4px;transform:rotate(20deg);animation:clawwave 1.8s ease-in-out infinite"></div>
+        <div class="crab-claw" style="right:-18px;top:4px;transform:rotate(-20deg) scaleX(-1);animation:clawwave 1.8s 0.3s ease-in-out infinite"></div>
+      </div>
+      <div style="position:absolute;bottom:-28px;left:-8px;right:-8px;text-align:center;font-family:'Fredoka One',cursive;font-size:11px;color:#5a3010">Crab</div>
+    </div>
+  </div>
+
+</div>

@@ -10,23 +10,23 @@ class EndGameHook {
 
 class EndGameHooks {
   static const List<EndGameHook> xWinHooks = [
-    EndGameHook("🏆 YOU WON THE GAME!", "Superb moves! You played perfectly and claimed the victory."),
-    EndGameHook("🎉 AMAZING VICTORY!", "Fantastic game! You found the winning spots and won the match."),
-    EndGameHook("🌟 BRILLIANT PLAY!", "You played wonderfully and took over the board. Excellent job!"),
-    EndGameHook("🎯 YOU CRACKED THE GRID!", "Every single move was spot on. What a spectacular win!"),
+    EndGameHook("🏆 YOU ARE THE BEST!", "Superb moves! You completely dominated the grid."),
+    EndGameHook("🔥 FLAWLESS VICTORY!", "Nobody saw that coming. You outplayed them!"),
+    EndGameHook("🌟 ABSOLUTE LEGEND!", "A masterclass in Tic-Tac-Toe strategy. Outstanding win!"),
+    EndGameHook("🚀 UNSTOPPABLE!", "They didn't stand a chance. You absolutely crushed it!"),
   ];
 
   static const List<EndGameHook> oWinHooks = [
-    EndGameHook("🤖 THE COMPUTER WON THIS ROUND", "The computer made some clever moves. Let's try again!"),
-    EndGameHook("🔋 NICE TRY!", "That was a tough match! Reset the board and see if you can win next time."),
-    EndGameHook("👾 THE COMPUTER SCORED", "The AI got the winning line first. Challenge it to another game!"),
-    EndGameHook("💡 GOOD GAME!", "You played well, but the computer was just one step ahead. Try again!"),
+    EndGameHook("🤖 Ouch... YOU LOST!", "The AI pulled a fast one on you. Get back in there!"),
+    EndGameHook("🔋 SO CLOSE!", "You almost had it, but the AI snatched the victory."),
+    EndGameHook("👾 OUTSMARTED!", "The computer was one step ahead this time. Rematch?"),
+    EndGameHook("💡 NOT THIS TIME!", "A valiant effort, but the AI takes the crown today."),
   ];
 
   static const List<EndGameHook> drawHooks = [
-    EndGameHook("🤝 IT'S A TIE!", "An exceptionally even game! Both players matched each other move for move."),
-    EndGameHook("⚡ EVEN MATCH!", "No one gave up an inch! A perfectly balanced game from start to finish."),
-    EndGameHook("🌈 GREAT GAME TO BOTH!", "You both played brilliantly and finished in a perfect draw. Ready for a tiebreaker?"),
+    EndGameHook("🤝 IT'S A TIE!", "A total gridlock! You both fought to a standstill."),
+    EndGameHook("⚖️ NO WINNERS HERE!", "Nobody could break the defense. A perfectly even match!"),
+    EndGameHook("🛡️ STALEMATE!", "You both played brilliantly, but the board ran out of space."),
   ];
 
   static EndGameHook getHook(Player? winner, bool isDraw, int matchId) {

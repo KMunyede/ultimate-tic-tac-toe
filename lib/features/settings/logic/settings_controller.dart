@@ -46,73 +46,65 @@ class SettingsController with ChangeNotifier {
     
     if (count == 2) {
       return [
-        const BoardLayoutTemplate(name: "Letter L Shape", positions: [Offset(0.30, 0.20), Offset(0.70, 0.80)]),
-        const BoardLayoutTemplate(name: "Letter T (Vertical)", positions: [Offset(0.50, 0.22), Offset(0.50, 0.78)]),
-        const BoardLayoutTemplate(name: "Slanted Line (/)", positions: [Offset(0.25, 0.75), Offset(0.75, 0.25)]),
+        const BoardLayoutTemplate(name: "Horizontal (--)", positions: [Offset(0.25, 0.50), Offset(0.75, 0.50)]),
+        const BoardLayoutTemplate(name: "Vertical (|)", positions: [Offset(0.50, 0.25), Offset(0.50, 0.75)]),
+        const BoardLayoutTemplate(name: "Diagonal (/)", positions: [Offset(0.25, 0.75), Offset(0.75, 0.25)]),
       ];
     }
     
     if (count == 3) {
       return [
-        const BoardLayoutTemplate(name: "Letter V Shape", positions: [Offset(0.18, 0.18), Offset(0.50, 0.82), Offset(0.82, 0.18)]),
-        const BoardLayoutTemplate(name: "Letter L Shape", positions: [Offset(0.25, 0.18), Offset(0.25, 0.82), Offset(0.75, 0.82)]),
-        const BoardLayoutTemplate(name: "Letter Y Shape", positions: [Offset(0.18, 0.18), Offset(0.82, 0.18), Offset(0.50, 0.65)]),
-        const BoardLayoutTemplate(name: "Triangle Shape (Δ)", positions: [Offset(0.50, 0.18), Offset(0.18, 0.82), Offset(0.82, 0.82)]),
+        const BoardLayoutTemplate(name: "Triangle Shape (Δ)", positions: [Offset(0.50, 0.20), Offset(0.20, 0.80), Offset(0.80, 0.80)]),
+        const BoardLayoutTemplate(name: "Letter V Shape", positions: [Offset(0.20, 0.20), Offset(0.50, 0.80), Offset(0.80, 0.20)]),
+        const BoardLayoutTemplate(name: "Slanted Line (/)", positions: [Offset(0.20, 0.80), Offset(0.50, 0.50), Offset(0.80, 0.20)]),
       ];
     }
     
     if (count == 4) {
       return [
-        const BoardLayoutTemplate(name: "Letter Y Shape", positions: [Offset(0.20, 0.18), Offset(0.80, 0.18), Offset(0.50, 0.48), Offset(0.50, 0.82)]),
-        const BoardLayoutTemplate(name: "Letter K Shape", positions: [Offset(0.25, 0.18), Offset(0.25, 0.82), Offset(0.75, 0.20), Offset(0.75, 0.80)]),
-        const BoardLayoutTemplate(name: "Letter H Shape", positions: [Offset(0.22, 0.18), Offset(0.22, 0.82), Offset(0.78, 0.18), Offset(0.78, 0.82)]),
-        const BoardLayoutTemplate(name: "Letter T Shape", positions: [Offset(0.18, 0.20), Offset(0.50, 0.20), Offset(0.82, 0.20), Offset(0.50, 0.78)]),
-        const BoardLayoutTemplate(name: "Diamond Shape", positions: [Offset(0.50, 0.15), Offset(0.15, 0.50), Offset(0.85, 0.50), Offset(0.50, 0.85)]),
+        const BoardLayoutTemplate(name: "Diamond Shape (◇)", positions: [Offset(0.50, 0.15), Offset(0.15, 0.50), Offset(0.85, 0.50), Offset(0.50, 0.85)]),
+        const BoardLayoutTemplate(name: "Square Shape (□)", positions: [Offset(0.25, 0.25), Offset(0.75, 0.25), Offset(0.25, 0.75), Offset(0.75, 0.75)]),
+        const BoardLayoutTemplate(name: "Letter Y Shape", positions: [Offset(0.20, 0.20), Offset(0.80, 0.20), Offset(0.50, 0.50), Offset(0.50, 0.85)]),
       ];
     }
     
     if (count == 5) {
       return [
-        const BoardLayoutTemplate(name: "Letter W Shape", positions: [Offset(0.15, 0.20), Offset(0.32, 0.80), Offset(0.50, 0.35), Offset(0.68, 0.80), Offset(0.85, 0.20)]),
-        const BoardLayoutTemplate(name: "Letter X Shape", positions: [Offset(0.20, 0.20), Offset(0.80, 0.20), Offset(0.50, 0.50), Offset(0.20, 0.80), Offset(0.80, 0.80)]),
-        const BoardLayoutTemplate(name: "Letter T Shape", positions: [Offset(0.15, 0.18), Offset(0.50, 0.18), Offset(0.85, 0.18), Offset(0.50, 0.51), Offset(0.50, 0.84)]),
-        const BoardLayoutTemplate(name: "Letter H Shape", positions: [Offset(0.22, 0.18), Offset(0.22, 0.82), Offset(0.50, 0.50), Offset(0.78, 0.18), Offset(0.78, 0.82)]),
+        const BoardLayoutTemplate(name: "Letter E Shape", positions: [Offset(0.25, 0.15), Offset(0.75, 0.15), Offset(0.25, 0.50), Offset(0.25, 0.85), Offset(0.75, 0.85)]),
+        BoardLayoutTemplate(name: "Letter O Shape (Ring)", positions: List.generate(5, (i) => Offset(0.5 + 0.35 * cos(i * 2 * pi / 5 - pi / 2), 0.5 + 0.35 * sin(i * 2 * pi / 5 - pi / 2)))),
+        const BoardLayoutTemplate(name: "Diamond Shape (Cross)", positions: [Offset(0.50, 0.50), Offset(0.50, 0.15), Offset(0.15, 0.50), Offset(0.85, 0.50), Offset(0.50, 0.85)]),
       ];
     }
     
     if (count == 6) {
       return [
-        const BoardLayoutTemplate(name: "Letter S Shape", positions: [Offset(0.78, 0.16), Offset(0.35, 0.20), Offset(0.22, 0.45), Offset(0.78, 0.55), Offset(0.65, 0.80), Offset(0.22, 0.84)]),
-        const BoardLayoutTemplate(name: "Letter H Shape", positions: [Offset(0.20, 0.16), Offset(0.20, 0.50), Offset(0.20, 0.84), Offset(0.50, 0.50), Offset(0.80, 0.25), Offset(0.80, 0.75)]),
-        BoardLayoutTemplate(name: "Letter O Shape (Ring)", positions: List.generate(6, (i) => Offset(0.5 + 0.33 * cos(i * 2 * pi / 6), 0.5 + 0.33 * sin(i * 2 * pi / 6)))),
-        const BoardLayoutTemplate(name: "Letter Y Shape", positions: [Offset(0.20, 0.15), Offset(0.80, 0.15), Offset(0.35, 0.38), Offset(0.65, 0.38), Offset(0.50, 0.61), Offset(0.50, 0.84)]),
+        const BoardLayoutTemplate(name: "Letter H Shape", positions: [Offset(0.25, 0.15), Offset(0.25, 0.50), Offset(0.25, 0.85), Offset(0.75, 0.15), Offset(0.75, 0.50), Offset(0.75, 0.85)]),
+        const BoardLayoutTemplate(name: "Letter S Shape", positions: [Offset(0.75, 0.15), Offset(0.25, 0.15), Offset(0.25, 0.45), Offset(0.75, 0.55), Offset(0.75, 0.85), Offset(0.25, 0.85)]),
+        const BoardLayoutTemplate(name: "Double Triangle", positions: [Offset(0.50, 0.15), Offset(0.20, 0.40), Offset(0.80, 0.40), Offset(0.50, 0.85), Offset(0.20, 0.60), Offset(0.80, 0.60)]),
       ];
     }
     
     if (count == 7) {
       return [
-        const BoardLayoutTemplate(name: "Letter H Shape", positions: [Offset(0.0, 0.0), Offset(0.0, 0.50), Offset(0.0, 1.0), Offset(0.50, 0.50), Offset(1.0, 0.0), Offset(1.0, 0.50), Offset(1.0, 1.0)]),
-        const BoardLayoutTemplate(name: "Letter V Shape", positions: [Offset(0.0, 0.0), Offset(0.167, 0.333), Offset(0.333, 0.667), Offset(0.50, 1.0), Offset(0.667, 0.667), Offset(0.833, 0.333), Offset(1.0, 0.0)]),
-        const BoardLayoutTemplate(name: "Letter T Shape", positions: [Offset(0.0, 0.0), Offset(0.25, 0.0), Offset(0.50, 0.0), Offset(0.75, 0.0), Offset(1.0, 0.0), Offset(0.50, 0.50), Offset(0.50, 1.0)]),
-        const BoardLayoutTemplate(name: "Flower Shape (Star)", positions: [Offset(0.50, 0.50), Offset(0.50, 0.0), Offset(0.933, 0.25), Offset(0.933, 0.75), Offset(0.50, 1.0), Offset(0.067, 0.75), Offset(0.067, 0.25)]),
+        BoardLayoutTemplate(name: "Hexagon + Center", positions: [const Offset(0.5, 0.5)] + List.generate(6, (i) => Offset(0.5 + 0.35 * cos(i * 2 * pi / 6), 0.5 + 0.35 * sin(i * 2 * pi / 6)))),
+        const BoardLayoutTemplate(name: "Letter T Shape", positions: [Offset(0.10, 0.15), Offset(0.36, 0.15), Offset(0.63, 0.15), Offset(0.90, 0.15), Offset(0.50, 0.40), Offset(0.50, 0.65), Offset(0.50, 0.90)]),
+        const BoardLayoutTemplate(name: "Letter Z Shape", positions: [Offset(0.10, 0.15), Offset(0.50, 0.15), Offset(0.90, 0.15), Offset(0.50, 0.50), Offset(0.10, 0.85), Offset(0.50, 0.85), Offset(0.90, 0.85)]),
       ];
     }
     
     if (count == 8) {
       return [
-        BoardLayoutTemplate(name: "Letter O Shape (Ring)", positions: List.generate(8, (i) => Offset(0.5 + 0.5 * cos(i * 2 * pi / 8), 0.5 + 0.5 * sin(i * 2 * pi / 8)))),
-        const BoardLayoutTemplate(name: "Letter H Shape", positions: [Offset(0.0, 0.0), Offset(0.0, 0.50), Offset(0.0, 1.0), Offset(0.333, 0.50), Offset(0.667, 0.50), Offset(1.0, 0.0), Offset(1.0, 0.50), Offset(1.0, 1.0)]),
-        const BoardLayoutTemplate(name: "Letter K Shape", positions: [Offset(0.0, 0.0), Offset(0.0, 0.333), Offset(0.0, 0.667), Offset(0.0, 1.0), Offset(0.40, 0.50), Offset(0.80, 0.15), Offset(0.80, 0.85), Offset(1.0, 1.0)]),
-        const BoardLayoutTemplate(name: "Double Column Shape", positions: [Offset(0.0, 0.0), Offset(0.0, 0.333), Offset(0.0, 0.667), Offset(0.0, 1.0), Offset(1.0, 0.0), Offset(1.0, 0.333), Offset(1.0, 0.667), Offset(1.0, 1.0)]),
+        BoardLayoutTemplate(name: "Letter O Shape (Ring)", positions: List.generate(8, (i) => Offset(0.5 + 0.38 * cos(i * 2 * pi / 8), 0.5 + 0.38 * sin(i * 2 * pi / 8)))),
+        const BoardLayoutTemplate(name: "Double Column (||)", positions: [Offset(0.25, 0.1), Offset(0.25, 0.36), Offset(0.25, 0.63), Offset(0.25, 0.9), Offset(0.75, 0.1), Offset(0.75, 0.36), Offset(0.75, 0.63), Offset(0.75, 0.9)]),
+        const BoardLayoutTemplate(name: "Letter K Shape", positions: [Offset(0.20, 0.1), Offset(0.20, 0.36), Offset(0.20, 0.63), Offset(0.20, 0.9), Offset(0.50, 0.50), Offset(0.80, 0.20), Offset(0.65, 0.70), Offset(0.85, 0.90)]),
       ];
     }
     
     if (count == 9) {
       return [
-        const BoardLayoutTemplate(name: "Letter Z Shape", positions: [Offset(0.0, 0.0), Offset(0.50, 0.0), Offset(1.0, 0.0), Offset(0.75, 0.25), Offset(0.50, 0.50), Offset(0.25, 0.75), Offset(0.0, 1.0), Offset(0.50, 1.0), Offset(1.0, 1.0)]),
-        const BoardLayoutTemplate(name: "Letter H Shape", positions: [Offset(0.0, 0.0), Offset(0.0, 0.333), Offset(0.0, 0.667), Offset(0.0, 1.0), Offset(0.50, 0.50), Offset(1.0, 0.0), Offset(1.0, 0.333), Offset(1.0, 0.667), Offset(1.0, 1.0)]),
-        const BoardLayoutTemplate(name: "Letter E Shape", positions: [Offset(0.0, 0.0), Offset(0.50, 0.0), Offset(1.0, 0.0), Offset(0.0, 0.25), Offset(0.0, 0.50), Offset(0.50, 0.50), Offset(0.0, 0.75), Offset(0.0, 1.0), Offset(1.0, 1.0)]),
-        BoardLayoutTemplate(name: "Concentric Circle Shape", positions: [Offset(0.50, 0.50)] + List.generate(8, (i) => Offset(0.5 + 0.5 * cos(i * 2 * pi / 8), 0.5 + 0.5 * sin(i * 2 * pi / 8)))),
+        const BoardLayoutTemplate(name: "Standard 3x3 Grid", positions: [Offset(0.15,0.15), Offset(0.5,0.15), Offset(0.85,0.15), Offset(0.15,0.5), Offset(0.5,0.5), Offset(0.85,0.5), Offset(0.15,0.85), Offset(0.5,0.85), Offset(0.85,0.85)]),
+        const BoardLayoutTemplate(name: "Letter X Shape", positions: [Offset(0.15,0.15), Offset(0.85,0.15), Offset(0.32,0.32), Offset(0.68,0.32), Offset(0.5,0.5), Offset(0.32,0.68), Offset(0.68,0.68), Offset(0.15,0.85), Offset(0.85,0.85)]),
+        BoardLayoutTemplate(name: "Concentric Circles", positions: [const Offset(0.5,0.5)] + List.generate(8, (i) => Offset(0.5 + 0.4 * cos(i * 2 * pi / 8), 0.5 + 0.4 * sin(i * 2 * pi / 8)))),
       ];
     }
     

@@ -14,6 +14,9 @@ class UltimateEngine {
   // -1 allows free play, 0-8 restricts move
   int activeBoardIndex = -1;
 
+  // Transposition Table for state caching
+  final Map<String, int> _memo = {};
+
   UltimateEngine();
 
   /// Initialize from the existing game state models.
@@ -36,6 +39,10 @@ class UltimateEngine {
       }
     }
     activeBoardIndex = forcedBoardIndex ?? -1;
+  }
+
+  String _getStateKey(int player) {
+    return board.join('') + activeBoardIndex.toString() + player.toString();
   }
 
   /// Executes a move and updates the state.
@@ -83,6 +90,11 @@ class UltimateEngine {
 
   /// Minimax with Alpha-Beta Pruning.
   List<int> minimax(int depth, int alpha, int beta, int player, int aiPlayer) {
+    final String key = _getStateKey(player);
+    if (depth > 0 && _memo.containsKey(key)) {
+      return [_memo[key]!, -1];
+    }
+
     final int status = checkGlobalWin();
     if (status != 0) {
       if (status == aiPlayer) return [1000000 + depth, -1];
@@ -119,6 +131,7 @@ class UltimateEngine {
           if (beta <= alpha) break;
         }
       }
+      if (depth > 0) _memo[key] = maxEval;
       return [maxEval, bestMove];
     } else {
       int minEval = 2000000;
@@ -138,6 +151,7 @@ class UltimateEngine {
           if (beta <= alpha) break;
         }
       }
+      if (depth > 0) _memo[key] = minEval;
       return [minEval, bestMove];
     }
   }

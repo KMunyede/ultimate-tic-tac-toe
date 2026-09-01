@@ -4,7 +4,8 @@ import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
-import '../../../services/firebase_service.dart';
+import '../repositories/game_repository.dart';
+import '../repositories/ai_repository.dart';
 import '../../../models/game_board.dart';
 import '../../../models/match_session.dart';
 import '../../../models/player.dart';
@@ -17,7 +18,7 @@ import 'ai_strategy_engine.dart';
 
 class GameController with ChangeNotifier {
   final SoundManager _soundManager;
-  final FirebaseService _firebaseService;
+  final GameRepository _gameRepository;
   final StatsService _statsService;
   late SettingsController _settings;
   late final AiService _aiService;
@@ -30,6 +31,7 @@ class GameController with ChangeNotifier {
   bool _isCompletingMove = false; // Guard for state transitions
   int _shakeCounter = 0;
   int _matchId = 0;
+  bool _isGameOverOverlayReady = false; // [NEW] Delayed Game Over Overlay state
   final _aiErrorController = StreamController<String>.broadcast();
   bool _isPaused = false;
   String? _lastAuthUserId;
@@ -48,6 +50,11 @@ class GameController with ChangeNotifier {
   void togglePause() {
     if (_session == null || isOverallGameOver) return;
     _isPaused = !_isPaused;
+    if (_isPaused) {
+      _soundManager.stopBackgroundMusic();
+    } else {
+      _soundManager.startBackgroundMusic();
+    }
     notifyListeners();
   }
 
@@ -84,9 +91,10 @@ class GameController with ChangeNotifier {
   GameController(
     this._soundManager,
     this._settings,
-    this._firebaseService,
+    this._gameRepository,
+    AiRepository aiRepository,
     this._statsService,
-  ) : _aiService = AiService(_firebaseService) {
+  ) : _aiService = AiService(aiRepository) {
     _aiEngine = AiStrategyEngine(_aiService);
     _lastAuthUserId = _getCurrentUserId();
     _initGameFromCloud();
@@ -99,7 +107,7 @@ class GameController with ChangeNotifier {
     // 2. Registered users check for cloud state in the background
     if (!_settings.isGuest) {
       try {
-        final cloudSession = await _firebaseService.loadGameState();
+        final cloudSession = await _gameRepository.loadGameState();
         if (cloudSession != null && !cloudSession.isGameOver) {
           // Only offer to resume if the user hasn't made any moves in the current session yet!
           final isPristine = _session == null ||
@@ -123,7 +131,7 @@ class GameController with ChangeNotifier {
     if (_settings.isGuest) return;
 
     try {
-      final cloudSession = await _firebaseService.loadGameState();
+      final cloudSession = await _gameRepository.loadGameState();
       
       final isPristine = _session == null ||
           _session!.boards.every((b) => b.cells.every((c) => c == Player.none));
@@ -138,7 +146,7 @@ class GameController with ChangeNotifier {
       } else {
         // No cloud game exists (or it's over/blank), so we auto-save their current guest game to the cloud!
         if (_session != null && !isOverallGameOver && !isPristine) {
-          await _firebaseService.saveGameState(_session!);
+          await _gameRepository.saveGameState(_session!);
         }
       }
     } catch (e) {
@@ -181,6 +189,8 @@ class GameController with ChangeNotifier {
   bool get isMatchDraw => _session?.isMatchDraw ?? false;
 
   bool get isOverallGameOver => _session?.isGameOver ?? false;
+
+  bool get isGameOverOverlayReady => _isGameOverOverlayReady;
 
   // [NEW] Level 1: Board Wins within current match
   int get boardsWonX => _session?.boardsWonX ?? 0;
@@ -258,7 +268,7 @@ class GameController with ChangeNotifier {
       _lastAuthUserId = currentUserId;
       if (!_settings.isGuest && currentUserId != null) {
         // Trigger cloud synchronization after user signs up or signs in
-        Future.microtask(() => checkCloudStateAfterAuth());
+        Future.microtask(() => _initGameFromCloud());
       }
     }
 
@@ -283,7 +293,7 @@ class GameController with ChangeNotifier {
   Future<void> saveCurrentState() async {
     // Only registered users persist state across sessions
     if (!_settings.isGuest && _session != null && !isOverallGameOver) {
-      await _firebaseService.saveGameState(_session!);
+      await _gameRepository.saveGameState(_session!);
     }
   }
 
@@ -305,7 +315,10 @@ class GameController with ChangeNotifier {
 
       int newStartIndex =
           availableIndices[_random.nextInt(availableIndices.length)];
-      _settings.setLastStartingBoardIndex(newStartIndex);
+      
+      Future.microtask(() {
+        _settings.setLastStartingBoardIndex(newStartIndex);
+      });
 
       if (_settings.ruleSet == GameRuleSet.ultimate) {
         initialForcedBoardIndex = newStartIndex;
@@ -322,6 +335,7 @@ class GameController with ChangeNotifier {
     _isAiThinking = false;
     _shakeCounter = 0;
     _isPaused = false;
+    _isGameOverOverlayReady = false;
     _bannerTimer?.cancel();
     _liveBannerText = null;
     _lastPlayedBoardIndex = null;
@@ -329,8 +343,11 @@ class GameController with ChangeNotifier {
 
     // Sync to cloud immediately for registered users to start a fresh "session"
     if (!_settings.isGuest) {
-      unawaited(_firebaseService.saveGameState(_session!));
+      unawaited(_gameRepository.saveGameState(_session!));
     }
+
+    // Start Randomized Euro-House Background Music
+    unawaited(_soundManager.startBackgroundMusic());
 
     if (useMicrotask) {
       Future.microtask(() => notifyListeners());
@@ -381,9 +398,11 @@ class GameController with ChangeNotifier {
     }
 
     if (success) {
-      // 1. Play sound immediately
-      final justMoved = _session!.boards[boardIndex].cells[cellIndex];
-      _soundManager.playMoveSound(player: justMoved);
+      // 1. Play sound immediately with harmonic build-up
+      final board = _session!.boards[boardIndex];
+      final filledCount = board.cells.where((c) => c != Player.none).length;
+      final justMoved = board.cells[cellIndex];
+      _soundManager.playMoveSound(player: justMoved, filledCellCount: filledCount);
 
       // Record last played move coordinates
       _lastPlayedBoardIndex = boardIndex;
@@ -403,6 +422,7 @@ class GameController with ChangeNotifier {
 
       // 3. Handle Game Over sounds/stats
       if (!wasMatchOverBefore && isOverallGameOver) {
+        _soundManager.stopBackgroundMusic();
         if (matchWinner != null) {
           final bool isLoss = _settings.gameMode == GameMode.playerVsAi && matchWinner == Player.O;
           _soundManager.playWinSound(isLoss: isLoss);
@@ -420,11 +440,20 @@ class GameController with ChangeNotifier {
           aiDifficulty: _settings.aiDifficulty,
           outcome: matchOutcome,
         ));
+
+        // Delay the game over overlay so players can see the final board state
+        final int capturedMatchId = _matchId;
+        Future.delayed(const Duration(milliseconds: 2500), () {
+          if (_matchId == capturedMatchId) {
+            _isGameOverOverlayReady = true;
+            notifyListeners();
+          }
+        });
       }
 
       // 4. Background Cloud Sync (don't block the UI thread)
       if (!_settings.isGuest) {
-        unawaited(_firebaseService.saveGameState(_session!));
+        unawaited(_gameRepository.saveGameState(_session!));
       }
 
       _isCompletingMove = false;
@@ -467,7 +496,7 @@ class GameController with ChangeNotifier {
         hackerCards: hackerCardsO,
         eraserCards: eraserCardsO,
         shieldCards: shieldCardsO,
-      ).timeout(const Duration(seconds: 6));
+      ).timeout(const Duration(seconds: 15));
 
       if (aiDecision != null) {
         await makeMove(

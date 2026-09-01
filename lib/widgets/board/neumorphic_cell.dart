@@ -9,6 +9,7 @@ import '../../features/settings/logic/settings_controller.dart';
 import '../../core/theme/app_theme.dart';
 import 'animated_marker.dart';
 import 'anticipation_halo_painter.dart';
+import '../animations/elemental_particles.dart';
 
 class NeumorphicCell extends StatefulWidget {
   final VoidCallback? onTap;
@@ -40,6 +41,7 @@ class _NeumorphicCellState extends State<NeumorphicCell>
     with TickerProviderStateMixin {
   late AnimationController _pressController, _shakeController, _pulseController;
   bool _isHovered = false;
+  bool _showImpact = false; // [NEW] Track particle effect trigger
 
   @override
   void initState() {
@@ -61,6 +63,10 @@ class _NeumorphicCellState extends State<NeumorphicCell>
     super.didUpdateWidget(oldWidget);
     if (!_pulseController.isAnimating) {
       _pulseController.repeat(reverse: true);
+    }
+    // Trigger impact if a new player mark appeared
+    if (oldWidget.player == Player.none && widget.player != Player.none) {
+      setState(() => _showImpact = true);
     }
   }
 
@@ -89,7 +95,7 @@ class _NeumorphicCellState extends State<NeumorphicCell>
 
     final bool isNatureTheme = activeTheme.name == 'Rushing Wind' ||
         activeTheme.name == 'Amazon Jungle' ||
-        activeTheme.name == 'Rising Moon' ||
+        activeTheme.name == 'Pacific Waves' ||
         activeTheme.name == 'Drifting Cloud' ||
         activeTheme.name == 'Crimson Leaf';
 
@@ -140,6 +146,7 @@ class _NeumorphicCellState extends State<NeumorphicCell>
                         scale: _pressController, child: child),
                   ),
               child: Container(
+                clipBehavior: Clip.antiAlias,
                 decoration: isNatureTheme
                     ? const BoxDecoration(color: Colors.transparent)
                     : BoxDecoration(
@@ -166,27 +173,44 @@ class _NeumorphicCellState extends State<NeumorphicCell>
                     if (!widget.isBlocked && widget.player == Player.none)
                       Positioned.fill(
                         child: IgnorePointer(
-                          child: CustomPaint(
-                            painter: AnticipationHaloPainter(
-                              pulse: _pulseController.value,
-                              hover: hoverVal,
-                              themeName: activeTheme.name,
-                              activeColor: themeColor,
-                              boardSize: widget.boardSize,
+                          child: RepaintBoundary(
+                            child: CustomPaint(
+                              painter: AnticipationHaloPainter(
+                                pulse: _pulseController.value,
+                                hover: hoverVal,
+                                themeName: activeTheme.name,
+                                activeColor: themeColor,
+                                boardSize: widget.boardSize,
+                              ),
                             ),
                           ),
                         ),
                       ),
                     Positioned.fill(
-                      child: Padding(
-                        padding: EdgeInsets.all(widget.boardSize * 0.01),
-                        child: AnimatedMarker(
-                          player: widget.player,
-                          boardSize: widget.boardSize,
-                          isLarge: false,
+                      child: Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(widget.boardSize * 0.012),
+                          child: AspectRatio(
+                            aspectRatio: 1.0,
+                            child: RepaintBoundary(
+                              child: AnimatedMarker(
+                                player: widget.player,
+                                boardSize: widget.boardSize,
+                                isLarge: false,
+                              ),
+                            ),
+                          ),
                         ),
                       ),
                     ),
+                    if (_showImpact && widget.player != Player.none)
+                      Positioned.fill(
+                        child: ElementalImpact(
+                          player: widget.player,
+                          boardSize: widget.boardSize,
+                          onComplete: () => setState(() => _showImpact = false),
+                        ),
+                      ),
                     if (widget.isShielded)
                       Positioned.fill(
                         child: IgnorePointer(
@@ -228,6 +252,7 @@ class _NeumorphicCellState extends State<NeumorphicCell>
                           ),
                         ),
                       ),
+                    
                   ],
                 ),
               ),
@@ -238,6 +263,8 @@ class _NeumorphicCellState extends State<NeumorphicCell>
     );
   }
 }
+
+
 
 class ShieldLockPainter extends CustomPainter {
   final double boardSize;
@@ -318,4 +345,80 @@ class ShieldLockPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(ShieldLockPainter oldDelegate) => false;
+}
+
+class PacificIslandCellPainter extends CustomPainter {
+  final Color baseColor;
+  final double pulse;
+
+  PacificIslandCellPainter({required this.baseColor, required this.pulse});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = Rect.fromLTWH(0, 0, size.width, size.height);
+    final rrect = RRect.fromRectAndRadius(rect, Radius.circular(size.width * 0.15));
+
+    // 1. DULL BROWN/GREYISH FLOATING PLATFORM (Weathered stone/driftwood look)
+    final paint = Paint()
+      ..color = const Color(0xFF8D8D8D) // Neutral dull grey
+      ..shader = LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [
+          const Color(0xFF6D6D6D), // Darker grey
+          const Color(0xFF8D8D8D), // Mid grey
+          const Color(0xFF5D4037).withValues(alpha: 0.2), // Subtle brown tint (driftwood)
+        ],
+      ).createShader(rect)
+      ..style = PaintingStyle.fill;
+    
+    // Add a slight "float" sway to the cell
+    final double swayY = sin(pulse * 2 * pi) * (size.height * 0.04);
+    
+    // 0. Shadow (Cast onto bamboo)
+    final shadowPaint = Paint()
+      ..color = Colors.black.withValues(alpha: 0.45) // Slightly darker shadow for contrast
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6.0);
+    canvas.drawRRect(RRect.fromRectAndRadius(rect.translate(2, 6 - swayY), Radius.circular(size.width * 0.15)), shadowPaint);
+
+    canvas.save();
+    canvas.translate(0, -swayY); // Float upwards
+    
+    // 1. Draw solid body
+    canvas.drawRRect(rrect, paint);
+
+    // 2. Weathered Edge / Bevel
+    final Paint edgePaint = Paint()
+      ..color = const Color(0xFF555555) // Darker edge for a "dull" look
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.0;
+    canvas.drawRRect(rrect, edgePaint);
+    
+    final Paint shadowEdgePaint = Paint()
+      ..color = Colors.black.withValues(alpha: 0.3)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.0;
+    canvas.drawRRect(RRect.fromRectAndRadius(rect.translate(0, 1.5), Radius.circular(size.width * 0.15)), shadowEdgePaint);
+
+    // 3. Matte Shimmer (Reduced brightness)
+    final double shimmerPos = (pulse * 2.5) - 1.25;
+    final shimmerPaint = Paint()
+      ..shader = LinearGradient(
+        begin: Alignment(shimmerPos - 0.5, -1),
+        end: Alignment(shimmerPos + 0.5, 1),
+        colors: [
+          Colors.white.withValues(alpha: 0.0),
+          Colors.white.withValues(alpha: 0.15), // Greatly reduced brightness
+          Colors.white.withValues(alpha: 0.0),
+        ],
+        stops: const [0.0, 0.5, 1.0],
+      ).createShader(rect)
+      ..blendMode = BlendMode.screen;
+    canvas.drawRRect(rrect, shimmerPaint);
+    
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(covariant PacificIslandCellPainter oldDelegate) => true;
 }

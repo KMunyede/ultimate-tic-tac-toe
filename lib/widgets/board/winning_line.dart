@@ -87,15 +87,16 @@ class WinningLinePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final double strokeWidth = boardSize * 0.05;
-    final double cellSize = (boardSize - (padding * 2) - (spacing * 2)) / 3;
+    final double w = size.width;
+    final double strokeWidth = w * 0.06;
+    final double cellSize = (w - (spacing * 2)) / 3;
 
     Offset getCenter(int index) {
       final int row = index ~/ 3;
       final int col = index % 3;
       return Offset(
-        padding + col * (cellSize + spacing) + cellSize / 2,
-        padding + row * (cellSize + spacing) + cellSize / 2,
+        col * (cellSize + spacing) + cellSize / 2,
+        row * (cellSize + spacing) + cellSize / 2,
       );
     }
 

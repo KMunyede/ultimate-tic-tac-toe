@@ -3,7 +3,7 @@ import '../models/game_board.dart';
 import '../models/game_enums.dart';
 import '../models/player.dart';
 import '../logic/ultimate_engine.dart';
-import 'firebase_service.dart';
+import '../features/game/repositories/ai_repository.dart';
 
 class AiMove {
   final int boardIndex;
@@ -14,9 +14,9 @@ class AiMove {
 }
 
 class AiService {
-  final FirebaseService _firebaseService;
+  final AiRepository _aiRepository;
 
-  AiService(this._firebaseService);
+  AiService(this._aiRepository);
 
   /// Gets the best move, trying Cloud AI first if requested, with a local fallback.
   Future<AiMove?> getBestMove({
@@ -30,7 +30,7 @@ class AiService {
   }) async {
     if (useOnlineAi) {
       try {
-        final response = await _firebaseService.getAiMove(
+        final response = await _aiRepository.getAiMove(
           boards: boards,
           player: aiPlayer,
           difficulty: difficulty,
@@ -62,10 +62,10 @@ class AiService {
         final engine = UltimateEngine.fromState(boards, forcedBoardIndex);
         final int aiVal = aiPlayer == Player.X ? 1 : -1;
         
-        // Hard: Depth 6, Medium: Depth 4, Easy: Depth 2
+        // Optimized depths: Hard 5, Medium 3, Easy 2
         int depth = 2;
-        if (difficulty == AiDifficulty.hard) depth = 6;
-        if (difficulty == AiDifficulty.medium) depth = 4;
+        if (difficulty == AiDifficulty.hard) depth = 5;
+        if (difficulty == AiDifficulty.medium) depth = 3;
 
         final result = engine.minimax(depth, -2000000, 2000000, aiVal, aiVal);
         if (result[1] != -1) {

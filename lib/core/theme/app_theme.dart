@@ -6,10 +6,10 @@ import 'package:google_fonts/google_fonts.dart';
 class AppTheme {
   final String name;
   final Brightness brightness;
-  final Color mainColor;       // Button/Appbar/Main highlight color
-  final Color scaffoldBg;      // Base background color
-  final Color boardBg;         // Core tactile sub-board background
-  final Color accentGlow;      // special effects and locks golden glow
+  final Color mainColor;
+  final Color scaffoldBg;
+  final Color boardBg;
+  final Color accentGlow;
   final Color textColor;
   final List<Color> bgGradient;
 
@@ -32,52 +32,82 @@ final List<AppTheme> appThemes = [
   const AppTheme(
     name: 'Rushing Wind',
     brightness: Brightness.light,
-    mainColor: Color(0xFF70806A), // Hand-drawn organic sage green
-    scaffoldBg: Color(0xFFBDC7BC), // Midpoint serene eye-friendly misty sage green
-    boardBg: Color(0xFFE4E1DA), // Tactile warm cream clay board
-    accentGlow: Color(0xFFC6A476), // Warm sandy ochre
-    textColor: Color(0xFF384335), // Nature deep forest-charcoal-sage
-    bgGradient: [Color(0xFFC3CEC2), Color(0xFFBAC7B8), Color(0xFFB0BEAE)],
+    mainColor: Color(0xFF33691E), // Dimmed Green (X)
+    scaffoldBg: Color(0xFFC5E1A5), // Dimmed Mint
+    boardBg: Color(0xFF9CCC65), // Dimmed Board
+    accentGlow: Color(0xFFFFD54F), // Gold Contrast (O)
+    textColor: Color(0xFF1B5E20),
+    bgGradient: [Color(0xFFC5E1A5), Color(0xFFAED581)],
   ),
   const AppTheme(
     name: 'Amazon Jungle',
     brightness: Brightness.dark,
-    mainColor: Color(0xFF4CAF50), // Bright Sun-Dappled Canopy Green
-    scaffoldBg: Color(0xFF1B3B17), // Rich mossy deep jungle green
-    boardBg: Color(0xFF4E342E), // Rich warm mahogany wood
-    accentGlow: Color(0xFFFFB300), // Glowing Sunray Honey Gold
-    textColor: Color(0xFFFFFDF4), // High-contrast Light Ivory / Jungle Mist
-    bgGradient: [Color(0xFF163213), Color(0xFF388E3C), Color(0xFF1A3816)], // Vibrant sun-dappled canopy
+    mainColor: Color(0xFF2E7D32), // Dimmed Jungle Green (X)
+    scaffoldBg: Color(0xFF003300), // Dimmed Forest
+    boardBg: Color(0xFF3E2723), // Dimmed Wood
+    accentGlow: Color(0xFFFF8F00), // Amber Contrast (O)
+    textColor: Color(0xFFC8E6C9),
+    bgGradient: [Color(0xFF003300), Color(0xFF002200)],
   ),
   const AppTheme(
-    name: 'Rising Moon',
+    name: 'Pacific Waves',
     brightness: Brightness.light,
-    mainColor: Color(0xFF8B7AA0), // Soft Dusty Lavender
-    scaffoldBg: Color(0xFFF5F3F8), // Creamy Lavender Mist
-    boardBg: Color(0xFFE7E2EE), // Powdery Lavender Card
-    accentGlow: Color(0xFFAB9993), // Soft Dusty Rose-Beige
-    textColor: Color(0xFF453D4D), // Gentle Deep Plum
-    bgGradient: [Color(0xFFFAF8FC), Color(0xFFF1EDF5), Color(0xFFE7E2EE)],
+    mainColor: Color(0xFFE65100), // Dimmed Orange (X)
+    scaffoldBg: Color(0xFF81D4FA), // Dimmed Sky
+    boardBg: Color(0xFF6D4C41), // Dimmed Bamboo
+    accentGlow: Color(0xFFFFEB3B), // Fixed: Yellow Contrast (O)
+    textColor: Color(0xFFFFFFFF), // Fixed: White for high contrast on Brown/Orange
+    bgGradient: [Color(0xFF81D4FA), Color(0xFF4FC3F7)],
+  ),
+  const AppTheme(
+    name: 'River Flow',
+    brightness: Brightness.dark,
+    mainColor: Color(0xFF00838F), // Dimmed Cyan (X)
+    scaffoldBg: Color(0xFF004D40), // Dimmed Deep Teal
+    boardBg: Color(0xFF2D1B14), // Dimmed Wet Wood
+    accentGlow: Color(0xFF9E9D24), // Mossy Lime Contrast (O)
+    textColor: Color(0xFFB2DFDB),
+    bgGradient: [Color(0xFF004D40), Color(0xFF00332E)],
   ),
   const AppTheme(
     name: 'Drifting Cloud',
-    brightness: Brightness.light,
-    mainColor: Color(0xFF5C8A97), // Muted Powder Jade Blue
-    scaffoldBg: Color(0xFFF3F7F8), // Creamy Soft Pearl White
-    boardBg: Color(0xFFE3ECEF), // Soft Powdery Blue-Grey Card
-    accentGlow: Color(0xFFD4B38A), // Gentle Warm Ochre/Sand Glow
-    textColor: Color(0xFF384F56), // Gentle Soft Slate Blue
-    bgGradient: [Color(0xFFF6FAF9), Color(0xFFEDF3F2), Color(0xFFE3ECEF)],
+    brightness: Brightness.dark, // Changed to Dark for Slate Contrast
+    mainColor: Color(0xFFFFFFFF), // Pure White (X)
+    scaffoldBg: Color(0xFF263238), // Stormy Slate
+    boardBg: Color(0xFF455A64), // Deep Blue Grey
+    accentGlow: Color(0xFF81D4FA), // Sky Blue (O)
+    textColor: Color(0xFFECEFF1), // Off-white
+    bgGradient: [Color(0xFF263238), Color(0xFF10191E)],
   ),
   const AppTheme(
     name: 'Crimson Leaf',
+    brightness: Brightness.dark, // Changed to Dark for Brown Contrast
+    mainColor: Color(0xFFFFEB3B), // Vibrant Yellow (X)
+    scaffoldBg: Color(0xFF3E2723), // Earth Brown
+    boardBg: Color(0xFF5D4037), // Warm Terracotta
+    accentGlow: Color(0xFFFF7043), // Bright Coral (O)
+    textColor: Color(0xFFFFF3E0), // Cream
+    bgGradient: [Color(0xFF3E2723), Color(0xFF2D1B14)],
+  ),
+  const AppTheme(
+    name: 'Studio Pro Light',
     brightness: Brightness.light,
-    mainColor: Color(0xFFC26D6D), // Muted Dusty Autumn Crimson
-    scaffoldBg: Color(0xFFFCF5F5), // Soft Powdery Blossom Cream
-    boardBg: Color(0xFFF0E0E0), // Soft Clay Rose Card
-    accentGlow: Color(0xFFCCA67C), // Gentle Antique Gold Glow
-    textColor: Color(0xFF563A3A), // Gentle Deep Walnut Rosewood
-    bgGradient: [Color(0xFFFAF6F6), Color(0xFFF3EDED), Color(0xFFF0E0E0)],
+    mainColor: Color(0xFF00796B), // Deep Teal (X)
+    scaffoldBg: Color(0xFFECEFF1), // Soft Off-white
+    boardBg: Color(0xFFCFD8DC), // Cool Light Grey
+    accentGlow: Color(0xFFD32F2F), // Pro Red (O)
+    textColor: Color(0xFF263238), // Dark Slate
+    bgGradient: [Color(0xFFECEFF1), Color(0xFFCFD8DC)],
+  ),
+  const AppTheme(
+    name: 'Studio Pro Dark',
+    brightness: Brightness.dark,
+    mainColor: Color(0xFF4FC3F7), // Safety Blue (X)
+    scaffoldBg: Color(0xFF101214), // Deep Navy Black
+    boardBg: Color(0xFF263238), // Matte Slate
+    accentGlow: Color(0xFF80CBC4), // Mint Teal (O)
+    textColor: Color(0xFFECEFF1), // Off-white
+    bgGradient: [Color(0xFF101214), Color(0xFF000000)],
   ),
 ];
 
@@ -98,21 +128,22 @@ ThemeData generateTheme(AppTheme theme) {
       style: ButtonStyle(
         backgroundColor: WidgetStateProperty.all(primaryColor),
         foregroundColor: WidgetStateProperty.all(Colors.white),
-        elevation: WidgetStateProperty.all(2.0),
+        elevation: WidgetStateProperty.all(0.0),
         shape: WidgetStateProperty.all(
           RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16.0),
+            borderRadius: BorderRadius.circular(12.0),
+            side: const BorderSide(color: Colors.black, width: 2),
           ),
         ),
       ),
     ),
     textTheme: TextTheme(
-      bodyLarge: TextStyle(color: theme.textColor.withValues(alpha: 0.85), fontWeight: FontWeight.w500),
-      bodyMedium: TextStyle(color: theme.textColor.withValues(alpha: 0.75)),
-      displayLarge: TextStyle(color: theme.textColor, fontWeight: FontWeight.bold),
+      bodyLarge: TextStyle(color: theme.textColor, fontWeight: FontWeight.w600),
+      bodyMedium: TextStyle(color: theme.textColor.withValues(alpha: 0.8)),
+      displayLarge: TextStyle(color: theme.textColor, fontWeight: FontWeight.w900),
       headlineSmall: TextStyle(
         color: theme.textColor,
-        fontWeight: FontWeight.bold,
+        fontWeight: FontWeight.w900,
       ),
     ),
     scaffoldBackgroundColor: theme.scaffoldBg,
@@ -123,7 +154,7 @@ ThemeData generateTheme(AppTheme theme) {
       titleTextStyle: TextStyle(
         color: theme.textColor,
         fontSize: 20,
-        fontWeight: FontWeight.bold,
+        fontWeight: FontWeight.w900,
       ),
     ),
   );
@@ -131,40 +162,16 @@ ThemeData generateTheme(AppTheme theme) {
 
 class NeumorphicColors {
   static Color getLightShadow(Color baseColor) {
-    if (baseColor == const Color(0xFF3E2723) || baseColor == const Color(0xFF4E342E)) {
-      return const Color(0xFF6D4C41).withValues(alpha: 0.85); // Amazon Jungle - Mahogany warm edge highlight
+    if (baseColor.computeLuminance() > 0.5) {
+      return Colors.white.withValues(alpha: 0.7);
     }
-    if (baseColor == const Color(0xFF323D2E)) {
-      return const Color(0xFF43523F).withValues(alpha: 0.85); // Rushing Wind - Soft lightened sage highlight
-    }
-    if (baseColor == const Color(0xFFE4E1DA)) {
-      return const Color(0xFFFFFDF8).withValues(alpha: 0.90); // Rushing Wind (Midpoint)
-    }
-    // Pure bright white sheen creates the premium frosted glass/clay edge glare
-    return Colors.white.withValues(alpha: 0.95);
+    return baseColor.withValues(alpha: 0.2);
   }
 
   static Color getDarkShadow(Color baseColor) {
-    if (baseColor == const Color(0xFF323D2E)) {
-      return const Color(0xFF1B2219).withValues(alpha: 0.85); // Rushing Wind - Soft lightened deep forest shadow
-    } else if (baseColor == const Color(0xFFE4E1DA)) {
-      return const Color(0xFFC4C1B6).withValues(alpha: 0.55); // Rushing Wind - Deeper shadow (Midpoint)
-    } else if (baseColor == const Color(0xFF3E2723) || baseColor == const Color(0xFF4E342E)) {
-      return const Color(0xFF27120E).withValues(alpha: 0.85); // Amazon Jungle - Mahogany rich deep shadow
-    } else if (baseColor == const Color(0xFFE7E2EE)) {
-      return const Color(0xFFC0B6CA).withValues(alpha: 0.55); // Rising Moon
-    } else if (baseColor == const Color(0xFFE3ECEF)) {
-      return const Color(0xFFBCCCD0).withValues(alpha: 0.55); // Drifting Cloud
-    } else if (baseColor == const Color(0xFFF0E0E0)) {
-      return const Color(0xFFCBB5B5).withValues(alpha: 0.55); // Crimson Leaf
+    if (baseColor.computeLuminance() > 0.5) {
+      return Colors.black.withValues(alpha: 0.2);
     }
-
-    final hsl = HSLColor.fromColor(baseColor);
-    // Increase lightness reduction and saturation slightly for solid volumetric 3D clay shadow thickness
-    return hsl
-        .withLightness((hsl.lightness - 0.18).clamp(0.0, 1.0))
-        .withSaturation((hsl.saturation + 0.10).clamp(0.0, 1.0))
-        .toColor()
-        .withValues(alpha: 0.55);
+    return Colors.black.withValues(alpha: 0.3);
   }
 }
