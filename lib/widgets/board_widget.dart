@@ -81,31 +81,55 @@ class _BoardWidgetState extends State<BoardWidget>
         final board = data.board;
         if (widget.boardIndex >= data.boardsLength) return const SizedBox.shrink();
 
-        final settings = context.watch<SettingsController>();
+        final activePlayer = data.current;
+        final isNatureTheme = context.select<SettingsController, bool>((s) {
+          final name = s.currentTheme.name;
+          return name == 'Rushing Wind' ||
+              name == 'Amazon Jungle' ||
+              name == 'Pacific Waves' ||
+              name == 'Drifting Cloud' ||
+              name == 'Crimson Leaf';
+        });
+        final layoutIndex = context.select<SettingsController, int>((s) => s.layoutIndex);
+        final themeName = context.select<SettingsController, String>((s) => s.currentTheme.name);
+        final themeColor = context.select<SettingsController, Color>((s) =>
+            activePlayer == Player.X ? s.currentTheme.colorX : s.currentTheme.colorO);
+
         final isForced = data.forcedIdx == widget.boardIndex;
         final theme = Theme.of(context);
         final themeBgColor = theme.colorScheme.surface;
-        
-        final isNatureTheme = settings.currentTheme.name == 'Rushing Wind' ||
-            settings.currentTheme.name == 'Amazon Jungle' ||
-            settings.currentTheme.name == 'Pacific Waves' ||
-            settings.currentTheme.name == 'Drifting Cloud' ||
-            settings.currentTheme.name == 'Crimson Leaf';
 
         return LayoutBuilder(
           builder: (context, constraints) {
+            final templates = SettingsController.getTemplatesForCount(data.boardsLength);
+            final isRigid = templates.isNotEmpty && templates[layoutIndex % templates.length].isRigidGrid;
+
             final double scalingFactor = data.boardsLength > 1 ? 1.05 : 1.0; // Dynamic 5% Scaling
             final double boardSize = constraints.maxWidth * (data.boardsLength > 1 ? 1.02 : 1.0);
-            final double padding = boardSize * 0.08 * scalingFactor;
-            final double spacing = isNatureTheme ? 0.0 : (boardSize * 0.05 * scalingFactor);
+            final double padding = boardSize * 0.04 * scalingFactor;
+            final double spacing = isNatureTheme ? 0.0 : (boardSize * 0.02 * scalingFactor);
             final double borderRadius = isNatureTheme ? (boardSize * 0.15) : (boardSize * 0.12);
             final double shadowOffset = (boardSize * 0.04).clamp(2.0, 10.0);
             final double shadowBlur = shadowOffset * 2;
 
             final bool isPlayable = (data.forcedIdx == null || data.forcedIdx == widget.boardIndex) && !board.isGameOver;
-            
-            final activePlayer = data.current;
-            final themeColor = activePlayer == Player.X ? settings.currentTheme.colorX : settings.currentTheme.colorO;
+
+            final Widget boardCore = RepaintBoundary(
+              child: _buildBoardCore(
+                board, 
+                themeBgColor, 
+                isForced, 
+                borderRadius, 
+                shadowBlur, 
+                shadowOffset, shadowOffset, 
+                -shadowOffset, -shadowOffset, 
+                themeColor, 
+                boardSize, padding, spacing, 
+                themeName,
+                0.0, 0.0,
+                data.forcedIdx,
+              ),
+            );
 
             return RepaintBoundary(
               child: AnimatedScale(
@@ -113,22 +137,17 @@ class _BoardWidgetState extends State<BoardWidget>
                 scale: data.boardsLength > 1 ? (isPlayable ? 1.02 : 0.95) : 1.0,
                 child: ListenableBuilder(
                   listenable: Listenable.merge([_floatController, _rotationNotifier]),
+                  child: boardCore,
                   builder: (context, child) {
                     final double floatAngle = _floatController.value * 2 * pi;
                     final double driftMultiplier = isPlayable ? 1.0 : 0.7;
                     
-                    // Complex "Ocean Wave" motion: Horizontal drift + Vertical swell + Subtle sway
-                    final double floatDx = sin(floatAngle) * 8.0 * driftMultiplier;
-                    final double floatDy = cos(floatAngle * 0.85) * 12.0 * driftMultiplier;
-                    final double swayRotation = sin(floatAngle * 0.5) * 0.025 * driftMultiplier;
+                    final double floatDx = isRigid ? 0.0 : sin(floatAngle) * 8.0 * driftMultiplier;
+                    final double floatDy = isRigid ? 0.0 : cos(floatAngle * 0.85) * 12.0 * driftMultiplier;
+                    final double swayRotation = isRigid ? 0.0 : sin(floatAngle * 0.5) * 0.025 * driftMultiplier;
                     
                     final double xRotation = _rotationNotifier.value.dx;
                     final double yRotation = _rotationNotifier.value.dy;
-
-                    final double tiltShadowX = shadowOffset * (1.0 + (yRotation * 12.0));
-                    final double tiltShadowY = shadowOffset * (1.0 + (-xRotation * 12.0));
-                    final double lightShadowX = -shadowOffset * (1.0 - (yRotation * 12.0));
-                    final double lightShadowY = -shadowOffset * (1.0 - (-xRotation * 12.0));
 
                     return Transform.translate(
                       offset: Offset(floatDx, floatDy),
@@ -139,20 +158,7 @@ class _BoardWidgetState extends State<BoardWidget>
                           ..rotateY(yRotation)
                           ..rotateZ(swayRotation),
                         alignment: Alignment.center,
-                        child: _buildBoardCore(
-                          board, 
-                          themeBgColor, 
-                          isForced, 
-                          borderRadius, 
-                          shadowBlur, 
-                          tiltShadowX, tiltShadowY, 
-                          lightShadowX, lightShadowY, 
-                          themeColor, 
-                          boardSize, padding, spacing, 
-                          settings,
-                          xRotation, yRotation,
-                          data.forcedIdx,
-                        ),
+                        child: child,
                       ),
                     );
                   },
@@ -165,7 +171,7 @@ class _BoardWidgetState extends State<BoardWidget>
     );
   }
 
-  Widget _buildBoardCore(GameBoard board, Color themeBgColor, bool isForced, double borderRadius, double shadowBlur, double tsX, double tsY, double lsX, double lsY, Color themeColor, double boardSize, double padding, double spacing, SettingsController settings, double xRotation, double yRotation, int? forcedIdx) {
+  Widget _buildBoardCore(GameBoard board, Color themeBgColor, bool isForced, double borderRadius, double shadowBlur, double tsX, double tsY, double lsX, double lsY, Color themeColor, double boardSize, double padding, double spacing, String themeName, double xRotation, double yRotation, int? forcedIdx) {
     return Container(
       decoration: BoxDecoration(
         color: isForced ? Color.lerp(themeBgColor, Colors.yellow.withValues(alpha: 0.35), 0.4)! : themeBgColor,
@@ -181,7 +187,7 @@ class _BoardWidgetState extends State<BoardWidget>
         painter: ClayBevelPainter(
           borderRadius: borderRadius,
           baseColor: themeBgColor,
-          themeName: settings.currentTheme.name,
+          themeName: themeName,
           tiltX: xRotation,
           tiltY: yRotation,
         ),
@@ -197,7 +203,7 @@ class _BoardWidgetState extends State<BoardWidget>
                     child: CustomPaint(
                       painter: DebossedGridPainter(
                         baseColor: themeBgColor,
-                        themeName: settings.currentTheme.name,
+                        themeName: themeName,
                         padding: padding,
                         tiltX: xRotation,
                         tiltY: yRotation,

@@ -20,14 +20,15 @@ class BoardLayoutEngine {
     required List<Offset> templatePositions,
     required double availW,
     required double availH,
+    bool isRigidGrid = false,
   }) {
-    double gapFactor = 1.12; // Base gap for small counts
+    double gapFactor = 1.08; // Base gap for small counts
     if (count == 4) {
-      gapFactor = 1.08;
+      gapFactor = 1.04;
     } else if (count == 5 || count == 6) {
-      gapFactor = 1.06;
+      gapFactor = 1.02;
     } else if (count >= 7) {
-      gapFactor = 1.03; // Extremely tight gap for 7-9 boards to maximize size
+      gapFactor = 1.01; // Extremely tight gap for 7-9 boards to maximize size
     }
 
     // 2. Physics-Aware Binary Search Sizing Engine
@@ -62,32 +63,34 @@ class BoardLayoutEngine {
       final double minY = effectiveSize / 2;
       final double maxY = availH - effectiveSize / 2;
 
-      for (int step = 0; step < 12; step++) {
-        for (int i = 0; i < count; i++) {
-          for (int j = i + 1; j < count; j++) {
-            final Offset delta = candidateCenters[j] - candidateCenters[i];
-            final double dx = delta.dx.abs();
-            final double dy = delta.dy.abs();
-            final double threshold = mid + minGap;
+      if (!isRigidGrid) {
+        for (int step = 0; step < 12; step++) {
+          for (int i = 0; i < count; i++) {
+            for (int j = i + 1; j < count; j++) {
+              final Offset delta = candidateCenters[j] - candidateCenters[i];
+              final double dx = delta.dx.abs();
+              final double dy = delta.dy.abs();
+              final double threshold = mid + minGap;
 
-            if (dx < threshold && dy < threshold) {
-              final double overlapX = threshold - dx;
-              final double overlapY = threshold - dy;
+              if (dx < threshold && dy < threshold) {
+                final double overlapX = threshold - dx;
+                final double overlapY = threshold - dy;
 
-              final double pushX = (delta.dx == 0 ? 1.0 : delta.dx.sign) * overlapX * 0.5;
-              final double pushY = (delta.dy == 0 ? 1.0 : delta.dy.sign) * overlapY * 0.5;
+                final double pushX = (delta.dx == 0 ? 1.0 : delta.dx.sign) * overlapX * 0.5;
+                final double pushY = (delta.dy == 0 ? 1.0 : delta.dy.sign) * overlapY * 0.5;
 
-              candidateCenters[i] -= Offset(pushX, pushY);
-              candidateCenters[j] += Offset(pushX, pushY);
+                candidateCenters[i] -= Offset(pushX, pushY);
+                candidateCenters[j] += Offset(pushX, pushY);
+              }
             }
           }
-        }
 
-        // Bound candidate coordinates to EFFECTIVE screen limits
-        for (int i = 0; i < count; i++) {
-          double cx = candidateCenters[i].dx.clamp(minX, maxX);
-          double cy = candidateCenters[i].dy.clamp(minY, maxY);
-          candidateCenters[i] = Offset(cx, cy);
+          // Bound candidate coordinates to EFFECTIVE screen limits
+          for (int i = 0; i < count; i++) {
+            double cx = candidateCenters[i].dx.clamp(minX, maxX);
+            double cy = candidateCenters[i].dy.clamp(minY, maxY);
+            candidateCenters[i] = Offset(cx, cy);
+          }
         }
       }
 
@@ -137,44 +140,46 @@ class BoardLayoutEngine {
     }
 
     // 4. Perform iterative overlap repulsion pass
-    for (int step = 0; step < 20; step++) {
-      for (int i = 0; i < count; i++) {
-        for (int j = i + 1; j < count; j++) {
-          final Offset delta = centers[j] - centers[i];
-          final double dx = delta.dx.abs();
-          final double dy = delta.dy.abs();
-          final double threshold = boardSize + minGap;
+    if (!isRigidGrid) {
+      for (int step = 0; step < 20; step++) {
+        for (int i = 0; i < count; i++) {
+          for (int j = i + 1; j < count; j++) {
+            final Offset delta = centers[j] - centers[i];
+            final double dx = delta.dx.abs();
+            final double dy = delta.dy.abs();
+            final double threshold = boardSize + minGap;
 
-          if (dx < threshold && dy < threshold) {
-            final double overlapX = threshold - dx;
-            final double overlapY = threshold - dy;
+            if (dx < threshold && dy < threshold) {
+              final double overlapX = threshold - dx;
+              final double overlapY = threshold - dy;
 
-            final double pushX = (delta.dx == 0 ? 1.0 : delta.dx.sign) * overlapX * 0.5;
-            final double pushY = (delta.dy == 0 ? 1.0 : delta.dy.sign) * overlapY * 0.5;
+              final double pushX = (delta.dx == 0 ? 1.0 : delta.dx.sign) * overlapX * 0.5;
+              final double pushY = (delta.dy == 0 ? 1.0 : delta.dy.sign) * overlapY * 0.5;
 
-            centers[i] -= Offset(pushX, pushY);
-            centers[j] += Offset(pushX, pushY);
+              centers[i] -= Offset(pushX, pushY);
+              centers[j] += Offset(pushX, pushY);
+            }
           }
         }
-      }
 
-      for (int i = 0; i < count; i++) {
-        double cx = centers[i].dx;
-        double cy = centers[i].dy;
+        for (int i = 0; i < count; i++) {
+          double cx = centers[i].dx;
+          double cy = centers[i].dy;
 
-        if (maxX > minX) {
-          cx = cx.clamp(minX, maxX);
-        } else {
-          cx = availW / 2;
+          if (maxX > minX) {
+            cx = cx.clamp(minX, maxX);
+          } else {
+            cx = availW / 2;
+          }
+
+          if (maxY > minY) {
+            cy = cy.clamp(minY, maxY);
+          } else {
+            cy = availH / 2;
+          }
+
+          centers[i] = Offset(cx, cy);
         }
-
-        if (maxY > minY) {
-          cy = cy.clamp(minY, maxY);
-        } else {
-          cy = availH / 2;
-        }
-
-        centers[i] = Offset(cx, cy);
       }
     }
 
