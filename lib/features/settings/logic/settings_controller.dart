@@ -1,5 +1,8 @@
 import 'dart:math';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../services/persistence_service.dart';
 
@@ -14,12 +17,69 @@ enum BoardLayoutType { grid, smartFlow, focused }
 class BoardLayoutTemplate {
   final String name;
   final List<Offset> positions;
+  final bool isRigidGrid;
 
-  const BoardLayoutTemplate({required this.name, required this.positions});
+  const BoardLayoutTemplate({
+    required this.name,
+    required this.positions,
+    this.isRigidGrid = false,
+  });
 }
 
 class SettingsController with ChangeNotifier {
   final PersistenceService _persistence = PersistenceService();
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+  SettingsController() {
+    _initAuthListener();
+  }
+
+  void _initAuthListener() {
+    _auth.authStateChanges().listen((user) {
+      if (user != null && !user.isAnonymous) {
+        syncWithFirestore(user.uid);
+      }
+    });
+    _auth.userChanges().listen((user) {
+      if (user != null && !user.isAnonymous) {
+        syncWithFirestore(user.uid);
+      }
+    });
+  }
+
+  Future<void> syncWithFirestore(String uid) async {
+    try {
+      final doc = await _firestore.collection('users').doc(uid).get();
+      if (doc.exists && doc.data() != null) {
+        final data = doc.data()!;
+        if (data.containsKey('game_settings')) {
+          final settings = Map<String, dynamic>.from(data['game_settings']);
+          if (settings.containsKey('gameMode')) {
+            _gameMode = GameMode.values.firstWhere((m) => m.name == settings['gameMode'], orElse: () => _gameMode);
+          }
+          if (settings.containsKey('ruleSet')) {
+            _ruleSet = GameRuleSet.values.firstWhere((r) => r.name == settings['ruleSet'], orElse: () => _ruleSet);
+          }
+          if (settings.containsKey('aiDifficulty')) {
+            _aiDifficulty = AiDifficulty.values.firstWhere((d) => d.name == settings['aiDifficulty'], orElse: () => _aiDifficulty);
+          }
+          if (settings.containsKey('boardCount')) {
+            _boardCount = settings['boardCount'] as int? ?? _boardCount;
+          }
+          notifyListeners();
+        }
+      }
+    } on FirebaseException catch (e) {
+      if (kDebugMode) {
+        print('FirebaseException during syncWithFirestore: ${e.code} - ${e.message}');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error syncing settings with Firestore: $e');
+      }
+    }
+  }
 
   int _layoutIndex = 0;
   int get layoutIndex => _layoutIndex;
@@ -29,7 +89,17 @@ class SettingsController with ChangeNotifier {
   void toggleBoardLayout() {
     if (_boardCount <= 1) return;
     final templates = getTemplatesForCount(_boardCount);
+    if (templates.isEmpty) return;
     _layoutIndex = (_layoutIndex + 1) % templates.length;
+    _save('layoutIndex', _layoutIndex);
+    notifyListeners();
+  }
+
+  void setLayoutIndex(int index) {
+    final templates = getTemplatesForCount(_boardCount);
+    if (templates.isEmpty) return;
+    _layoutIndex = index % templates.length;
+    _save('layoutIndex', _layoutIndex);
     notifyListeners();
   }
 
@@ -102,7 +172,11 @@ class SettingsController with ChangeNotifier {
     
     if (count == 9) {
       return [
-        const BoardLayoutTemplate(name: "Standard 3x3 Grid", positions: [Offset(0.15,0.15), Offset(0.5,0.15), Offset(0.85,0.15), Offset(0.15,0.5), Offset(0.5,0.5), Offset(0.85,0.5), Offset(0.15,0.85), Offset(0.5,0.85), Offset(0.85,0.85)]),
+        const BoardLayoutTemplate(
+          name: "Standard 3x3 Grid",
+          isRigidGrid: true,
+          positions: [Offset(0.15,0.15), Offset(0.5,0.15), Offset(0.85,0.15), Offset(0.15,0.5), Offset(0.5,0.5), Offset(0.85,0.5), Offset(0.15,0.85), Offset(0.5,0.85), Offset(0.85,0.85)],
+        ),
         const BoardLayoutTemplate(name: "Letter X Shape", positions: [Offset(0.15,0.15), Offset(0.85,0.15), Offset(0.32,0.32), Offset(0.68,0.32), Offset(0.5,0.5), Offset(0.32,0.68), Offset(0.68,0.68), Offset(0.15,0.85), Offset(0.85,0.85)]),
         BoardLayoutTemplate(name: "Concentric Circles", positions: [const Offset(0.5,0.5)] + List.generate(8, (i) => Offset(0.5 + 0.4 * cos(i * 2 * pi / 8), 0.5 + 0.4 * sin(i * 2 * pi / 8)))),
       ];
@@ -208,6 +282,7 @@ class SettingsController with ChangeNotifier {
       );
 
       _boardCount = data['boardCount'] ?? 2;
+      _layoutIndex = data['layoutIndex'] ?? 0;
       _isSoundOn = data['isSoundOn'] ?? true;
       _useOnlineAi = data['useOnlineAi'] ?? false;
       _scoreX = data['scoreX'] ?? 0;
@@ -243,6 +318,29 @@ class SettingsController with ChangeNotifier {
     if (_isGuest && key != 'isFirstRun' && key != 'lastVersion') return;
     
     await _persistence.save({key: value});
+
+    final user = _auth.currentUser;
+    if (user != null && !user.isAnonymous) {
+      try {
+        await _firestore.collection('users').doc(user.uid).set({
+          'game_settings': {
+            'gameMode': _gameMode.name,
+            'ruleSet': _ruleSet.name,
+            'aiDifficulty': _aiDifficulty.name,
+            'boardCount': _boardCount,
+          },
+          'lastUpdated': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+      } on FirebaseException catch (e) {
+        if (kDebugMode) {
+          print('FirebaseException during setting save to Firestore: ${e.code} - ${e.message}');
+        }
+      } catch (e) {
+        if (kDebugMode) {
+          print('Error saving setting to Firestore: $e');
+        }
+      }
+    }
   }
 
   Future<void> markFirstRunComplete() async {
@@ -279,14 +377,17 @@ class SettingsController with ChangeNotifier {
       // Enforce board count constraints on rule change
       if (ruleSet == GameRuleSet.standard) {
         _boardCount = 1;
+        _layoutIndex = 0;
       } else if (ruleSet == GameRuleSet.ultimate) {
         _boardCount = 9;
+        _layoutIndex = 0; // Default to Standard 3x3 Grid for 3x3 forced navigation
       } else if (ruleSet == GameRuleSet.majorityWins) {
         _boardCount = _boardCount.clamp(1, 9);
       }
       
       await _save('ruleSet', ruleSet.name);
       await _save('boardCount', _boardCount);
+      await _save('layoutIndex', _layoutIndex);
       await resetScores();
       _triggerGameReset();
     }
