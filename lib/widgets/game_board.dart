@@ -68,6 +68,7 @@ class MultiBoardView extends StatelessWidget {
                     templatePositions: selectedTemplate.positions,
                     availW: virtualW,
                     availH: virtualH,
+                    isRigidGrid: selectedTemplate.isRigidGrid,
                   );
 
                   final double boardSize = layoutData.boardSize;
@@ -93,6 +94,7 @@ class MultiBoardView extends StatelessWidget {
                           child: FloatingPhysicsWrapper(
                             index: cellIndex,
                             isLowDetail: settings.lowDetailMode,
+                            isRigidGrid: selectedTemplate.isRigidGrid,
                             child: FlyInWrapper(
                               key: ValueKey(
                                   'bw_${controller.matchId}_$cellIndex'),
@@ -137,8 +139,15 @@ class FloatingPhysicsWrapper extends StatefulWidget {
   final Widget child;
   final int index;
   final bool isLowDetail;
+  final bool isRigidGrid;
   
-  const FloatingPhysicsWrapper({super.key, required this.child, required this.index, this.isLowDetail = false});
+  const FloatingPhysicsWrapper({
+    super.key,
+    required this.child,
+    required this.index,
+    this.isLowDetail = false,
+    this.isRigidGrid = false,
+  });
 
   @override
   State<FloatingPhysicsWrapper> createState() => _FloatingPhysicsWrapperState();
@@ -164,7 +173,7 @@ class _FloatingPhysicsWrapperState extends State<FloatingPhysicsWrapper> with Si
 
   @override
   Widget build(BuildContext context) {
-    if (widget.isLowDetail) return widget.child;
+    if (widget.isLowDetail || widget.isRigidGrid) return widget.child;
     
     return AnimatedBuilder(
       animation: _controller,

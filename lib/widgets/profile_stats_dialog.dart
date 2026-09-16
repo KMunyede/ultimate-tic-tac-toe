@@ -92,13 +92,35 @@ class _ProfileStatsDialogState extends State<ProfileStatsDialog> {
       final email = _emailController.text.trim();
       final password = _passwordController.text;
       final authService = context.read<AuthService>();
-      final statsService = context.read<StatsService>();
-      final oldUid = authService.currentUser?.uid;
       final credential = await authService.linkEmailPassword(email, password);
-      if (credential != null && oldUid != null) await statsService.mergeAnonymousStats(oldUid);
-      if (mounted) _showSnackbar('Account successfully registered! All stats migrated.');
+      if (credential != null && mounted) {
+        _showSnackbar('Account successfully registered! All stats migrated.');
+      }
     } catch (e) {
       if (mounted) _showSnackbar('Registration Error: ${e.toString()}', isError: true);
+    } finally {
+      if (mounted) setState(() => _isSavingAccount = false);
+    }
+  }
+
+  Future<void> _linkGoogleAccount() async {
+    setState(() => _isSavingAccount = true);
+    try {
+      final authService = context.read<AuthService>();
+      final statsService = context.read<StatsService>();
+      final oldUid = authService.currentUser?.uid;
+      final credential = await authService.signInWithGoogle();
+      if (credential != null) {
+        if (oldUid != null && oldUid != credential.user?.uid) {
+          await statsService.mergeAnonymousStats(oldUid);
+        }
+        if (mounted) {
+          _showSnackbar('Successfully registered profile with Google!');
+          Navigator.of(context).pop();
+        }
+      }
+    } catch (e) {
+      if (mounted) _showSnackbar('Google Registration Error: ${e.toString()}', isError: true);
     } finally {
       if (mounted) setState(() => _isSavingAccount = false);
     }
@@ -215,6 +237,7 @@ class _ProfileStatsDialogState extends State<ProfileStatsDialog> {
                           obscurePassword: _obscurePassword,
                           onToggleObscure: () => setState(() => _obscurePassword = !_obscurePassword),
                           onRegister: _linkGuestAccount,
+                          onGoogleRegister: _linkGoogleAccount,
                           onDiscardSession: () async {
                             final auth = context.read<AuthService>();
                             final navigator = Navigator.of(context);

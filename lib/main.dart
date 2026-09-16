@@ -11,11 +11,13 @@ import 'features/auth/services/auth_service.dart';
 import 'features/game/repositories/game_repository.dart';
 import 'features/game/repositories/ai_repository.dart';
 import 'services/stats_service.dart';
+import 'package:rive/rive.dart';
 import 'features/auth/widgets/auth_gate.dart';
 
 void main() async {
-  // 1. Run all critical async bootstrap logic (dotenv, Firebase, Window constraints)
+  // 1. Run all critical async bootstrap logic (edotenv, Firebase, Window constraints)
   final bool isPrimaryInstance = await AppInitializer.init();
+  await RiveNative.init();
 
   // 2. Initialize Core Controllers
   final settingsController = SettingsController();
@@ -43,13 +45,14 @@ void main() async {
         Provider<AuthService>.value(value: authService),
         ChangeNotifierProvider.value(value: statsService),
         ChangeNotifierProxyProvider<SettingsController, GameController>(
-          create: (context) => GameController(
-            context.read<SoundManager>(),
-            context.read<SettingsController>(),
-            context.read<GameRepository>(),
-            context.read<AiRepository>(),
-            context.read<StatsService>(),
-          ),
+          create: (context) =>
+              GameController(
+                context.read<SoundManager>(),
+                context.read<SettingsController>(),
+                context.read<GameRepository>(),
+                context.read<AiRepository>(),
+                context.read<StatsService>(),
+              ),
           update: (context, settings, previousGameController) {
             final controller = previousGameController ??
                 GameController(

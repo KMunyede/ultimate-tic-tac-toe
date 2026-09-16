@@ -237,6 +237,7 @@ class _BoardWidgetState extends State<BoardWidget>
                         boardSize: boardSize,
                         boardIndex: widget.boardIndex,
                         cellIndex: cellIndex,
+                        floatAnimation: _floatController,
                       );
                     },
                   ),

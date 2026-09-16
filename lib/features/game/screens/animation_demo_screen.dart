@@ -13,19 +13,8 @@ class _AnimationDemoScreenState extends State<AnimationDemoScreen> {
   bool _playLottieCelebration = false;
   
   // Rive Controller properties
-  SMIInput<bool>? _hoverInput;
-  SMITrigger? _pressInput;
-
-  void _onRiveInit(Artboard artboard) {
-    // We are using a public Rive file containing a button state machine
-    // This state machine has "Hover" (boolean) and "Press" (trigger) inputs
-    final controller = StateMachineController.fromArtboard(artboard, 'Button');
-    if (controller != null) {
-      artboard.addController(controller);
-      _hoverInput = controller.findInput<bool>('Hover');
-      _pressInput = controller.findInput<bool>('Press') as SMITrigger?;
-    }
-  }
+  BooleanInput? _hoverInput;
+  TriggerInput? _pressInput;
 
   void _triggerCelebration() {
     setState(() {
@@ -131,11 +120,26 @@ class _AnimationDemoScreenState extends State<AnimationDemoScreen> {
                           ),
                           child: ClipRRect(
                             borderRadius: BorderRadius.circular(20),
-                            child: RiveAnimation.network(
-                              'https://cdn.rive.app/animations/skills.riv',
-                              fit: BoxFit.cover,
-                              alignment: Alignment.center,
-                              onInit: _onRiveInit,
+                            child: RiveWidgetBuilder(
+                              fileLoader: FileLoader.fromUrl(
+                                'https://cdn.rive.app/animations/skills.riv',
+                                riveFactory: Factory.rive,
+                              ),
+                              stateMachineSelector: StateMachineSelector.byName('Button'),
+                              onLoaded: (state) {
+                                _hoverInput = state.controller.stateMachine.boolean('Hover');
+                                _pressInput = state.controller.stateMachine.trigger('Press');
+                              },
+                              builder: (context, state) {
+                                if (state is RiveLoaded) {
+                                  return RiveWidget(
+                                    controller: state.controller,
+                                    fit: Fit.cover,
+                                    alignment: Alignment.center,
+                                  );
+                                }
+                                return const SizedBox();
+                              },
                             ),
                           ),
                         ),

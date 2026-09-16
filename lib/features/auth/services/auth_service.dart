@@ -1,6 +1,9 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import '../../../models/player_stats.dart';
+import '../../../services/stats_service.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -39,26 +42,112 @@ class AuthService {
     }
   }
 
-  /// Google Sign-In with industry-standard guest-linking support
-  Future<UserCredential?> signInWithGoogle() async {
+  /// Shared helper to delete the old anonymous Firestore user doc and merge stats into the new user doc
+  Future<void> mergeAnonymousStats(String oldUid, UserCredential userCred) async {
     try {
-      final GoogleSignInAccount googleUser = await _googleSignIn.authenticate();
+      final oldDocRef = FirebaseFirestore.instance.collection('users').doc(oldUid);
+      final oldSnapshot = await oldDocRef.get();
+      final oldData = oldSnapshot.exists ? oldSnapshot.data() : null;
 
-      final GoogleSignInAuthentication googleAuth = googleUser.authentication;
+      if (oldSnapshot.exists) {
+        try {
+          await oldDocRef.delete();
+        } catch (e) {
+          if (kDebugMode) {
+            print('Safely caught old guest doc deletion error: $e');
+          }
+        }
+      }
 
-      // Request access token for additional scopes if needed
-      final auth = await googleUser.authorizationClient
-          .authorizeScopes(<String>['email', 'profile', 'openid']);
+      final newUid = userCred.user?.uid;
+      if (newUid != null && oldData != null) {
+        final newDocRef = FirebaseFirestore.instance.collection('users').doc(newUid);
+        await FirebaseFirestore.instance.runTransaction((transaction) async {
+          final newSnapshot = await transaction.get(newDocRef);
+          final oldStats = PlayerStats.fromJson(
+            Map<String, dynamic>.from(oldData['player_stats'] ?? {}),
+          );
 
-      final AuthCredential credential = GoogleAuthProvider.credential(
-        accessToken: auth.accessToken,
-        idToken: googleAuth.idToken,
-      );
+          PlayerStats newStats = const PlayerStats();
+          if (newSnapshot.exists && newSnapshot.data() != null) {
+            newStats = PlayerStats.fromJson(
+              Map<String, dynamic>.from(newSnapshot.data()!['player_stats'] ?? {}),
+            );
+          }
+
+          final mergedStats = PlayerStats(
+            totalXp: newStats.totalXp + oldStats.totalXp,
+            winsVsAiEasy: newStats.winsVsAiEasy + oldStats.winsVsAiEasy,
+            lossesVsAiEasy: newStats.lossesVsAiEasy + oldStats.lossesVsAiEasy,
+            drawsVsAiEasy: newStats.drawsVsAiEasy + oldStats.drawsVsAiEasy,
+            winsVsAiMedium: newStats.winsVsAiMedium + oldStats.winsVsAiMedium,
+            lossesVsAiMedium: newStats.lossesVsAiMedium + oldStats.lossesVsAiMedium,
+            drawsVsAiMedium: newStats.drawsVsAiMedium + oldStats.drawsVsAiMedium,
+            winsVsAiHard: newStats.winsVsAiHard + oldStats.winsVsAiHard,
+            lossesVsAiHard: newStats.lossesVsAiHard + oldStats.lossesVsAiHard,
+            drawsVsAiHard: newStats.drawsVsAiHard + oldStats.drawsVsAiHard,
+            winsLocalPvp: newStats.winsLocalPvp + oldStats.winsLocalPvp,
+            lossesLocalPvp: newStats.lossesLocalPvp + oldStats.lossesLocalPvp,
+            drawsLocalPvp: newStats.drawsLocalPvp + oldStats.drawsLocalPvp,
+            currentStreak: newStats.currentStreak > oldStats.currentStreak
+                ? newStats.currentStreak
+                : oldStats.currentStreak,
+            maxStreak: newStats.maxStreak > oldStats.maxStreak
+                ? newStats.maxStreak
+                : oldStats.maxStreak,
+          );
+
+          transaction.set(newDocRef, {
+            'player_stats': mergedStats.toJson(),
+            'mergedFrom': oldUid,
+            'lastUpdated': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
+        });
+      }
+
+      if (userCred.user != null) {
+        await StatsService.instance?.syncWithFirestore(userCred.user!.uid);
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Safely caught stats merge error: $e');
+      }
+    }
+  }
+
+  /// Google Sign-In with industry-standard guest-linking support
+  Future<UserCredential?> signInWithGoogle({AuthCredential? mockCredential}) async {
+    try {
+      AuthCredential credential;
+      if (mockCredential != null) {
+        credential = mockCredential;
+      } else {
+        final googleUser = await _googleSignIn.authenticate();
+        final googleAuth = googleUser.authentication;
+        credential = GoogleAuthProvider.credential(
+          idToken: googleAuth.idToken,
+        );
+      }
 
       // Industry Practice: If user is already signed in anonymously, link the accounts
       // to preserve guest session progress.
-      if (_auth.currentUser != null && _auth.currentUser!.isAnonymous) {
-        return await _auth.currentUser!.linkWithCredential(credential);
+      final currentUser = _auth.currentUser;
+      if (currentUser != null && currentUser.isAnonymous) {
+        try {
+          final cred = await currentUser.linkWithCredential(credential);
+          if (cred.user != null) {
+            await StatsService.instance?.syncWithFirestore(cred.user!.uid);
+          }
+          return cred;
+        } on FirebaseAuthException catch (e) {
+          if (e.code == 'credential-already-in-use' || e.code == 'email-already-in-use') {
+            final oldUid = currentUser.uid;
+            final userCred = await _auth.signInWithCredential(credential);
+            await mergeAnonymousStats(oldUid, userCred);
+            return userCred;
+          }
+          rethrow;
+        }
       }
 
       return await _auth.signInWithCredential(credential);
@@ -74,27 +163,36 @@ class AuthService {
   /// Link an existing Guest session to Email/Password
   Future<UserCredential?> linkEmailPassword(
       String email, String password) async {
-    try {
-      final credential =
-          EmailAuthProvider.credential(email: email, password: password);
-      final user = _auth.currentUser;
-
-      if (user != null) {
-        return await user.linkWithCredential(credential);
-      }
-      throw FirebaseAuthException(
-        code: 'no-user',
-        message: 'No current guest user found to link.',
-      );
-    } on FirebaseAuthException catch (e) {
-      if (kDebugMode) print('Linking Email Error: ${e.code} - ${e.message}');
-      rethrow;
-    }
+    return signUp(email, password);
   }
 
-  /// Create a new Email/Password account
+  /// Create a new Email/Password account with guest session linking & fallback-merge support
   Future<UserCredential?> signUp(String email, String password) async {
     try {
+      final credential = EmailAuthProvider.credential(email: email, password: password);
+      final currentUser = _auth.currentUser;
+
+      if (currentUser != null && currentUser.isAnonymous) {
+        try {
+          final cred = await currentUser.linkWithCredential(credential);
+          if (cred.user != null) {
+            await StatsService.instance?.syncWithFirestore(cred.user!.uid);
+          }
+          return cred;
+        } on FirebaseAuthException catch (e) {
+          if (e.code == 'credential-already-in-use' || e.code == 'email-already-in-use') {
+            final oldUid = currentUser.uid;
+            final userCred = await _auth.signInWithEmailAndPassword(
+              email: email,
+              password: password,
+            );
+            await mergeAnonymousStats(oldUid, userCred);
+            return userCred;
+          }
+          rethrow;
+        }
+      }
+
       return await _auth.createUserWithEmailAndPassword(
         email: email,
         password: password,

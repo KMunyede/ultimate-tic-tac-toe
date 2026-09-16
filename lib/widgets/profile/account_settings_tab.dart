@@ -85,11 +85,11 @@ class AccountSettingsTab extends StatelessWidget {
               onPressed: isSavingAccount ? null : onChangePassword,
               style: ElevatedButton.styleFrom(
                 backgroundColor: theme.mainColor,
-                foregroundColor: Colors.white,
+                foregroundColor: theme.mainColor.computeLuminance() > 0.5 ? Colors.black87 : Colors.white,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
               ),
               child: isSavingAccount
-                  ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                  ? SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: theme.mainColor.computeLuminance() > 0.5 ? Colors.black87 : Colors.white, strokeWidth: 2))
                   : const Text('Update Password', style: TextStyle(fontWeight: FontWeight.bold)),
             ),
             TextButton(onPressed: onForgotPassword, child: Text('Forgot Password?', style: TextStyle(color: theme.mainColor, fontSize: 12))),

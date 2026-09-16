@@ -156,14 +156,18 @@ class GameOverOverlay extends StatelessWidget {
                                             context.read<GameController>().resetGame();
                                             onDismiss();
                                           },
-                                          icon: const Icon(Icons.flash_on_rounded, color: Colors.white, size: 18),
+                                          icon: Icon(
+                                            Icons.flash_on_rounded,
+                                            color: theme.mainColor.computeLuminance() > 0.5 ? Colors.black87 : Colors.white,
+                                            size: 18,
+                                          ),
                                           label: Text(
                                             "BATTLE AGAIN",
                                             style: GoogleFonts.righteous(fontSize: 14.0, letterSpacing: 1.0),
                                           ),
                                           style: ElevatedButton.styleFrom(
                                             backgroundColor: theme.mainColor,
-                                            foregroundColor: Colors.white,
+                                            foregroundColor: theme.mainColor.computeLuminance() > 0.5 ? Colors.black87 : Colors.white,
                                             minimumSize: const Size.fromHeight(48.0),
                                             padding: const EdgeInsets.symmetric(horizontal: 8.0),
                                             elevation: 4.0,

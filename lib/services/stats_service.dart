@@ -18,30 +18,41 @@ class StatsService extends ChangeNotifier {
 
   String? get _userId => _auth.currentUser?.uid;
 
+  static StatsService? _instance;
+  static StatsService? get instance => _instance;
+
+  String? _lastSyncedUid;
+
   StatsService() {
+    _instance = this;
     _loadLocalStats();
-    // Listen for auth changes to load Firestore stats if user logs in
-    _auth.authStateChanges().listen(
-      (user) {
-        if (user != null && !user.isAnonymous) {
-          _syncWithFirestore(user.uid);
-        } else {
-          // Reset stats to clean zeroed state for guest/anonymous or logged out users
-          _stats = const PlayerStats();
-          notifyListeners();
+
+    void handleUser(User? user) {
+      if (user != null && !user.isAnonymous) {
+        if (_lastSyncedUid != user.uid) {
+          _lastSyncedUid = user.uid;
+          syncWithFirestore(user.uid);
         }
-      },
-      onError: (error) {
-        if (kDebugMode) {
-          print("Error in authStateChanges stream: $error");
-        }
-      },
-    );
+      } else if (user == null) {
+        _lastSyncedUid = null;
+        _stats = const PlayerStats();
+        notifyListeners();
+      }
+      // else: user is anonymous (guest) — do nothing, leave _stats untouched
+    }
+
+    // Listen to both authStateChanges and userChanges to catch linking events (linkWithCredential)
+    _auth.authStateChanges().listen(handleUser, onError: (error) {
+      if (kDebugMode) print("Error in authStateChanges stream: $error");
+    });
+    _auth.userChanges().listen(handleUser, onError: (error) {
+      if (kDebugMode) print("Error in userChanges stream: $error");
+    });
   }
 
   Future<void> _loadLocalStats() async {
     final user = _auth.currentUser;
-    if (user == null || user.isAnonymous) {
+    if (user == null) {
       _stats = const PlayerStats();
       notifyListeners();
       return;
@@ -67,7 +78,7 @@ class StatsService extends ChangeNotifier {
     }
   }
 
-  Future<void> _syncWithFirestore(String uid) async {
+  Future<void> syncWithFirestore(String uid) async {
     try {
       final doc = await _firestore
           .collection('users')
@@ -92,7 +103,23 @@ class StatsService extends ChangeNotifier {
               'lastUpdated': FieldValue.serverTimestamp(),
             });
           }
+        } else {
+          // Document exists but no player_stats key; set initial stats
+          await _firestore.collection('users').doc(uid).set({
+            'player_stats': _stats.toJson(),
+            'lastUpdated': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
         }
+      } else {
+        // Brand new profile registration: Create initial Firestore user document
+        final user = _auth.currentUser;
+        await _firestore.collection('users').doc(uid).set({
+          'email': user?.email,
+          'displayName': user?.displayName ?? 'Gamer',
+          'player_stats': _stats.toJson(),
+          'createdAt': FieldValue.serverTimestamp(),
+          'lastUpdated': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
       }
     } catch (e) {
       if (kDebugMode) {
@@ -107,8 +134,7 @@ class StatsService extends ChangeNotifier {
     required MatchOutcome outcome,
   }) async {
     final currentUser = _auth.currentUser;
-    if (currentUser == null || currentUser.isAnonymous) {
-      // Keep game statistics, scores, etc. empty/locked for guest/unregistered users
+    if (currentUser == null) {
       return;
     }
     int xpEarned = 0;
@@ -241,6 +267,9 @@ class StatsService extends ChangeNotifier {
 
     _stats = newStats;
     notifyListeners();
+    if (kDebugMode) {
+      print("[StatsService] Updated stats: isAnonymous=${_auth.currentUser?.isAnonymous}, totalXp=${_stats.totalXp}, wins=${_stats.totalWins}, losses=${_stats.totalLosses}, draws=${_stats.totalDraws}");
+    }
 
     // Save locally
     await _persistence.save({'player_stats': _stats.toJson()});
@@ -365,8 +394,7 @@ class StatsService extends ChangeNotifier {
     notifyListeners();
     
     final user = _auth.currentUser;
-    if (user == null || user.isAnonymous) {
-      // Guests don't persist stats
+    if (user == null) {
       return;
     }
     

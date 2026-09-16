@@ -44,9 +44,9 @@ class GuestUnlockTab extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.arrow_forward_rounded, color: theme.mainColor, size: 16),
+                Icon(Icons.arrow_forward_rounded, color: theme.mainColor.computeLuminance() > 0.5 ? Colors.black87 : theme.mainColor, size: 16),
                 const SizedBox(width: 6),
-                Text('Switch to the "Register" tab above!', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: theme.mainColor)),
+                Text('Switch to the "Register" tab above!', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: theme.mainColor.computeLuminance() > 0.5 ? Colors.black87 : theme.mainColor)),
               ],
             ),
           ),
@@ -93,6 +93,7 @@ class GuestRegisterTab extends StatelessWidget {
   final bool obscurePassword;
   final VoidCallback onToggleObscure;
   final VoidCallback onRegister;
+  final VoidCallback? onGoogleRegister;
   final VoidCallback onDiscardSession;
 
   const GuestRegisterTab({
@@ -105,6 +106,7 @@ class GuestRegisterTab extends StatelessWidget {
     required this.obscurePassword,
     required this.onToggleObscure,
     required this.onRegister,
+    this.onGoogleRegister,
     required this.onDiscardSession,
   });
 
@@ -174,14 +176,39 @@ class GuestRegisterTab extends StatelessWidget {
               onPressed: isSavingAccount ? null : onRegister,
               style: ElevatedButton.styleFrom(
                 backgroundColor: theme.mainColor,
-                foregroundColor: Colors.white,
+                foregroundColor: theme.mainColor.computeLuminance() > 0.5 ? Colors.black87 : Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
               ),
               child: isSavingAccount
-                  ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                  ? SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: theme.mainColor.computeLuminance() > 0.5 ? Colors.black87 : Colors.white, strokeWidth: 2))
                   : const Text('Register & Merge Stats', style: TextStyle(fontWeight: FontWeight.bold)),
             ),
+            if (onGoogleRegister != null) ...[
+              const SizedBox(height: 12),
+              const Row(
+                children: [
+                  Expanded(child: Divider()),
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 12),
+                    child: Text('OR', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                  ),
+                  Expanded(child: Divider()),
+                ],
+              ),
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                onPressed: isSavingAccount ? null : onGoogleRegister,
+                icon: const Icon(Icons.login, size: 18),
+                label: const Text('Register with Google', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  foregroundColor: theme.textColor,
+                  side: BorderSide(color: theme.textColor.withValues(alpha: 0.2)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+              ),
+            ],
           ],
         ),
       ),
@@ -205,7 +232,7 @@ class GuestRegisterTab extends StatelessWidget {
       decoration: InputDecoration(
         labelText: label,
         labelStyle: TextStyle(color: theme.textColor.withValues(alpha: 0.5), fontSize: 13),
-        prefixIcon: Icon(icon, size: 20, color: theme.mainColor),
+        prefixIcon: Icon(icon, size: 20, color: theme.mainColor.computeLuminance() > 0.5 ? Colors.black87 : theme.mainColor),
         suffixIcon: isPassword
             ? IconButton(
                 icon: Icon(obscure ? Icons.visibility_off : Icons.visibility, size: 18, color: theme.textColor.withValues(alpha: 0.4)),

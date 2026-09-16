@@ -206,6 +206,8 @@ class _SettingsMenuState extends State<SettingsMenu> {
                           fontWeight: FontWeight.w700))),
             ),
           _buildBoardCountRow(settings, theme),
+          if (settings.boardCount > 1)
+            _buildBoardLayoutRow(settings, theme),
           const SizedBox(height: 20),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -325,6 +327,35 @@ class _SettingsMenuState extends State<SettingsMenu> {
                   color: itemTextColor,
                   fontSize: 14,
                   fontWeight: FontWeight.w700))),
+    );
+  }
+
+  Widget _buildBoardLayoutRow(SettingsController settings, AppTheme theme) {
+    final Color itemTextColor = theme.textColor;
+    debugPrint("DEBUG [settings_menu]: ruleSet=${settings.ruleSet.name}, boardCount=${settings.boardCount}, layoutIndex=${settings.layoutIndex}");
+    final templates = SettingsController.getTemplatesForCount(settings.boardCount);
+    debugPrint("DEBUG [settings_menu]: templates length=${templates.length}, names=${templates.map((t) => t.name).toList()}");
+    if (templates.isEmpty) return const SizedBox.shrink();
+
+    final currentIndex = settings.layoutIndex % templates.length;
+
+    return SettingRow<int>(
+      label: 'Board Layout',
+      value: currentIndex,
+      items: List.generate(templates.length, (i) => i),
+      theme: theme,
+      onChanged: (idx) => idx != null ? settings.setLayoutIndex(idx) : null,
+      itemBuilder: (idx) => DropdownMenuItem(
+        value: idx,
+        child: Text(
+          templates[idx].name,
+          style: TextStyle(
+            color: itemTextColor,
+            fontSize: 14,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
     );
   }
 }

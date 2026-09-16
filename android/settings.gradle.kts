@@ -1,3 +1,21 @@
+// Prevent AGP conflict between ANDROID_PREFS_ROOT and ANDROID_USER_HOME
+listOf("m", "theEnvironment", "theCaseInsensitiveEnvironment").forEach { fieldName ->
+    runCatching {
+        val env = System.getenv()
+        val field = env.javaClass.getDeclaredField(fieldName)
+        field.isAccessible = true
+        @Suppress("UNCHECKED_CAST")
+        (field.get(env) as? MutableMap<String, String>)?.remove("ANDROID_PREFS_ROOT")
+    }
+    runCatching {
+        val peClass = Class.forName("java.lang.ProcessEnvironment")
+        val field = peClass.getDeclaredField(fieldName)
+        field.isAccessible = true
+        @Suppress("UNCHECKED_CAST")
+        (field.get(null) as? MutableMap<String, String>)?.remove("ANDROID_PREFS_ROOT")
+    }
+}
+
 pluginManagement {
     val flutterSdkPath =
         run {
@@ -23,7 +41,7 @@ plugins {
     // START: FlutterFire Configuration
     id("com.google.gms.google-services") version "4.4.2" apply false
     // END: FlutterFire Configuration
-    id("org.jetbrains.kotlin.android") version "2.1.0" apply false
+    id("org.jetbrains.kotlin.android") version "2.1.20" apply false
 }
 
 include(":app")

@@ -4,7 +4,7 @@
 
 list(APPEND FLUTTER_PLUGIN_LIST
   audioplayers_linux
-  rive_common
+  rive_native
   screen_retriever_linux
   window_manager
 )

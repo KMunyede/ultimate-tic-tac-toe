@@ -52,26 +52,21 @@ class _FloatingCloudButtonState extends State<FloatingCloudButton> with SingleTi
 
     if (theme.name == 'Rushing Wind') {
       bgColor = theme.mainColor;
-      contentColor = Colors.white;
     } else if (theme.name == 'Amazon Jungle') {
       bgColor = theme.mainColor;
-      contentColor = Colors.white;
     } else if (theme.name == 'Pacific Waves') {
       bgColor = theme.mainColor;
-      contentColor = Colors.white;
     } else if (theme.name == 'Drifting Cloud') {
-      bgColor = theme.accentGlow; // Sky Blue
-      contentColor = theme.textColor; // Off-white
+      bgColor = const Color(0xFF546E7A); // Muted mid-blue-grey
+      contentColor = const Color(0xFF102027); // Dark slate grey (cloud palette contrast)
     } else if (theme.name == 'Crimson Leaf') {
       bgColor = theme.mainColor; // Vibrant Yellow
-      contentColor = Colors.black; // Max contrast
     } else if (theme.name.contains('Studio Pro')) {
       bgColor = theme.mainColor;
-      contentColor = theme.brightness == Brightness.light ? Colors.white : Colors.black;
     } else {
       bgColor = theme.mainColor;
-      contentColor = Colors.white;
     }
+    contentColor = bgColor.computeLuminance() > 0.5 ? Colors.black87 : Colors.white;
 
     buttonDec = BoxDecoration(
       color: bgColor,

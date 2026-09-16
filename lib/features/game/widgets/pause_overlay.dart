@@ -38,10 +38,10 @@ class PauseOverlay extends StatelessWidget {
                         )
                       ],
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.play_arrow_rounded, 
                       size: 80, 
-                      color: Colors.white,
+                      color: theme.mainColor.computeLuminance() > 0.5 ? Colors.black87 : Colors.white,
                     ),
                   ),
                 ),

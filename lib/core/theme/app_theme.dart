@@ -127,7 +127,9 @@ ThemeData generateTheme(AppTheme theme) {
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ButtonStyle(
         backgroundColor: WidgetStateProperty.all(primaryColor),
-        foregroundColor: WidgetStateProperty.all(Colors.white),
+        foregroundColor: WidgetStateProperty.all(
+          primaryColor.computeLuminance() > 0.5 ? Colors.black87 : Colors.white,
+        ),
         elevation: WidgetStateProperty.all(0.0),
         shape: WidgetStateProperty.all(
           RoundedRectangleBorder(

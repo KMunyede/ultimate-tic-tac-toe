@@ -20,6 +20,7 @@ class NeumorphicCell extends StatefulWidget {
   final double boardSize;
   final int boardIndex;
   final int cellIndex;
+  final Animation<double>? floatAnimation;
 
   const NeumorphicCell({
     super.key,
@@ -31,6 +32,7 @@ class NeumorphicCell extends StatefulWidget {
     required this.cellIndex,
     this.isBlocked = false,
     this.isShielded = false,
+    this.floatAnimation,
   });
 
   @override
@@ -55,15 +57,12 @@ class _NeumorphicCellState extends State<NeumorphicCell>
         vsync: this, duration: const Duration(milliseconds: 300));
     _pulseController = AnimationController(
         vsync: this, duration: const Duration(milliseconds: 1400));
-    _pulseController.repeat(reverse: true);
+    // Do NOT auto-start pulse here; build() controls active pulse for last move only.
   }
 
   @override
   void didUpdateWidget(NeumorphicCell oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (!_pulseController.isAnimating) {
-      _pulseController.repeat(reverse: true);
-    }
     // Trigger impact if a new player mark appeared
     if (oldWidget.player == Player.none && widget.player != Player.none) {
       setState(() => _showImpact = true);
@@ -99,6 +98,8 @@ class _NeumorphicCellState extends State<NeumorphicCell>
         activeTheme.name == 'Drifting Cloud' ||
         activeTheme.name == 'Crimson Leaf';
 
+    final bool isRiverFlow = activeTheme.name == 'River Flow';
+
     // TICKER OPTIMIZATION: Only pulse if it's the last move
     if (isLastMove && !_pulseController.isAnimating) {
       _pulseController.repeat(reverse: true);
@@ -106,12 +107,13 @@ class _NeumorphicCellState extends State<NeumorphicCell>
       _pulseController.stop();
     }
 
-    return MouseRegion(
-      onEnter: (_) {
-        if (!widget.isBlocked && widget.player == Player.none) {
-          setState(() => _isHovered = true);
-        }
-      },
+    return RepaintBoundary(
+      child: MouseRegion(
+        onEnter: (_) {
+          if (!widget.isBlocked && widget.player == Player.none) {
+            setState(() => _isHovered = true);
+          }
+        },
       onExit: (_) {
         setState(() => _isHovered = false);
       },
@@ -145,29 +147,49 @@ class _NeumorphicCellState extends State<NeumorphicCell>
                     child: ScaleTransition(
                         scale: _pressController, child: child),
                   ),
-              child: Container(
-                clipBehavior: Clip.antiAlias,
-                decoration: isNatureTheme
-                    ? const BoxDecoration(color: Colors.transparent)
-                    : BoxDecoration(
-                  color: widget.isBlocked && widget.player == Player.none
-                      ? widget.baseColor.withValues(alpha: 0.3)
-                      : widget.baseColor,
-                  borderRadius: BorderRadius.circular(borderRadius),
-                  boxShadow: [
-                    // Deep sharp shadow for deep carved cells
-                    BoxShadow(
-                        color: NeumorphicColors.getDarkShadow(widget.baseColor),
-                        offset: Offset(shadowOffset * 0.8, shadowOffset * 0.8),
-                        blurRadius: shadowBlur * 0.45),
-                    // Crisp sharp highlight for carved cells
-                    BoxShadow(color: NeumorphicColors.getLightShadow(
-                        widget.baseColor),
-                        offset: Offset(
-                            -shadowOffset * 0.7, -shadowOffset * 0.7),
-                        blurRadius: shadowBlur * 0.4),
-                  ],
-                ),
+              child: AnimatedBuilder(
+                animation: widget.floatAnimation ?? const AlwaysStoppedAnimation(0.0),
+                builder: (context, child) {
+                  final double floatVal = widget.floatAnimation?.value ?? 0.0;
+                  final double swingFactor = isRiverFlow ? sin(floatVal * 2 * pi) * 1.5 : 0.0;
+
+                  return Container(
+                    clipBehavior: Clip.antiAlias,
+                    decoration: isNatureTheme
+                        ? const BoxDecoration(color: Colors.transparent)
+                        : BoxDecoration(
+                      color: widget.isBlocked && widget.player == Player.none
+                          ? widget.baseColor.withValues(alpha: 0.3)
+                          : widget.baseColor,
+                      borderRadius: BorderRadius.circular(borderRadius),
+                      boxShadow: isRiverFlow
+                          ? [
+                              // Raised/embossed shadow shifting with swing animation
+                              BoxShadow(
+                                  color: NeumorphicColors.getDarkShadow(widget.baseColor),
+                                  offset: Offset(shadowOffset * (1.2 + swingFactor), shadowOffset * (1.2 + swingFactor)),
+                                  blurRadius: shadowBlur * 0.6),
+                              BoxShadow(
+                                  color: Color.lerp(widget.baseColor, Colors.white, 0.35)!.withValues(alpha: 0.5),
+                                  offset: Offset(-shadowOffset * (1.0 - swingFactor), -shadowOffset * (1.0 - swingFactor)),
+                                  blurRadius: shadowBlur * 0.5),
+                            ]
+                          : [
+                              // Deep sharp shadow for deep carved cells
+                              BoxShadow(
+                                  color: NeumorphicColors.getDarkShadow(widget.baseColor),
+                                  offset: Offset(shadowOffset * 0.8, shadowOffset * 0.8),
+                                  blurRadius: shadowBlur * 0.45),
+                              BoxShadow(color: NeumorphicColors.getLightShadow(
+                                  widget.baseColor),
+                                  offset: Offset(
+                                      -shadowOffset * 0.7, -shadowOffset * 0.7),
+                                  blurRadius: shadowBlur * 0.4),
+                            ],
+                    ),
+                    child: child,
+                  );
+                },
                 child: Stack(
                   children: [
                     if (!widget.isBlocked && widget.player == Player.none)
@@ -260,8 +282,9 @@ class _NeumorphicCellState extends State<NeumorphicCell>
           );
         },
       ),
-    );
-  }
+    ),
+  );
+}
 }
 
 

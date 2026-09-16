@@ -188,7 +188,14 @@ class _TurnTelemetryHeaderState extends State<TurnTelemetryHeader> with SingleTi
               ],
             ),
           ),
-
+          if (widget.game.boards.length == 9) ...[
+            const SizedBox(width: 10),
+            _MiniUltimate3x3GridNav(
+              game: widget.game,
+              settings: widget.settings,
+              contentColor: contentColor,
+            ),
+          ],
         ],
       ),
     );
@@ -229,6 +236,136 @@ class _TurnTelemetryHeaderState extends State<TurnTelemetryHeader> with SingleTi
         );
       },
       child: headerBody,
+    );
+  }
+}
+
+class _MiniUltimate3x3GridNav extends StatelessWidget {
+  final GameController game;
+  final SettingsController settings;
+  final Color contentColor;
+
+  const _MiniUltimate3x3GridNav({
+    required this.game,
+    required this.settings,
+    required this.contentColor,
+  });
+
+  static String _getBoardLocationName(int? index) {
+    if (index == null) return "ANY BOARD";
+    switch (index) {
+      case 0: return "TOP-LEFT";
+      case 1: return "TOP-CENTER";
+      case 2: return "TOP-RIGHT";
+      case 3: return "MID-LEFT";
+      case 4: return "CENTER";
+      case 5: return "MID-RIGHT";
+      case 6: return "BOT-LEFT";
+      case 7: return "BOT-CENTER";
+      case 8: return "BOT-RIGHT";
+      default: return "BOARD ${index + 1}";
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = settings.currentTheme;
+    final forcedIdx = game.forcedBoardIndex;
+    final boards = game.boards;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: forcedIdx != null ? Colors.yellowAccent : contentColor.withValues(alpha: 0.3),
+          width: forcedIdx != null ? 1.5 : 1.0,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // 3x3 Mini Grid Diagram
+          SizedBox(
+            width: 36,
+            height: 36,
+            child: GridView.builder(
+              padding: EdgeInsets.zero,
+              physics: const NeverScrollableScrollPhysics(),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 3,
+                crossAxisSpacing: 2,
+                mainAxisSpacing: 2,
+              ),
+              itemCount: 9,
+              itemBuilder: (context, i) {
+                final board = i < boards.length ? boards[i] : null;
+                final isForced = forcedIdx == i;
+                final isGameOver = board?.isGameOver ?? false;
+                final winner = board?.winner;
+
+                Color cellBg = Colors.white.withValues(alpha: 0.1);
+                Widget? symbol;
+
+                if (winner == Player.X) {
+                  cellBg = theme.colorX.withValues(alpha: 0.4);
+                  symbol = Text('X', style: TextStyle(color: theme.colorX, fontSize: 8, fontWeight: FontWeight.bold));
+                } else if (winner == Player.O) {
+                  cellBg = theme.colorO.withValues(alpha: 0.4);
+                  symbol = Text('O', style: TextStyle(color: theme.colorO, fontSize: 8, fontWeight: FontWeight.bold));
+                } else if (isGameOver) {
+                  cellBg = Colors.grey.withValues(alpha: 0.3);
+                } else if (isForced) {
+                  cellBg = Colors.yellowAccent;
+                } else if (forcedIdx == null && !isGameOver) {
+                  cellBg = Colors.white.withValues(alpha: 0.25);
+                }
+
+                return AnimatedContainer(
+                  duration: const Duration(milliseconds: 250),
+                  decoration: BoxDecoration(
+                    color: cellBg,
+                    borderRadius: BorderRadius.circular(2),
+                    border: isForced
+                        ? Border.all(color: Colors.orangeAccent, width: 1.0)
+                        : null,
+                  ),
+                  alignment: Alignment.center,
+                  child: symbol,
+                );
+              },
+            ),
+          ),
+          const SizedBox(width: 8),
+          // Forced Navigation Location Text
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                "FORCED GRID",
+                style: TextStyle(
+                  fontSize: 8.0,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 1.0,
+                  color: forcedIdx != null ? Colors.yellowAccent : contentColor.withValues(alpha: 0.7),
+                ),
+              ),
+              const SizedBox(height: 1.0),
+              Text(
+                _getBoardLocationName(forcedIdx),
+                style: TextStyle(
+                  fontSize: 10.0,
+                  fontWeight: FontWeight.w900,
+                  color: forcedIdx != null ? Colors.yellowAccent : contentColor,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }

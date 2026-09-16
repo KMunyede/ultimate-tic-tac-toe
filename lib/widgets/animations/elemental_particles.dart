@@ -93,6 +93,9 @@ class ParticlePainter extends CustomPainter {
   final double progress;
   final Player player;
 
+  final Paint _paintSpark = Paint()..style = PaintingStyle.stroke..strokeCap = StrokeCap.round;
+  final Paint _paintRipple = Paint()..style = PaintingStyle.stroke..strokeWidth = 2.0;
+
   ParticlePainter({
     required this.particles,
     required this.progress,
@@ -104,17 +107,12 @@ class ParticlePainter extends CustomPainter {
     final center = Offset(size.width / 2, size.height / 2);
 
     if (player == Player.X) {
-      // Lightning Sparks for X
-      final paint = Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeCap = StrokeCap.round;
-
       for (var p in particles) {
         final double dist = progress * p.speed * 40.0;
         final double opacity = (1.0 - progress).clamp(0.0, 1.0);
         
-        paint.color = p.color.withValues(alpha: opacity);
-        paint.strokeWidth = p.size * (1.0 - progress);
+        _paintSpark.color = p.color.withValues(alpha: opacity);
+        _paintSpark.strokeWidth = p.size * (1.0 - progress);
 
         final start = Offset(
           center.dx + cos(p.angle) * dist * 0.5,
@@ -125,14 +123,9 @@ class ParticlePainter extends CustomPainter {
           center.dy + sin(p.angle) * dist,
         );
         
-        canvas.drawLine(start, end, paint);
+        canvas.drawLine(start, end, _paintSpark);
       }
     } else {
-      // Ripples for O
-      final paint = Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2.0;
-
       for (int i = 0; i < 3; i++) {
         final double rippleProgress = (progress - (i * 0.2)).clamp(0.0, 1.0);
         if (rippleProgress <= 0) continue;
@@ -140,8 +133,8 @@ class ParticlePainter extends CustomPainter {
         final double opacity = (1.0 - rippleProgress);
         final double radius = rippleProgress * 40.0;
         
-        paint.color = Colors.lightBlueAccent.withValues(alpha: opacity * 0.5);
-        canvas.drawCircle(center, radius, paint);
+        _paintRipple.color = Colors.lightBlueAccent.withValues(alpha: opacity * 0.5);
+        canvas.drawCircle(center, radius, _paintRipple);
       }
     }
   }

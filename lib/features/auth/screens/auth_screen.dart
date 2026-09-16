@@ -190,7 +190,7 @@ class _AuthScreenState extends State<AuthScreen> {
                       autofillHints: const [AutofillHints.email],
                       validator: (value) {
                         if (value == null || value.isEmpty) return 'Please enter your email';
-                        if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
+                        if (!RegExp(r'^[\w-.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
                           return 'Please enter a valid email';
                         }
                         return null;
@@ -284,12 +284,33 @@ class _AuthScreenState extends State<AuthScreen> {
 
                     // Google Sign In
                     OutlinedButton.icon(
-                      onPressed: () async {
-                        final user = await context.read<AuthService>().signInWithGoogle();
-                        if (user != null && settings.isFirstRun) {
-                          await settings.markFirstRunComplete();
-                        }
-                      },
+                      onPressed: _isLoading
+                          ? null
+                          : () async {
+                              setState(() => _isLoading = true);
+                              final messenger = ScaffoldMessenger.of(context);
+                              final errorColor = Theme.of(context).colorScheme.error;
+                              try {
+                                final user = await context
+                                    .read<AuthService>()
+                                    .signInWithGoogle();
+                                if (user != null && settings.isFirstRun) {
+                                  await settings.markFirstRunComplete();
+                                }
+                              } catch (e) {
+                                if (mounted) {
+                                  messenger.showSnackBar(
+                                    SnackBar(
+                                      content: Text('Google Sign-In failed: $e'),
+                                      behavior: SnackBarBehavior.floating,
+                                      backgroundColor: errorColor,
+                                    ),
+                                  );
+                                }
+                              } finally {
+                                if (mounted) setState(() => _isLoading = false);
+                              }
+                            },
                       icon: const Icon(Icons.login),
                       label: const Text('Sign in with Google'),
                       style: OutlinedButton.styleFrom(
@@ -297,7 +318,8 @@ class _AuthScreenState extends State<AuthScreen> {
                         side: const BorderSide(color: Colors.grey),
                         foregroundColor: Colors.black87,
                         backgroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8)),
                       ),
                     ),
                     
